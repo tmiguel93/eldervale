@@ -42,6 +42,7 @@ var _was_on_floor: bool = false
 
 
 func _ready() -> void:
+	add_to_group(&"player") # E2: inimigos localizam o alvo por este grupo
 	floor_max_angle = deg_to_rad(max_slope_deg + SLOPE_EPSILON_DEG)
 	floor_snap_length = floor_snap
 	floor_stop_on_slope = true

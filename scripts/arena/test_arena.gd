@@ -19,6 +19,24 @@ const CORRIDOR_WIDTH: float = 2.5
 const CORRIDOR_LENGTH: float = 14.0
 const WALL_HEIGHT: float = 4.0
 
+# --- E2: inimigos e loop de playtest (docs/E2_ENEMIES_LOOP.md) ---
+const GRUNT_SCENE_PATH: String = "res://scenes/enemy/melee_grunt.tscn"
+const CASTER_SCENE_PATH: String = "res://scenes/enemy/ranged_caster.tscn"
+## Pontos de spawn (longe do spawn do jogador em 0,0,0; todos a >= 18 m).
+const ENEMY_SPAWNS: Array = [
+	[GRUNT_SCENE_PATH, Vector3(-14.0, 0.05, -12.0)],
+	[GRUNT_SCENE_PATH, Vector3(14.0, 0.05, -12.0)],
+	[GRUNT_SCENE_PATH, Vector3(-20.0, 0.05, 16.0)],
+	[CASTER_SCENE_PATH, Vector3(20.0, 0.05, 20.0)],
+	[CASTER_SCENE_PATH, Vector3(0.0, 0.05, 24.0)],
+]
+const STARTING_ITEMS: Array[StringName] = [&"sword_basic", &"armor_leather"]
+
+## Respawn de inimigos desligado por padrao.
+var respawn_enabled: bool = false
+var respawn_delay: float = 8.0
+var hud: PlaytestHud
+
 var _preset: int = QualitySettings.Preset.HIGH
 var _environment: Environment
 var _light: DirectionalLight3D
@@ -32,6 +50,7 @@ func _ready() -> void:
 	_build_geometry()
 	_build_hud()
 	_spawn_player_and_camera()
+	_setup_playtest()
 	_apply_quality()
 
 
@@ -225,3 +244,38 @@ func _build_hud() -> void:
 	_hud_label.position = Vector2(12, 8)
 	layer.add_child(_hud_label)
 	add_child(layer)
+
+
+# --- E2: playtest (inimigos, HUD, reinicio) -----------------------------------
+
+func _setup_playtest() -> void:
+	if _player == null:
+		return
+	var loadout: PlayerLoadout = PlayerLoadout.find_for(_player)
+	if loadout != null:
+		for id: StringName in STARTING_ITEMS:
+			loadout.inventory.add(id, 1)
+	hud = PlaytestHud.new()
+	hud.name = "PlaytestHud"
+	add_child(hud)
+	hud.setup(_player as Player)
+	hud.restart_requested.connect(func() -> void: get_tree().reload_current_scene())
+	for entry: Array in ENEMY_SPAWNS:
+		_spawn_enemy(entry[0] as String, entry[1] as Vector3)
+
+
+func _spawn_enemy(scene_path: String, pos: Vector3) -> void:
+	var scene: PackedScene = _load_scene(scene_path)
+	if scene == null:
+		return
+	var enemy: Enemy = scene.instantiate() as Enemy
+	if enemy == null:
+		push_error("TestArena: raiz de %s nao e Enemy." % scene_path)
+		return
+	enemy.position = pos
+	enemy.target = _player
+	add_child(enemy)
+	if respawn_enabled:
+		enemy.defeated.connect(func(_e: Enemy, _xp: int, _d: Array[LootDrop]) -> void:
+			get_tree().create_timer(respawn_delay).timeout.connect(
+				func() -> void: _spawn_enemy(scene_path, pos)))

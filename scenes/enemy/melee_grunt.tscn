@@ -1,0 +1,7 @@
+[gd_scene load_steps=3 format=3]
+
+[ext_resource type="PackedScene" path="res://scenes/enemy/enemy.tscn" id="1_base"]
+[ext_resource type="Resource" path="res://data/enemies/melee_grunt.tres" id="2_data"]
+
+[node name="MeleeGrunt" instance=ExtResource("1_base")]
+data = ExtResource("2_data")

@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/player_visual.gd" id="2_visual"]
@@ -12,6 +12,9 @@
 [ext_resource type="Resource" path="res://data/skills/heavy_strike.tres" id="9_heavy"]
 [ext_resource type="Resource" path="res://data/skills/whirlwind.tres" id="10_whirl"]
 [ext_resource type="Resource" path="res://data/skills/dodge.tres" id="11_dodge"]
+[ext_resource type="Script" path="res://scripts/player/player_loadout.gd" id="12_loadout"]
+[ext_resource type="Script" path="res://scripts/ui/hit_flash.gd" id="13_flash"]
+[ext_resource type="Script" path="res://scripts/ui/damage_numbers.gd" id="14_numbers"]
 
 [sub_resource type="CapsuleShape3D" id="Capsule_hurt"]
 radius = 0.45
@@ -75,3 +78,18 @@ basic_attack = ExtResource("8_basic")
 skill_1 = ExtResource("9_heavy")
 skill_2 = ExtResource("10_whirl")
 dodge_skill = ExtResource("11_dodge")
+
+[node name="Loadout" type="Node" parent="."]
+script = ExtResource("12_loadout")
+combat_path = NodePath("../Combat")
+
+[node name="HitFlash" type="Node" parent="."]
+script = ExtResource("13_flash")
+health_path = NodePath("../Health")
+mesh_path = NodePath("../Visual/Body")
+flash_color = Color(1, 0.4, 0.4, 1)
+
+[node name="DamageNumbers" type="Node" parent="."]
+script = ExtResource("14_numbers")
+health_path = NodePath("../Health")
+color = Color(1, 0.35, 0.35, 1)
