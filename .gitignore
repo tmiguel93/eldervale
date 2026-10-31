@@ -1,0 +1,54 @@
+# Godot 4
+.godot/
+.mono/
+data_*/
+*.translation
+export_presets.cfg.bak
+# (arquivos *.import DEVEM ser versionados)
+
+# Builds / export
+build/
+builds/
+export/
+*.exe
+*.pck
+*.apk
+*.aab
+*.dmg
+*.zip
+
+# Segredos
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials*.json
+
+# Vercel / Node
+.vercel/
+node_modules/
+.next/
+dist/
+
+# Caches e logs
+*.log
+logs/
+.cache/
+__pycache__/
+*.pyc
+*.tmp
+
+# SO
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE / editores
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
