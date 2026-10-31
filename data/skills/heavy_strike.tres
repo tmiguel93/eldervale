@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"heavy_strike"
+display_name = "Golpe Pesado"
+kind = 0
+resource_cost = 15.0
+cooldown = 3.0
+damage_multiplier = 2.5
+windup = 0.35
+active = 0.12
+recover = 0.35
+hitbox_shape = 0
+hitbox_size = Vector3(2.0, 1.6, 2.2)
+hitbox_offset = 1.2
+i_frames = 0.0
+dodge_distance = 0.0

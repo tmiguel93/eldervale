@@ -1,0 +1,62 @@
+extends RefCounted
+## StatCalculator e CharacterProgress.
+
+
+func run(ctx: Object) -> void:
+	var reg: ContentRegistry = ContentRegistry.new()
+	reg.load_all()
+	var inv: Inventory = Inventory.new(reg, 10)
+	var eq: Equipment = Equipment.new(reg, inv)
+	var base: StatBlock = StatBlock.new()  # defaults do contrato
+	var base_copy: StatBlock = base.copy()
+	inv.add(&"sword_rare", 1)
+	inv.add(&"armor_heavy", 1)
+	inv.add(&"amulet_vigor", 1)
+	var s0: StatBlock = StatCalculator.compute(base, eq)
+	ctx.check(StatUtil.equals(s0, base), "sem equipamento: stats == base")
+	eq.equip(&"sword_rare")
+	var s1: StatBlock = StatCalculator.compute(base, eq)
+	ctx.check(is_equal_approx(s1.attack_power, base.attack_power + 12.0), "equipar espada rara: ataque +12 (%.1f)" % s1.attack_power)
+	eq.equip(&"armor_heavy")
+	eq.equip(&"amulet_vigor")
+	var s2: StatBlock = StatCalculator.compute(base, eq)
+	ctx.check(is_equal_approx(s2.max_health, base.max_health + 30.0 + 20.0), "armadura+amuleto: vida +50 (%.1f)" % s2.max_health)
+	ctx.check(is_equal_approx(s2.defense, base.defense + 8.0) and is_equal_approx(s2.resistance, 0.05), "defesa +8, resistencia 0.05")
+	ctx.check(is_equal_approx(s2.move_speed, base.move_speed + 0.3 - 0.5), "move_speed soma +0.3 e -0.5")
+	ctx.check(StatUtil.equals(base, base_copy), "StatBlock base nao foi mutado")
+	var sw: ItemData = reg.get_item(&"sword_rare")
+	ctx.check(is_equal_approx(sw.stat_modifiers.attack_power, 12.0), "modificador do item nao foi mutado")
+	eq.unequip(ItemData.Slot.WEAPON)
+	eq.unequip(ItemData.Slot.ARMOR)
+	eq.unequip(ItemData.Slot.TRINKET)
+	ctx.check(StatUtil.equals(StatCalculator.compute(base, eq), base), "desequipar tudo volta ao base")
+
+	# Progressao
+	var p: CharacterProgress = CharacterProgress.new()
+	ctx.check(p.level == 1 and p.total_xp == 0, "inicio: nivel 1, 0 xp")
+	ctx.check(CharacterProgress.xp_to_next(1) == 100, "curva: nivel 1 -> 100")
+	ctx.check(CharacterProgress.xp_to_next(2) == 283, "curva: nivel 2 -> 283")
+	ctx.check(CharacterProgress.xp_to_next(4) == 800, "curva: nivel 4 -> 800")
+	ctx.check(CharacterProgress.xp_to_next(CharacterProgress.MAX_LEVEL) == 0, "curva: nivel maximo -> 0")
+	var mono: bool = true
+	for l: int in range(1, CharacterProgress.MAX_LEVEL - 1):
+		mono = mono and CharacterProgress.xp_to_next(l + 1) > CharacterProgress.xp_to_next(l)
+	ctx.check(mono, "curva estritamente crescente")
+	ctx.check(CharacterProgress.total_xp_for_level(1) == 0 and CharacterProgress.total_xp_for_level(3) == 383, "xp acumulado: nivel 3 = 383")
+	var log: Array[Vector2i] = []
+	p.leveled_up.connect(func(lv: int, g: int) -> void: log.append(Vector2i(lv, g)))
+	ctx.check(p.add_xp(99) == 0 and p.level == 1 and log.is_empty(), "99 xp: sem level up")
+	ctx.check(p.add_xp(1) == 1 and p.level == 2 and p.xp_in_level() == 0, "100 xp: nivel 2, resto 0")
+	ctx.check(p.add_xp(283 + 520 + 50) == 2 and p.level == 4 and p.xp_in_level() == 50, "level up multiplo: 2 -> 4 com resto 50")
+	ctx.check(log == [Vector2i(2, 1), Vector2i(4, 2)], "leveled_up emitido 1x por add_xp com niveis ganhos")
+	var n: int = log.size()
+	ctx.check(p.add_xp(0) == 0 and p.add_xp(-500) == 0 and p.total_xp == 100 + 283 + 520 + 50 and log.size() == n, "xp 0/negativo ignorado")
+	var bonus: StatBlock = p.level_bonus()
+	ctx.check(is_equal_approx(bonus.max_health, 30.0) and is_equal_approx(bonus.attack_power, 3.0), "bonus nivel 4 = 3 x por-nivel")
+	var fin: StatBlock = StatCalculator.compute(base, null, p)
+	ctx.check(is_equal_approx(fin.max_health, base.max_health + 30.0), "StatCalculator inclui bonus de nivel")
+	var big: CharacterProgress = CharacterProgress.new()
+	big.add_xp(9223372036854775807)
+	big.add_xp(9223372036854775807)
+	ctx.check(big.level == CharacterProgress.MAX_LEVEL and big.total_xp == CharacterProgress.total_xp_for_level(CharacterProgress.MAX_LEVEL) and big.total_xp > 0, "overflow: satura no nivel maximo, sem negativo")
+	ctx.check(big.add_xp(1000) == 0, "nivel maximo nao sobe mais")

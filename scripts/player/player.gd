@@ -30,6 +30,12 @@ var use_external_input: bool = false
 var external_input: Vector2 = Vector2.ZERO
 var external_yaw: float = 0.0
 
+## Integracao com PlayerCombat (E2): bloqueia o movimento livre e/ou impoe velocidade horizontal
+## (deslocamento da esquiva). Sem PlayerCombat ficam nos valores padrao e nada muda.
+var movement_locked: bool = false
+var use_forced_velocity: bool = false
+var forced_velocity: Vector3 = Vector3.ZERO
+
 var facing_yaw_value: float = 0.0
 var _warned_no_camera: bool = false
 var _was_on_floor: bool = false
@@ -47,13 +53,18 @@ func _ready() -> void:
 
 
 func _physics_process(delta: float) -> void:
-	var direction: Vector3 = PlayerMotion.world_direction(_read_input(), _read_yaw())
-	velocity.x = direction.x * move_speed
-	velocity.z = direction.z * move_speed
+	var direction: Vector3 = get_move_direction()
+	if movement_locked:
+		direction = Vector3.ZERO
+	var horizontal: Vector3 = direction * move_speed
+	if use_forced_velocity:
+		horizontal = Vector3(forced_velocity.x, 0.0, forced_velocity.z)
+	velocity.x = horizontal.x
+	velocity.z = horizontal.z
 	if is_on_floor():
 		velocity.y = minf(velocity.y, 0.0)
-		if direction.length_squared() > 0.0001:
-			_try_step_up(direction * move_speed * delta)
+		if horizontal.length_squared() > 0.0001:
+			_try_step_up(horizontal * delta)
 	else:
 		velocity.y -= gravity * delta
 	move_and_slide()
@@ -65,6 +76,21 @@ func _physics_process(delta: float) -> void:
 
 	_update_facing(direction, delta)
 	moved.emit(Vector2(velocity.x, velocity.z).length())
+
+
+## Direcao de movimento desejada no mundo (plano XZ), pela entrada e pela camera.
+func get_move_direction() -> Vector3:
+	return PlayerMotion.world_direction(_read_input(), _read_yaw())
+
+
+## Direcao (unitaria, plano XZ) para onde o personagem olha.
+func get_facing_direction() -> Vector3:
+	return Vector3(-sin(facing_yaw_value), 0.0, -cos(facing_yaw_value))
+
+
+func set_facing_yaw(yaw: float) -> void:
+	facing_yaw_value = yaw
+	facing_changed.emit(yaw)
 
 
 ## Ponto de extensao: mira por mouse (fora do escopo de E1). Sobrescrever/alterar para

@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Resource" path="res://data/loot/loot_ranged_caster.tres" id="1_djwpq"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_tecek"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="3_ea567"]
+
+[sub_resource type="Resource" id="Resource_exc8v"]
+script = ExtResource("3_ea567")
+max_health = 40.0
+max_resource = 0.0
+resource_regen = 0.0
+move_speed = 3.0
+
+[resource]
+script = ExtResource("2_tecek")
+id = &"ranged_caster"
+display_name = "Conjurador [PLACEHOLDER]"
+stats = SubResource("Resource_exc8v")
+xp_reward = 60
+loot_table = ExtResource("1_djwpq")
+behavior = &"ranged"
+aggro_range = 14.0
+attack_range = 9.0
+attack_cooldown = 2.2
+attack_damage_multiplier = 1.2
+projectile_speed = 12.0
+placeholder = true

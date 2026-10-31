@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="LootTable" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/loot_entry.gd" id="1_pyja2"]
+[ext_resource type="Script" path="res://scripts/data/loot_table.gd" id="2_aerx0"]
+
+[sub_resource type="Resource" id="Resource_1gg2h"]
+script = ExtResource("1_pyja2")
+item_id = &"scrap_material"
+weight = 40.0
+max_qty = 3
+
+[sub_resource type="Resource" id="Resource_yj8nv"]
+script = ExtResource("1_pyja2")
+item_id = &"potion_minor"
+weight = 20.0
+
+[sub_resource type="Resource" id="Resource_u165m"]
+script = ExtResource("1_pyja2")
+item_id = &"sword_basic"
+weight = 5.0
+
+[sub_resource type="Resource" id="Resource_bk076"]
+script = ExtResource("1_pyja2")
+item_id = &"armor_leather"
+weight = 5.0
+
+[resource]
+script = ExtResource("2_aerx0")
+id = &"loot_melee_grunt"
+entries = Array[ExtResource("1_pyja2")]([SubResource("Resource_1gg2h"), SubResource("Resource_yj8nv"), SubResource("Resource_u165m"), SubResource("Resource_bk076")])
+nothing_weight = 40.0
+placeholder = true

@@ -1,7 +1,21 @@
-[gd_scene load_steps=7 format=3]
+[gd_scene load_steps=15 format=3]
 
 [ext_resource type="Script" path="res://scripts/player/player.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/player_visual.gd" id="2_visual"]
+
+[ext_resource type="Script" path="res://scripts/player/player_combat.gd" id="3_combat"]
+[ext_resource type="Script" path="res://scripts/combat/health_component.gd" id="4_health"]
+[ext_resource type="Script" path="res://scripts/combat/hurtbox.gd" id="5_hurtbox"]
+[ext_resource type="Script" path="res://scripts/combat/hitbox.gd" id="6_hitbox"]
+[ext_resource type="Resource" path="res://data/player_base_stats.tres" id="7_stats"]
+[ext_resource type="Resource" path="res://data/skills/basic_attack.tres" id="8_basic"]
+[ext_resource type="Resource" path="res://data/skills/heavy_strike.tres" id="9_heavy"]
+[ext_resource type="Resource" path="res://data/skills/whirlwind.tres" id="10_whirl"]
+[ext_resource type="Resource" path="res://data/skills/dodge.tres" id="11_dodge"]
+
+[sub_resource type="CapsuleShape3D" id="Capsule_hurt"]
+radius = 0.45
+height = 1.9
 
 [sub_resource type="CapsuleShape3D" id="Capsule_col"]
 radius = 0.4
@@ -35,3 +49,29 @@ mesh = SubResource("Capsule_mesh")
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.3, -0.45)
 mesh = SubResource("Box_marker")
 surface_material_override/0 = SubResource("Mat_marker")
+
+[node name="Health" type="Node" parent="."]
+script = ExtResource("4_health")
+stats = ExtResource("7_stats")
+
+[node name="Hurtbox" type="Area3D" parent="."]
+script = ExtResource("5_hurtbox")
+health_path = NodePath("../Health")
+team = 0
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Hurtbox"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.95, 0)
+shape = SubResource("Capsule_hurt")
+
+[node name="Hitbox" type="Area3D" parent="."]
+script = ExtResource("6_hitbox")
+
+[node name="Combat" type="Node" parent="."]
+script = ExtResource("3_combat")
+base_stats = ExtResource("7_stats")
+health_path = NodePath("../Health")
+hitbox_path = NodePath("../Hitbox")
+basic_attack = ExtResource("8_basic")
+skill_1 = ExtResource("9_heavy")
+skill_2 = ExtResource("10_whirl")
+dodge_skill = ExtResource("11_dodge")

@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_3mjiy"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="2_apseg"]
+
+[sub_resource type="Resource" id="Resource_wum4v"]
+script = ExtResource("2_apseg")
+max_health = 20.0
+max_resource = 0.0
+resource_regen = 1.0
+attack_power = 0.0
+resistance = 0.05
+move_speed = 0.0
+
+[resource]
+script = ExtResource("1_3mjiy")
+id = &"amulet_vigor"
+display_name = "Amuleto do Vigor [PLACEHOLDER]"
+slot = 3
+rarity = 1
+stat_modifiers = SubResource("Resource_wum4v")
+placeholder = true

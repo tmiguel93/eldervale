@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="ItemData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/item_data.gd" id="1_p7juj"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="2_weor3"]
+
+[sub_resource type="Resource" id="Resource_pisea"]
+script = ExtResource("2_weor3")
+max_health = 0.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 12.0
+move_speed = 0.3
+
+[resource]
+script = ExtResource("1_p7juj")
+id = &"sword_rare"
+display_name = "Espada Rara [PLACEHOLDER]"
+slot = 1
+rarity = 2
+stat_modifiers = SubResource("Resource_pisea")
+placeholder = true

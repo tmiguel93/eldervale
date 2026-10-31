@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"dodge"
+display_name = "Esquiva"
+kind = 1
+resource_cost = 10.0
+cooldown = 0.8
+damage_multiplier = 0.0
+windup = 0.0
+active = 0.2
+recover = 0.15
+hitbox_shape = 0
+hitbox_size = Vector3(1.0, 1.0, 1.0)
+hitbox_offset = 0.0
+i_frames = 0.25
+dodge_distance = 4.0

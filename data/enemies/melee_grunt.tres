@@ -1,0 +1,24 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Resource" path="res://data/loot/loot_melee_grunt.tres" id="1_3o2vn"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="2_pujrh"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="3_h0yq4"]
+
+[sub_resource type="Resource" id="Resource_6wjdn"]
+script = ExtResource("3_h0yq4")
+max_health = 60.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 8.0
+defense = 1.0
+move_speed = 3.5
+
+[resource]
+script = ExtResource("2_pujrh")
+id = &"melee_grunt"
+display_name = "Bruto [PLACEHOLDER]"
+stats = SubResource("Resource_6wjdn")
+xp_reward = 40
+loot_table = ExtResource("1_3o2vn")
+attack_cooldown = 1.4
+placeholder = true

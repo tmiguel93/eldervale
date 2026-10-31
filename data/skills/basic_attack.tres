@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"basic_attack"
+display_name = "Golpe Basico"
+kind = 0
+resource_cost = 0.0
+cooldown = 0.35
+damage_multiplier = 1.0
+windup = 0.1
+active = 0.1
+recover = 0.15
+hitbox_shape = 0
+hitbox_size = Vector3(1.6, 1.4, 1.6)
+hitbox_offset = 1.0
+i_frames = 0.0
+dodge_distance = 0.0

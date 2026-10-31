@@ -3,11 +3,7 @@ extends SceneTree
 ## Sai com codigo 1 se algum check falhar. Cada teste e um RefCounted com run(ctx),
 ## podendo ser corrotina (o runner aguarda; so ha await de sinais do proprio SceneTree).
 
-const TESTS: Array[String] = [
-	"res://tests/e1/test_player_motion.gd",
-	"res://tests/e1/test_collision.gd",
-	"res://tests/e1/test_occlusion.gd",
-]
+const TESTS_ROOT: String = "res://tests"
 
 var passed: int = 0
 var failed: int = 0
@@ -18,7 +14,7 @@ func _initialize() -> void:
 
 
 func _run_all() -> void:
-	for path: String in TESTS:
+	for path: String in _discover(TESTS_ROOT):
 		print("== ", path)
 		var script: GDScript = load(path) as GDScript
 		if script == null:
@@ -28,6 +24,22 @@ func _run_all() -> void:
 		await test.run(self)
 	print("RESULTADO: %d passaram, %d falharam" % [passed, failed])
 	quit(1 if failed > 0 else 0)
+
+
+## Descobre recursivamente tests/**/test_*.gd, em ordem alfabetica (estavel).
+func _discover(dir_path: String) -> Array[String]:
+	var found: Array[String] = []
+	var dir: DirAccess = DirAccess.open(dir_path)
+	if dir == null:
+		return found
+	var names: PackedStringArray = dir.get_directories()
+	for n: String in names:
+		found.append_array(_discover(dir_path + "/" + n))
+	for f: String in dir.get_files():
+		if f.begins_with("test_") and f.ends_with(".gd"):
+			found.append(dir_path + "/" + f)
+	found.sort()
+	return found
 
 
 func check(condition: bool, message: String) -> void:
