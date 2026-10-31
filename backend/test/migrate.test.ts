@@ -20,12 +20,12 @@ describe("migracoes", () => {
   it("aplica do zero e cria todas as tabelas", async () => {
     const db = await createPgliteDb();
     const r = await migrate(db);
-    expect(r.applied).toEqual([1, 2]);
+    expect(r.applied).toEqual([1, 2, 3]);
     const { rows } = await db.query<{ table_name: string }>("SELECT table_name FROM information_schema.tables WHERE table_schema='public'");
     const names = rows.map((x) => x.table_name);
     for (const t of EXPECTED_TABLES) expect(names).toContain(t);
     const sm = await db.query<{ version: number; name: string; checksum: string }>("SELECT version, name, checksum FROM schema_migrations");
-    expect(sm.rows).toHaveLength(2);
+    expect(sm.rows).toHaveLength(3);
     expect(sm.rows[0]!.checksum).toMatch(/^[0-9a-f]{64}$/);
     await db.close();
   });
@@ -35,9 +35,9 @@ describe("migracoes", () => {
     await migrate(db);
     const again = await migrate(db);
     expect(again.applied).toEqual([]);
-    expect(again.alreadyApplied).toEqual([1, 2]);
+    expect(again.alreadyApplied).toEqual([1, 2, 3]);
     const c = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM schema_migrations");
-    expect(c.rows[0]!.n).toBe(2);
+    expect(c.rows[0]!.n).toBe(3);
     await db.close();
   });
 
@@ -62,7 +62,7 @@ describe("migracoes", () => {
     const t = await db.query("SELECT to_regclass('t_ok') AS r");
     expect((t.rows[0] as { r: unknown }).r).toBeNull();
     const n = await db.query<{ n: number }>("SELECT count(*)::int AS n FROM schema_migrations");
-    expect(n.rows[0]!.n).toBe(2);
+    expect(n.rows[0]!.n).toBe(3);
     await db.close();
   });
 

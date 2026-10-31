@@ -1,0 +1,18 @@
+{
+	"schema_version": 1,
+	"id": "gw_clear_clearing",
+	"type": "hunt",
+	"region": "greenwood",
+	"title": "Clareira Infestada",
+	"title_key": "quest.gw_clear_clearing.title",
+	"description": "Criaturas corrompidas tomaram a clareira ao norte da vila. Brannoch quer cinco delas abatidas.",
+	"description_key": "quest.gw_clear_clearing.description",
+	"giver_npc": "npc_hunter_brannoch",
+	"turn_in_npc": "npc_hunter_brannoch",
+	"prerequisites": {"quests": ["gw_welcome"], "min_level": 1},
+	"objectives": [
+		{"id": "kill_grunts", "type": "kill", "target": "melee_grunt", "required": 5, "text": "Derrote brutos corrompidos", "text_key": "quest.gw_clear_clearing.obj.kill_grunts"}
+	],
+	"rewards": {"xp": 150, "items": [{"item_id": "scrap_material", "qty": 3}]},
+	"abandonable": true
+}

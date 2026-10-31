@@ -12,6 +12,8 @@ export interface CharacterLimits {
   rewardMaxItems: number;
   /** Maximo de qty por linha de item. */
   rewardMaxQty: number;
+  /** Maximo de quests ativas por personagem (E5.1). */
+  maxActiveQuests: number;
 }
 
 export const DEFAULT_LIMITS: CharacterLimits = {
@@ -22,6 +24,7 @@ export const DEFAULT_LIMITS: CharacterLimits = {
   rewardMaxXp: 1_000_000,
   rewardMaxItems: 20,
   rewardMaxQty: 999,
+  maxActiveQuests: 10,
 };
 
 const ENV_MAP: Record<string, [keyof CharacterLimits, number, number]> = {
@@ -29,6 +32,7 @@ const ENV_MAP: Record<string, [keyof CharacterLimits, number, number]> = {
   CHARACTER_INVENTORY_CAPACITY: ["inventoryCapacity", 1, 200],
   CHARACTER_CHECKPOINT_MAX_XP_GAIN: ["checkpointMaxXpGain", 0, 1_000_000_000],
   CHARACTER_CHECKPOINT_MAX_ITEM_GAIN: ["checkpointMaxItemGain", 0, 100_000],
+  CHARACTER_MAX_ACTIVE_QUESTS: ["maxActiveQuests", 1, 50],
 };
 
 export function loadCharacterLimits(env: Record<string, string | undefined> = process.env, over: Partial<CharacterLimits> = {}): CharacterLimits {

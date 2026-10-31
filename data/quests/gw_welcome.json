@@ -1,0 +1,18 @@
+{
+	"schema_version": 1,
+	"id": "gw_welcome",
+	"type": "story",
+	"region": "greenwood",
+	"title": "Palavras da Ancia",
+	"title_key": "quest.gw_welcome.title",
+	"description": "A Ancia Orla pede que voce converse com o cacador Brannoch, que conhece os perigos da floresta.",
+	"description_key": "quest.gw_welcome.description",
+	"giver_npc": "npc_elder_orla",
+	"turn_in_npc": "npc_elder_orla",
+	"prerequisites": {"quests": [], "min_level": 1},
+	"objectives": [
+		{"id": "talk_brannoch", "type": "talk", "target": "npc_hunter_brannoch", "required": 1, "text": "Fale com o cacador Brannoch", "text_key": "quest.gw_welcome.obj.talk_brannoch"}
+	],
+	"rewards": {"xp": 60, "items": [{"item_id": "potion_minor", "qty": 2}]},
+	"abandonable": true
+}

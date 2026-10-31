@@ -1,0 +1,56 @@
+{
+	"schema_version": 1,
+	"id": "dlg_hunter_brannoch",
+	"npc_id": "npc_hunter_brannoch",
+	"entries": [
+		{"if": {"quest": "gw_clear_clearing", "state": "ready"}, "node": "clear_done"},
+		{"if": {"quest": "gw_clear_clearing", "state": "available"}, "node": "clear_offer"},
+		{"if": {"quest": "gw_clear_clearing", "state": "active"}, "node": "clear_waiting"},
+		{"if": {"quest": "gw_welcome", "state": "active"}, "node": "greet_new"},
+		{"node": "idle"}
+	],
+	"nodes": {
+		"greet_new": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Orla mandou voce? Bom. A floresta nao e mais a mesma. Fale com ela de novo; ha trabalho a fazer.",
+			"text_key": "dlg.dlg_hunter_brannoch.greet_new"
+		},
+		"clear_offer": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Criaturas corrompidas tomaram a clareira. Derrube cinco delas e a trilha ficara segura.",
+			"text_key": "dlg.dlg_hunter_brannoch.clear_offer",
+			"choices": [
+				{"text": "Eu cuido disso.", "text_key": "dlg.dlg_hunter_brannoch.clear_offer.c1", "effects": [{"type": "accept_quest", "quest_id": "gw_clear_clearing"}], "next": "clear_accepted"},
+				{"text": "Ainda nao estou pronto.", "text_key": "dlg.dlg_hunter_brannoch.clear_offer.c2", "next": null}
+			]
+		},
+		"clear_accepted": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Mantenha a guarda alta. Elas atacam em bando.",
+			"text_key": "dlg.dlg_hunter_brannoch.clear_accepted"
+		},
+		"clear_waiting": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "A clareira ainda nao esta limpa.",
+			"text_key": "dlg.dlg_hunter_brannoch.clear_waiting"
+		},
+		"clear_done": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Bom trabalho. A trilha esta livre.",
+			"text_key": "dlg.dlg_hunter_brannoch.clear_done",
+			"choices": [
+				{"text": "Receber a recompensa.", "text_key": "dlg.dlg_hunter_brannoch.clear_done.c1", "effects": [{"type": "turn_in_quest", "quest_id": "gw_clear_clearing"}], "next": "clear_thanks"}
+			]
+		},
+		"clear_thanks": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "O estudioso Ilmar procura alguem para explorar as ruinas. Fale com ele.",
+			"text_key": "dlg.dlg_hunter_brannoch.clear_thanks"
+		},
+		"idle": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Ande com cuidado pela floresta.",
+			"text_key": "dlg.dlg_hunter_brannoch.idle"
+		}
+	}
+}

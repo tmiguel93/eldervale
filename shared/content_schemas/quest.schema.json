@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eldervale/quest.schema.json",
+  "title": "Quest (data/quests/<id>.json)",
+  "description": "Definicao estatica de quest. Validada em runtime por scripts/quests/quest_def.gd e tools/gen_quests_catalog.mjs (referencias cruzadas: itens, inimigos, NPCs, areas, prerequisitos). O nome do arquivo e o id.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "type", "region", "title", "title_key", "description", "description_key", "giver_npc", "turn_in_npc", "objectives", "rewards"],
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" }
+  },
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "$ref": "#/$defs/id" },
+    "type": { "enum": ["main", "side", "exploration", "hunt", "gather", "dungeon", "story", "coop", "hidden"] },
+    "region": { "$ref": "#/$defs/id" },
+    "title": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "title_key": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "description": { "type": "string", "minLength": 1, "maxLength": 400 },
+    "description_key": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "giver_npc": { "$ref": "#/$defs/id" },
+    "turn_in_npc": { "$ref": "#/$defs/id" },
+    "abandonable": { "type": "boolean", "default": true },
+    "prerequisites": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "quests": { "type": "array", "uniqueItems": true, "items": { "$ref": "#/$defs/id" } },
+        "min_level": { "type": "integer", "minimum": 1, "maximum": 50, "default": 1 }
+      }
+    },
+    "objectives": {
+      "type": "array", "minItems": 1, "maxItems": 6,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "type", "target", "required", "text", "text_key"],
+        "properties": {
+          "id": { "$ref": "#/$defs/id" },
+          "type": { "enum": ["kill", "collect", "reach_area", "talk"], "description": "kill: id de inimigo; collect: id de item; reach_area: id de area; talk: id de NPC" },
+          "target": { "$ref": "#/$defs/id" },
+          "required": { "type": "integer", "minimum": 1, "maximum": 999, "description": "reach_area e talk exigem 1" },
+          "text": { "type": "string", "minLength": 1, "maxLength": 120 },
+          "text_key": { "type": "string", "minLength": 1, "maxLength": 96 }
+        }
+      }
+    },
+    "rewards": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "xp": { "type": "integer", "minimum": 0, "maximum": 100000 },
+        "items": {
+          "type": "array", "maxItems": 8,
+          "items": {
+            "type": "object", "additionalProperties": false, "required": ["item_id", "qty"],
+            "properties": { "item_id": { "$ref": "#/$defs/id" }, "qty": { "type": "integer", "minimum": 1, "maximum": 99 } }
+          }
+        }
+      },
+      "description": "Recompensa vazia (xp 0 e sem itens) e invalida."
+    }
+  }
+}

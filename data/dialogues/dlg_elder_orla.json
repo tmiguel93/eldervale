@@ -1,0 +1,85 @@
+{
+	"schema_version": 1,
+	"id": "dlg_elder_orla",
+	"npc_id": "npc_elder_orla",
+	"entries": [
+		{"if": {"quest": "gw_welcome", "state": "ready"}, "node": "welcome_done"},
+		{"if": {"quest": "gw_scrap_for_orla", "state": "ready"}, "node": "scrap_done"},
+		{"if": {"quest": "gw_welcome", "state": "available"}, "node": "welcome_offer"},
+		{"if": {"quest": "gw_welcome", "state": "active"}, "node": "welcome_waiting"},
+		{"if": {"quest": "gw_scrap_for_orla", "state": "available"}, "node": "scrap_offer"},
+		{"if": {"quest": "gw_scrap_for_orla", "state": "active"}, "node": "scrap_waiting"},
+		{"node": "idle"}
+	],
+	"nodes": {
+		"welcome_offer": {
+			"speaker": "npc_elder_orla",
+			"text": "Forasteiro, a floresta de Greenwood adoece. Antes de qualquer coisa, converse com Brannoch, o cacador. Ele conhece os caminhos.",
+			"text_key": "dlg.dlg_elder_orla.welcome_offer",
+			"choices": [
+				{"text": "Eu falarei com ele.", "text_key": "dlg.dlg_elder_orla.welcome_offer.c1", "effects": [{"type": "accept_quest", "quest_id": "gw_welcome"}], "next": "welcome_accepted"},
+				{"text": "Talvez depois.", "text_key": "dlg.dlg_elder_orla.welcome_offer.c2", "next": null}
+			]
+		},
+		"welcome_accepted": {
+			"speaker": "npc_elder_orla",
+			"text": "Que as raizes antigas guiem seus passos.",
+			"text_key": "dlg.dlg_elder_orla.welcome_accepted"
+		},
+		"welcome_waiting": {
+			"speaker": "npc_elder_orla",
+			"text": "Brannoch costuma ficar a oeste da vila. Va ate ele.",
+			"text_key": "dlg.dlg_elder_orla.welcome_waiting"
+		},
+		"welcome_done": {
+			"speaker": "npc_elder_orla",
+			"text": "Entao ele ja o conhece. Aceite esta pequena ajuda pelo seu tempo.",
+			"text_key": "dlg.dlg_elder_orla.welcome_done",
+			"choices": [
+				{"text": "Obrigado.", "text_key": "dlg.dlg_elder_orla.welcome_done.c1", "effects": [{"type": "turn_in_quest", "quest_id": "gw_welcome"}], "next": "welcome_thanks"}
+			]
+		},
+		"welcome_thanks": {
+			"speaker": "npc_elder_orla",
+			"text": "Brannoch tem trabalho para voce. Volte quando tiver novidades.",
+			"text_key": "dlg.dlg_elder_orla.welcome_thanks"
+		},
+		"scrap_offer": {
+			"speaker": "npc_elder_orla",
+			"text": "A palicada precisa de reparos. Se trouxer seis pecas de sucata dos saqueadores, eu o recompensarei.",
+			"text_key": "dlg.dlg_elder_orla.scrap_offer",
+			"choices": [
+				{"text": "Conte comigo.", "text_key": "dlg.dlg_elder_orla.scrap_offer.c1", "effects": [{"type": "accept_quest", "quest_id": "gw_scrap_for_orla"}], "next": "scrap_accepted"},
+				{"text": "Nao agora.", "text_key": "dlg.dlg_elder_orla.scrap_offer.c2", "next": null}
+			]
+		},
+		"scrap_accepted": {
+			"speaker": "npc_elder_orla",
+			"text": "Os brutos da clareira costumam carregar sucata.",
+			"text_key": "dlg.dlg_elder_orla.scrap_accepted"
+		},
+		"scrap_waiting": {
+			"speaker": "npc_elder_orla",
+			"text": "Ainda faltam pecas de sucata para a palicada.",
+			"text_key": "dlg.dlg_elder_orla.scrap_waiting"
+		},
+		"scrap_done": {
+			"speaker": "npc_elder_orla",
+			"text": "Isso servira. A vila agradece.",
+			"text_key": "dlg.dlg_elder_orla.scrap_done",
+			"choices": [
+				{"text": "Entregar a sucata.", "text_key": "dlg.dlg_elder_orla.scrap_done.c1", "effects": [{"type": "turn_in_quest", "quest_id": "gw_scrap_for_orla"}], "next": "scrap_thanks"}
+			]
+		},
+		"scrap_thanks": {
+			"speaker": "npc_elder_orla",
+			"text": "Que Greenwood se lembre do seu nome.",
+			"text_key": "dlg.dlg_elder_orla.scrap_thanks"
+		},
+		"idle": {
+			"speaker": "npc_elder_orla",
+			"text": "As arvores sussurram, mas por ora a vila esta em paz.",
+			"text_key": "dlg.dlg_elder_orla.idle"
+		}
+	}
+}

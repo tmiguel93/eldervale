@@ -38,6 +38,18 @@ COMMIT;
 ```
 Impacto: o codigo M4 de sessoes passa a exigir a coluna; reverter a migracao exige reverter o codigo antes.
 
+### 0003_character_quests
+Aditiva (coluna jsonb NOT NULL com default `{}`). Desfazer (apos backup; PERDE o progresso/conclusao de quests):
+```sql
+BEGIN;
+ALTER TABLE characters DROP COLUMN quests;
+DELETE FROM schema_migrations WHERE version = 3;
+COMMIT;
+```
+Impacto: o codigo E5.1 (src/quests, characters/service.ts) le/grava a coluna; reverter a migracao exige reverter o codigo antes.
+Recompensas ja pagas (`reward_claims` com chave `quest:...`) permanecem; sem a coluna uma quest concluida poderia ser aceita de novo
+e a recompensa NAO duplicaria (a chave idempotente e a mesma), mas o jogador nao a receberia outra vez.
+
 ### Modelo para novas migracoes
 Toda migracao nova deve acrescentar aqui sua secao: SQL de desfazer (preferir mudancas
 aditivas/expand-contract: adicionar coluna nullable -> backfill -> restringir), impacto em dados,

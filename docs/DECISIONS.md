@@ -65,3 +65,14 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Banco:** PostgreSQL. Em dev/teste: PGlite (Postgres em WASM, dentro da pasta do projeto, sem instalar nada no sistema). Produção/staging: Postgres gerenciado (ex.: Neon via Marketplace da Vercel) conectado manualmente pelo proprietário via `DATABASE_URL` (segredo, fora do repositório).
 - **Consequências:** mesmas migrações SQL numeradas em todos os ambientes; `node_modules` nativo é por plataforma (rodar `npm ci` no Windows). Nenhum deploy, conta ou segredo é criado por agentes.
 - **Responsável/aprovação:** Proprietário do projeto.
+
+---
+
+## DEC-0006 — Quests e diálogo: dados em JSON, estado em coluna jsonb, conclusão atômica com a recompensa (E5.1)
+- **Data:** 2026-10-31
+- **Status:** PROPOSTA — aguarda revisão humana (contrato de rede e esquema do banco)
+- **Contexto:** E5.1 precisa de quests/diálogo data-driven, progresso só por eventos do servidor, recompensa idempotente e persistência por personagem.
+- **Opções consideradas:** (a) quests/diálogo como `.tres` vs JSON; (b) estado em tabelas novas vs coluna jsonb em `characters`; (c) conclusão pelo checkpoint vs pela recompensa; (d) subir `Protocol.VERSION` vs extensão aditiva.
+- **Escolha provisória:** (a) JSON em `data/quests|dialogues|npcs|areas` (o backend e as ferramentas leem os mesmos arquivos; catálogo derivado em `shared/content_schemas/quests.json`); (b) coluna `characters.quests jsonb` (migração 0003, aditiva): estado pequeno, sempre lido com o personagem, mesma `revision`/lock; (c) `completed` é somente-servidor: só `POST …/rewards` com `quest_id` o altera, na MESMA transação que paga xp/itens (reenvio com a mesma chave devolve o original; chave nova para quest concluída => 409 `quest_already_completed`), e o checkpoint ignora tentativas de concluir/desfazer; (d) 4 RPCs novos sem mudar a versão do protocolo.
+- **Consequências:** impossível pagar duas vezes ou concluir sem pagar; o backend valida a recompensa contra o catálogo (`quest_reward_mismatch`). Pré-requisitos não são revalidados no backend (o servidor de sessão é confiável). Remover uma quest do conteúdo faz o jogo descartá-la ao carregar (a conclusão no banco é preservada). Se o inventário estiver cheio na entrega, a quest fica "pronta" no banco e o jogador repete a entrega.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.

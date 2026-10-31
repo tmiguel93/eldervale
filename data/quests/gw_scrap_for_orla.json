@@ -1,0 +1,18 @@
+{
+	"schema_version": 1,
+	"id": "gw_scrap_for_orla",
+	"type": "gather",
+	"region": "greenwood",
+	"title": "Sucata para a Palicada",
+	"title_key": "quest.gw_scrap_for_orla.title",
+	"description": "A Ancia Orla precisa de sucata para reforcar a palicada da vila. Colete seis pecas dos saqueadores corrompidos.",
+	"description_key": "quest.gw_scrap_for_orla.description",
+	"giver_npc": "npc_elder_orla",
+	"turn_in_npc": "npc_elder_orla",
+	"prerequisites": {"quests": ["gw_welcome"], "min_level": 1},
+	"objectives": [
+		{"id": "collect_scrap", "type": "collect", "target": "scrap_material", "required": 6, "text": "Colete sucata", "text_key": "quest.gw_scrap_for_orla.obj.collect_scrap"}
+	],
+	"rewards": {"xp": 120, "items": [{"item_id": "potion_minor", "qty": 3}]},
+	"abandonable": true
+}

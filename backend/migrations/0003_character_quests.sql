@@ -1,0 +1,12 @@
+-- 0003_character_quests
+-- E5.1: estado de quests por personagem. Formato (validado em src/quests/state.ts):
+--   {"active": {"<quest_id>": {"objectives": {"<objective_id>": <int>}}}, "completed": ["<quest_id>", ...]}
+-- "ready" (pronta para entregar) nao e persistido: e derivado dos objetivos.
+--
+-- Decisoes:
+--  * Coluna jsonb unica em `characters` (e nao tabelas novas): o estado e pequeno (<= ~10 ativas),
+--    sempre lido/gravado junto do personagem, sob o mesmo SELECT ... FOR UPDATE e a mesma `revision`.
+--  * NOT NULL DEFAULT '{}': personagens existentes ficam sem quests; o codigo normaliza '{}' para
+--    {"active":{},"completed":[]}. Migracao aditiva e sem backfill.
+--  * CHECK de tipo objeto: o conteudo detalhado e validado na aplicacao (depende do catalogo de conteudo).
+ALTER TABLE characters ADD COLUMN quests jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(quests) = 'object');

@@ -8,12 +8,16 @@ import {
   type CharacterState, type Equipment, type EquipSlot, type InventoryEntry, type RewardRequest, type Stats,
 } from "./model.ts";
 import { applyXp, xpToNext } from "./progression.ts";
+import { EMPTY_QUESTS, type QuestCatalog } from "../quests/catalog.ts";
+import { completeQuest, emptyQuests, mergeCheckpointQuests, normalizeStoredQuests } from "../quests/state.ts";
 
 export interface ServiceCtx {
   catalog: Catalog;
   limits: CharacterLimits;
   now: () => number;
   log: Logger;
+  /** Catalogo de quests (E5.1). Ausente = vazio (nenhuma quest conhecida). */
+  quests?: QuestCatalog;
 }
 
 export interface CharacterRecord {
@@ -28,10 +32,10 @@ export interface CharacterRecord {
 
 interface CharRow {
   id: string; account_id: string; name: string; class_id: string; level: number; xp: string | number;
-  stats: Record<string, unknown>; schema_version: number; revision: string | number; created_at: Date | string;
+  stats: Record<string, unknown>; quests?: unknown; schema_version: number; revision: string | number; created_at: Date | string;
 }
 
-const COLS = "id, account_id, name, class_id, level, xp, stats, schema_version, revision, created_at";
+const COLS = "id, account_id, name, class_id, level, xp, stats, quests, schema_version, revision, created_at";
 
 /** Carrega personagem ativo (nao apagado) com inventario/equipamento. `forUpdate` trava a linha ate o fim da transacao. */
 export async function loadRecord(db: Db, id: string, opts: { accountId?: string; forUpdate?: boolean } = {}): Promise<CharacterRecord | null> {
@@ -66,6 +70,7 @@ export async function loadRecord(db: Db, id: string, opts: { accountId?: string;
       stats,
       inventory: inv.rows.map((e) => ({ slot: e.slot, item_id: e.item_id, qty: e.qty })),
       equipment,
+      quests: normalizeStoredQuests(row.quests),
     },
   };
 }
@@ -96,9 +101,9 @@ async function replaceEquipment(db: Db, id: string, eq: Equipment): Promise<void
 /** Persiste o estado e incrementa a revision (a linha deve estar travada/validada pelo chamador). */
 async function writeState(db: Db, ctx: ServiceCtx, id: string, expectedRevision: number, s: CharacterState): Promise<number> {
   const r = await db.query<{ revision: string | number }>(
-    `UPDATE characters SET level = $3, xp = $4, stats = $5::jsonb, schema_version = $6, revision = revision + 1, updated_at = $7
+    `UPDATE characters SET level = $3, xp = $4, stats = $5::jsonb, schema_version = $6, revision = revision + 1, updated_at = $7, quests = $8::jsonb
      WHERE id = $1 AND revision = $2 AND deleted_at IS NULL RETURNING revision`,
-    [id, expectedRevision, s.level, s.xp, JSON.stringify(s.stats), SCHEMA_VERSION, new Date(ctx.now())]);
+    [id, expectedRevision, s.level, s.xp, JSON.stringify(s.stats), SCHEMA_VERSION, new Date(ctx.now()), JSON.stringify(s.quests ?? emptyQuests())]);
   if (r.rows.length !== 1) throw Errors.conflict("revision divergente", "revision_conflict");
   await replaceInventory(db, id, s.inventory);
   await replaceEquipment(db, id, s.equipment);
@@ -180,8 +185,11 @@ export async function checkpoint(db: Db, ctx: ServiceCtx, id: string, expectedRe
         reject("item_gain_limit", `ganho de ${item} acima do limite por checkpoint (${ctx.limits.checkpointMaxItemGain})`);
       }
     }
-    const revision = await writeState(tx, ctx, id, expectedRevision, next);
-    return { ...cur, revision, state: next };
+    // E5.1: `completed` e somente-servidor; ausente no checkpoint = manter o do banco.
+    const quests = mergeCheckpointQuests(cur.state.quests ?? emptyQuests(), next.quests ?? cur.state.quests ?? emptyQuests());
+    const toWrite: CharacterState = { ...next, quests };
+    const revision = await writeState(tx, ctx, id, expectedRevision, toWrite);
+    return { ...cur, revision, state: toWrite };
   });
 }
 
@@ -196,7 +204,7 @@ export interface RewardResult {
 }
 
 export async function grantReward(db: Db, ctx: ServiceCtx, id: string, req: RewardRequest): Promise<{ replayed: boolean; result: RewardResult; character: CharacterRecord }> {
-  const canonical = JSON.stringify({ xp: req.xp, items: req.items });
+  const canonical = JSON.stringify(req.quest_id ? { xp: req.xp, items: req.items, quest_id: req.quest_id } : { xp: req.xp, items: req.items });
   return db.tx(async (tx) => {
     // Trava a linha: requests concorrentes do mesmo personagem (e da mesma chave) serializam aqui.
     const cur = await loadRecord(tx, id, { forUpdate: true });
@@ -212,6 +220,10 @@ export async function grantReward(db: Db, ctx: ServiceCtx, id: string, req: Rewa
       return { replayed: true, result: claim.payload.result, character: cur };
     }
 
+    const curQuests = cur.state.quests ?? emptyQuests();
+    if (req.quest_id && curQuests.completed.includes(req.quest_id)) {
+      throw Errors.conflict("quest ja concluida", "quest_already_completed");
+    }
     const xpRes = applyXp(cur.state.xp, req.xp);
     let inventory = cur.state.inventory;
     if (req.items.length > 0) {
@@ -222,7 +234,7 @@ export async function grantReward(db: Db, ctx: ServiceCtx, id: string, req: Rewa
       }
       inventory = add.inventory;
     }
-    const next: CharacterState = { ...cur.state, xp: xpRes.xp, level: xpRes.level, inventory };
+    const next: CharacterState = { ...cur.state, xp: xpRes.xp, level: xpRes.level, inventory, quests: req.quest_id ? completeQuest(curQuests, req.quest_id) : curQuests };
     const revision = await writeState(tx, ctx, id, cur.revision, next);
     const result: RewardResult = {
       xp_granted: xpRes.xp - cur.state.xp,
@@ -245,6 +257,7 @@ export function publicView(r: CharacterRecord, limits: CharacterLimits) {
     level: r.state.level, xp: r.state.xp, xp_to_next: xpToNext(r.state.level),
     stats: r.state.stats, schema_version: r.state.schema_version, revision: r.revision,
     inventory_capacity: limits.inventoryCapacity, inventory: r.state.inventory, equipment: r.state.equipment,
+    quests: r.state.quests ?? emptyQuests(),
   };
 }
 

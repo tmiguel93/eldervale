@@ -1,0 +1,91 @@
+{
+	"schema_version": 1,
+	"id": "dlg_scholar_ilmar",
+	"npc_id": "npc_scholar_ilmar",
+	"entries": [
+		{"if": {"quest": "gw_ruin_guardian", "state": "ready"}, "node": "guardian_done"},
+		{"if": {"quest": "gw_ruins_expedition", "state": "ready"}, "node": "expedition_done"},
+		{"if": {"quest": "gw_ruin_guardian", "state": "available"}, "node": "guardian_offer"},
+		{"if": {"quest": "gw_ruin_guardian", "state": "active"}, "node": "guardian_waiting"},
+		{"if": {"quest": "gw_ruins_expedition", "state": "available"}, "node": "expedition_offer"},
+		{"if": {"quest": "gw_ruins_expedition", "state": "active"}, "node": "expedition_waiting"},
+		{"if": {"quest": "gw_ruin_guardian", "state": "completed"}, "node": "all_done"},
+		{"node": "idle"}
+	],
+	"nodes": {
+		"expedition_offer": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "As ruinas ao leste guardam inscricoes de uma era esquecida. Alcance o portao e depois o salao interno, e conte-me o que viu.",
+			"text_key": "dlg.dlg_scholar_ilmar.expedition_offer",
+			"choices": [
+				{"text": "Partirei agora.", "text_key": "dlg.dlg_scholar_ilmar.expedition_offer.c1", "effects": [{"type": "accept_quest", "quest_id": "gw_ruins_expedition"}], "next": "expedition_accepted"},
+				{"text": "Volto mais tarde.", "text_key": "dlg.dlg_scholar_ilmar.expedition_offer.c2", "next": null}
+			]
+		},
+		"expedition_accepted": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "Tome cuidado. A corrupcao e mais forte la dentro.",
+			"text_key": "dlg.dlg_scholar_ilmar.expedition_accepted"
+		},
+		"expedition_waiting": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "Ainda nao viu o salao interno? Nao se demore.",
+			"text_key": "dlg.dlg_scholar_ilmar.expedition_waiting"
+		},
+		"expedition_done": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "Voce chegou ao fundo das ruinas! Conte-me tudo.",
+			"text_key": "dlg.dlg_scholar_ilmar.expedition_done",
+			"choices": [
+				{"text": "Relatar a expedicao.", "text_key": "dlg.dlg_scholar_ilmar.expedition_done.c1", "effects": [{"type": "turn_in_quest", "quest_id": "gw_ruins_expedition"}], "next": "expedition_thanks"}
+			]
+		},
+		"expedition_thanks": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "Fascinante. Ha um guardiao corrompido la dentro. Se estiver pronto, precisarei que o derrote.",
+			"text_key": "dlg.dlg_scholar_ilmar.expedition_thanks"
+		},
+		"guardian_offer": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "O guardiao das ruinas precisa ser detido, junto aos conjuradores que o servem. Aceita a tarefa?",
+			"text_key": "dlg.dlg_scholar_ilmar.guardian_offer",
+			"choices": [
+				{"text": "Aceito.", "text_key": "dlg.dlg_scholar_ilmar.guardian_offer.c1", "effects": [{"type": "accept_quest", "quest_id": "gw_ruin_guardian"}], "next": "guardian_accepted"},
+				{"text": "Preciso me preparar.", "text_key": "dlg.dlg_scholar_ilmar.guardian_offer.c2", "next": null}
+			]
+		},
+		"guardian_accepted": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "Boa sorte. Que as pedras antigas o poupem.",
+			"text_key": "dlg.dlg_scholar_ilmar.guardian_accepted"
+		},
+		"guardian_waiting": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "O guardiao ainda esta de pe, ou os conjuradores o protegem.",
+			"text_key": "dlg.dlg_scholar_ilmar.guardian_waiting"
+		},
+		"guardian_done": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "O guardiao caiu! Greenwood respira mais leve.",
+			"text_key": "dlg.dlg_scholar_ilmar.guardian_done",
+			"choices": [
+				{"text": "Receber a recompensa.", "text_key": "dlg.dlg_scholar_ilmar.guardian_done.c1", "effects": [{"type": "turn_in_quest", "quest_id": "gw_ruin_guardian"}], "next": "guardian_thanks"}
+			]
+		},
+		"guardian_thanks": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "Os fragmentos ainda guardam muitos segredos. Isto e so o comeco.",
+			"text_key": "dlg.dlg_scholar_ilmar.guardian_thanks"
+		},
+		"all_done": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "Voce ja fez muito por Greenwood. Descanse.",
+			"text_key": "dlg.dlg_scholar_ilmar.all_done"
+		},
+		"idle": {
+			"speaker": "npc_scholar_ilmar",
+			"text": "Os livros esperam. Volte quando estiver mais experiente.",
+			"text_key": "dlg.dlg_scholar_ilmar.idle"
+		}
+	}
+}

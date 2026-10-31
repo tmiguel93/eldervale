@@ -6,6 +6,7 @@ import type { Router } from "../http/router.ts";
 import type { Catalog } from "./catalog.ts";
 import { loadCatalogFromDisk } from "./catalog.ts";
 import { loadCharacterLimits, type CharacterLimits } from "./limits.ts";
+import { loadQuestCatalogFromDisk, type QuestCatalog } from "../quests/catalog.ts";
 import { validateCharacterName, validateClassId, validateRewardRequest, validateState } from "./model.ts";
 import { checkpoint, createCharacter, deleteCharacter, getOwned, grantReward, internalView, listCharacters, loadRecord, publicView, type ServiceCtx } from "./service.ts";
 
@@ -36,11 +37,12 @@ function objectBody(b: unknown): Record<string, unknown> {
 }
 
 /** `opts` existe para testes; em producao use os padroes (catalogo do disco, limites de env). */
-export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: { catalog?: Catalog; limits?: CharacterLimits } = {}): void {
+export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: { catalog?: Catalog; limits?: CharacterLimits; quests?: QuestCatalog } = {}): void {
   const catalog = opts.catalog ?? loadCatalogFromDisk();
   const limits = opts.limits ?? loadCharacterLimits();
+  const quests = opts.quests ?? loadQuestCatalogFromDisk(catalog);
   const { db, requireAuth, requireInternal } = deps;
-  const svc = (log: ServiceCtx["log"]): ServiceCtx => ({ catalog, limits, now: deps.now, log });
+  const svc = (log: ServiceCtx["log"]): ServiceCtx => ({ catalog, limits, now: deps.now, log, quests });
 
   // ----------------------------------------------------------- publico
   router.get("/v1/characters", requireAuth(async (ctx) => ok({ characters: await listCharacters(db, ctx.auth.accountId) })));
@@ -79,7 +81,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
     for (const k of Object.keys(body)) if (k !== "expected_revision" && k !== "state") throw Errors.badRequest(`campo desconhecido "${k.slice(0, 40)}"`, "invalid_body");
     const rev = body.expected_revision;
     if (typeof rev !== "number" || !Number.isSafeInteger(rev) || rev < 0) throw Errors.badRequest("expected_revision deve ser inteiro >= 0", "invalid_body");
-    const state = validateState(body.state, catalog, limits);
+    const state = validateState(body.state, catalog, limits, quests);
     const rec = await checkpoint(db, svc(ctx.log), id, rev, state);
     return ok({ character: internalView(rec, limits) });
   }));
@@ -87,7 +89,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
   router.post("/internal/characters/:id/rewards", requireInternal(async (ctx) => {
     const id = uuidParam(ctx.params.id);
     await assertSessionHoldsLock(db, ctx, id);
-    const req = validateRewardRequest(await ctx.json(), catalog, limits);
+    const req = validateRewardRequest(await ctx.json(), catalog, limits, quests, id);
     const out = await grantReward(db, svc(ctx.log), id, req);
     return ok({ replayed: out.replayed, result: out.result, character: internalView(out.character, limits) });
   }));

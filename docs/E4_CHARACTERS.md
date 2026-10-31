@@ -29,6 +29,7 @@ Internos (`requireInternal`, Bearer `GAME_SESSION_INTERNAL_SECRET`; sem/errado =
 - `GET /internal/characters/:id` -> estado completo + `revision` + `account_id`.
 - `POST /internal/characters/:id/checkpoint {expected_revision, state}` -> 200 com o novo estado.
 - `POST /internal/characters/:id/rewards {idempotency_key, xp?, items?}` -> 200 `{replayed, result, character}`.
+  - E5.1: aceita `quest_id` (chave `quest:<quest_id>:<character_id>`, xp/itens iguais ao catalogo; conclui a quest na mesma transacao). O checkpoint aceita `state.quests` opcional (`completed` e somente-servidor). Ver `docs/E5_QUESTS.md`.
 
 ## Checkpoint
 Tudo em uma transacao com `SELECT ... FOR UPDATE` do personagem. Ordem: revision (409 `revision_conflict`, nada alterado) -> sanidade (422) -> grava.

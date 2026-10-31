@@ -1,0 +1,11 @@
+{
+	"schema_version": 1,
+	"id": "npc_scholar_ilmar",
+	"display_name": "Estudioso Ilmar [PLACEHOLDER]",
+	"display_name_key": "npc.npc_scholar_ilmar.name",
+	"region": "greenwood",
+	"dialogue_id": "dlg_scholar_ilmar",
+	"interact_radius": 3.5,
+	"position": [30.0, 0.0, -20.0],
+	"placeholder": true
+}

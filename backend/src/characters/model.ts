@@ -1,6 +1,8 @@
 import { ApiError, Errors } from "../http/errors.ts";
 import type { Catalog } from "./catalog.ts";
 import type { CharacterLimits } from "./limits.ts";
+import { EMPTY_QUESTS, type QuestCatalog } from "../quests/catalog.ts";
+import { validateQuestsState, type QuestsState } from "../quests/state.ts";
 import { levelForXp, MAX_LEVEL, MAX_TOTAL_XP } from "./progression.ts";
 
 export const SCHEMA_VERSION = 1;
@@ -36,6 +38,8 @@ export interface CharacterState {
   stats: Stats;
   inventory: InventoryEntry[];
   equipment: Equipment;
+  /** E5.1. Opcional na ENTRADA do checkpoint (ausente = manter o do banco); sempre presente no que e lido/gravado. */
+  quests?: QuestsState;
 }
 
 export function invalidState(message: string): ApiError {
@@ -53,9 +57,9 @@ function exactKeys(o: Record<string, unknown>, allowed: readonly string[], where
  * Valida e normaliza um estado de personagem vindo do servidor de sessao.
  * Lanca ApiError 422 invalid_state. Nao toca em banco.
  */
-export function validateState(input: unknown, catalog: Catalog, limits: CharacterLimits): CharacterState {
+export function validateState(input: unknown, catalog: Catalog, limits: CharacterLimits, quests: QuestCatalog = EMPTY_QUESTS): CharacterState {
   if (!isObj(input)) throw invalidState("state deve ser um objeto");
-  exactKeys(input, ["schema_version", "level", "xp", "stats", "inventory", "equipment"], "state");
+  exactKeys(input, ["schema_version", "level", "xp", "stats", "inventory", "equipment", "quests"], "state");
   if (input.schema_version !== SCHEMA_VERSION) throw invalidState(`schema_version deve ser ${SCHEMA_VERSION}`);
 
   const { level, xp } = input;
@@ -104,7 +108,9 @@ export function validateState(input: unknown, catalog: Catalog, limits: Characte
     if (item.slot !== s) throw invalidState(`item ${item.id} (slot ${item.slot}) nao cabe em ${s}`);
     equipment[s] = item.id;
   }
-  return { schema_version: SCHEMA_VERSION, level, xp, stats, inventory, equipment };
+  const out: CharacterState = { schema_version: SCHEMA_VERSION, level, xp, stats, inventory, equipment };
+  if (input.quests !== undefined) out.quests = validateQuestsState(input.quests, quests, limits.maxActiveQuests);
+  return out;
 }
 
 /** Quantidade total por item (inventario + equipado). Itens nao tem identidade de instancia: a conservacao e por contagem. */
@@ -173,14 +179,16 @@ const REWARD_KEY_RE = /^[A-Za-z0-9._:-]{8,128}$/;
 
 export interface RewardRequest {
   idempotency_key: string;
+  /** E5.1: recompensa de quest (chave estavel `quest:<quest_id>:<character_id>`, xp/itens iguais ao catalogo). */
+  quest_id?: string;
   xp: number;
   items: { item_id: string; qty: number }[];
 }
 
-export function validateRewardRequest(body: unknown, catalog: Catalog, limits: CharacterLimits): RewardRequest {
+export function validateRewardRequest(body: unknown, catalog: Catalog, limits: CharacterLimits, quests: QuestCatalog = EMPTY_QUESTS, characterId = ""): RewardRequest {
   const bad = (m: string, code = "invalid_reward") => Errors.badRequest(m, code);
   if (!isObj(body)) throw bad("corpo deve ser um objeto");
-  for (const k of Object.keys(body)) if (!["idempotency_key", "xp", "items"].includes(k)) throw bad(`campo desconhecido "${k.slice(0, 40)}"`);
+  for (const k of Object.keys(body)) if (!["idempotency_key", "xp", "items", "quest_id"].includes(k)) throw bad(`campo desconhecido "${k.slice(0, 40)}"`);
   const key = body.idempotency_key;
   if (typeof key !== "string" || !REWARD_KEY_RE.test(key)) throw bad("idempotency_key deve ter 8..128 chars [A-Za-z0-9._:-]", "invalid_idempotency_key");
   let xp = 0;
@@ -199,7 +207,19 @@ export function validateRewardRequest(body: unknown, catalog: Catalog, limits: C
       merged.set(e.item_id, (merged.get(e.item_id) ?? 0) + e.qty);
     }
   }
-  if (xp === 0 && merged.size === 0) throw bad("recompensa vazia");
   const items = [...merged.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([item_id, qty]) => ({ item_id, qty }));
+  if (body.quest_id !== undefined) {
+    const qid = body.quest_id;
+    if (typeof qid !== "string" || !/^[a-z][a-z0-9_]{0,47}$/.test(qid)) throw bad("quest_id invalido", "invalid_reward");
+    const def = quests.get(qid);
+    if (!def) throw bad("quest desconhecida", "unknown_quest");
+    if (key !== `quest:${qid}:${characterId}`) throw bad("idempotency_key de quest deve ser quest:<quest_id>:<character_id>", "invalid_idempotency_key");
+    // O servidor de sessao nao escolhe o valor: tem de ser exatamente a recompensa do catalogo.
+    if (xp !== def.rewards.xp || JSON.stringify(items) !== JSON.stringify(def.rewards.items)) {
+      throw bad("recompensa diverge do catalogo da quest", "quest_reward_mismatch");
+    }
+    return { idempotency_key: key, quest_id: qid, xp, items };
+  }
+  if (xp === 0 && merged.size === 0) throw bad("recompensa vazia");
   return { idempotency_key: key, xp, items };
 }

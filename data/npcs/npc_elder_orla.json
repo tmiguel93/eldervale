@@ -1,0 +1,11 @@
+{
+	"schema_version": 1,
+	"id": "npc_elder_orla",
+	"display_name": "Ancia Orla [PLACEHOLDER]",
+	"display_name_key": "npc.npc_elder_orla.name",
+	"region": "greenwood",
+	"dialogue_id": "dlg_elder_orla",
+	"interact_radius": 3.5,
+	"position": [8.0, 0.0, 6.0],
+	"placeholder": true
+}

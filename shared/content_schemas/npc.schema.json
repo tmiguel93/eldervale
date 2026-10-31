@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eldervale/npc.schema.json",
+  "title": "NPC (data/npcs/<id>.json)",
+  "description": "NPC interativo. `position` e `interact_radius` sao usados pelo servidor para validar a distancia do jogador (anti-teleporte). As posicoes de Greenwood sao PLACEHOLDER ate o hub existir.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "display_name", "dialogue_id", "interact_radius", "position"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
+    "display_name": { "type": "string", "minLength": 1 },
+    "display_name_key": { "type": "string" },
+    "region": { "type": "string" },
+    "dialogue_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
+    "interact_radius": { "type": "number", "exclusiveMinimum": 0, "maximum": 20 },
+    "position": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+    "placeholder": { "type": "boolean" }
+  }
+}

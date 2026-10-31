@@ -1,0 +1,19 @@
+{
+	"schema_version": 1,
+	"id": "gw_ruins_expedition",
+	"type": "exploration",
+	"region": "greenwood",
+	"title": "Sob as Pedras Antigas",
+	"title_key": "quest.gw_ruins_expedition.title",
+	"description": "O estudioso Ilmar quer um relato das ruinas: alcance o portao e depois o salao interno.",
+	"description_key": "quest.gw_ruins_expedition.description",
+	"giver_npc": "npc_scholar_ilmar",
+	"turn_in_npc": "npc_scholar_ilmar",
+	"prerequisites": {"quests": ["gw_clear_clearing"], "min_level": 2},
+	"objectives": [
+		{"id": "reach_gate", "type": "reach_area", "target": "area_ruins_gate", "required": 1, "text": "Alcance o portao das ruinas", "text_key": "quest.gw_ruins_expedition.obj.reach_gate"},
+		{"id": "reach_hall", "type": "reach_area", "target": "area_ruins_hall", "required": 1, "text": "Alcance o salao interno", "text_key": "quest.gw_ruins_expedition.obj.reach_hall"}
+	],
+	"rewards": {"xp": 200, "items": [{"item_id": "potion_minor", "qty": 2}]},
+	"abandonable": true
+}

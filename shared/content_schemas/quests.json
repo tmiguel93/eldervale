@@ -1,0 +1,150 @@
+{
+  "schema_version": 1,
+  "source": "data/quests/*.json (gerado por tools/gen_quests_catalog.mjs)",
+  "quests": [
+    {
+      "id": "gw_clear_clearing",
+      "prerequisites": {
+        "quests": [
+          "gw_welcome"
+        ],
+        "min_level": 1
+      },
+      "objectives": [
+        {
+          "id": "kill_grunts",
+          "type": "kill",
+          "target": "melee_grunt",
+          "required": 5
+        }
+      ],
+      "rewards": {
+        "xp": 150,
+        "items": [
+          {
+            "item_id": "scrap_material",
+            "qty": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_ruin_guardian",
+      "prerequisites": {
+        "quests": [
+          "gw_ruins_expedition"
+        ],
+        "min_level": 3
+      },
+      "objectives": [
+        {
+          "id": "kill_casters",
+          "type": "kill",
+          "target": "ranged_caster",
+          "required": 3
+        },
+        {
+          "id": "kill_guardian",
+          "type": "kill",
+          "target": "ruin_guardian",
+          "required": 1
+        }
+      ],
+      "rewards": {
+        "xp": 500,
+        "items": [
+          {
+            "item_id": "amulet_vigor",
+            "qty": 1
+          },
+          {
+            "item_id": "potion_minor",
+            "qty": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_ruins_expedition",
+      "prerequisites": {
+        "quests": [
+          "gw_clear_clearing"
+        ],
+        "min_level": 2
+      },
+      "objectives": [
+        {
+          "id": "reach_gate",
+          "type": "reach_area",
+          "target": "area_ruins_gate",
+          "required": 1
+        },
+        {
+          "id": "reach_hall",
+          "type": "reach_area",
+          "target": "area_ruins_hall",
+          "required": 1
+        }
+      ],
+      "rewards": {
+        "xp": 200,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_scrap_for_orla",
+      "prerequisites": {
+        "quests": [
+          "gw_welcome"
+        ],
+        "min_level": 1
+      },
+      "objectives": [
+        {
+          "id": "collect_scrap",
+          "type": "collect",
+          "target": "scrap_material",
+          "required": 6
+        }
+      ],
+      "rewards": {
+        "xp": 120,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_welcome",
+      "prerequisites": {
+        "quests": [],
+        "min_level": 1
+      },
+      "objectives": [
+        {
+          "id": "talk_brannoch",
+          "type": "talk",
+          "target": "npc_hunter_brannoch",
+          "required": 1
+        }
+      ],
+      "rewards": {
+        "xp": 60,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 2
+          }
+        ]
+      }
+    }
+  ]
+}

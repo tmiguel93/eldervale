@@ -1,0 +1,6 @@
+{
+	"schema_version": 1,
+	"note": "Ids referenciados por quests que AINDA nao existem em data/ (agente E5.2 cria os inimigos). O teste de conteudo aceita ids existentes OU listados aqui. Remova a entrada quando o recurso existir.",
+	"enemies": ["ruin_guardian"],
+	"items": []
+}
