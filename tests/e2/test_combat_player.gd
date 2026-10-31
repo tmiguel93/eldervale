@@ -51,9 +51,9 @@ func run(ctx: Object) -> void:
 	var basic: SkillData = combat.basic_attack
 	combat.try_use(basic)
 	combat.step(0.001)
-	ctx.check(player.movement_locked, "movimento travado no windup")
+	ctx.check(not player.movement_locked and is_equal_approx(player.move_speed_scale, basic.attack_move_scale), "ataque: anda em velocidade reduzida no windup")
 	combat.step(basic.windup + basic.active + basic.recover)
-	ctx.check(not player.movement_locked, "movimento liberado ao terminar")
+	ctx.check(not player.movement_locked and is_equal_approx(player.move_speed_scale, 1.0), "movimento normal ao terminar")
 	combat.cooldowns.clear()
 
 	# --- golpe real acerta alvo a frente (facing yaw 0 => -Z) uma unica vez ---

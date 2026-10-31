@@ -23,6 +23,8 @@ enum HitboxShape { BOX, SPHERE }
 @export var hitbox_offset: float = 1.0
 @export var i_frames: float = 0.0 ## s de invulnerabilidade desde o inicio (esquiva)
 @export var dodge_distance: float = 0.0
+## Fracao da velocidade de movimento permitida durante windup+active de um ataque (0 = travado, 1 = livre).
+@export_range(0.0, 1.0) var attack_move_scale: float = 0.5
 
 
 func total_duration() -> float:
@@ -38,6 +40,8 @@ func validate() -> PackedStringArray:
 		errors.append("display_name vazio")
 	if resource_cost < 0.0:
 		errors.append("resource_cost < 0")
+	if attack_move_scale < 0.0 or attack_move_scale > 1.0:
+		errors.append("attack_move_scale fora de 0..1")
 	if cooldown < 0.0:
 		errors.append("cooldown < 0")
 	if windup < 0.0 or recover < 0.0:

@@ -1,0 +1,39 @@
+class_name ServerSettings
+extends RefCounted
+## Parametros do servidor dedicado (E3). Valores de rede vem de NetConfig; o restante e ajustavel
+## por argumentos extras do server_main (--max-invalid, --hello-timeout) ou diretamente em testes.
+
+var tick_rate: int = 30
+var snapshot_rate: int = 15
+var max_players: int = 4
+## Peer sem hello valido neste prazo e rejeitado (codigo 5) e desconectado.
+var hello_timeout_sec: float = 5.0
+## Inputs invalidos tolerados por janela; acima disso: reject(4) + disconnect.
+var max_invalid_inputs: int = 30
+var invalid_window_sec: float = 10.0
+## Token buckets por peer e por tipo de mensagem (contrato: input <= 60/s, hello 1/s, ping <= 2/s).
+var input_rate_per_sec: float = 75.0
+var input_burst: int = 120
+var hello_rate_per_sec: float = 1.0
+var hello_burst: int = 3
+var ping_rate_per_sec: float = 4.0
+var ping_burst: int = 6
+var session_seed: int = 0
+## Testes podem desligar os inimigos da arena.
+var spawn_enemies: bool = true
+var spawn_points: Array[Vector3] = [
+	Vector3(0.0, 0.05, 0.0), Vector3(2.0, 0.05, 0.0), Vector3(-2.0, 0.05, 0.0), Vector3(0.0, 0.05, 2.0),
+]
+
+
+static func from_net_config(cfg: NetConfig) -> ServerSettings:
+	var s: ServerSettings = ServerSettings.new()
+	s.tick_rate = cfg.tick_rate
+	s.snapshot_rate = cfg.snapshot_rate
+	s.max_players = cfg.max_players
+	return s
+
+
+## Quantos ticks de simulacao entre snapshots (>= 1).
+func snapshot_divisor() -> int:
+	return maxi(1, int(round(float(tick_rate) / float(maxi(snapshot_rate, 1)))))

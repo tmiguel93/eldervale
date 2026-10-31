@@ -1,0 +1,147 @@
+class_name ServerMain
+extends Node
+## Servidor dedicado headless (E3). Le NetConfig (args apos `--` e ELDERVALE_*), abre ENet,
+## instala o NetRpc e liga mundo + sessao. Uso (ver docs/E3_SERVER.md):
+##   godot --headless --path . res://scenes/server/server_boot.tscn -- --port 24680 --max-seconds 60
+## Argumentos extras do servidor: --max-seconds N (0 = sem limite), --max-invalid N, --hello-timeout S.
+## Tick de simulacao = tick de fisica do Godot (Engine.physics_ticks_per_second = tick_rate).
+## Nenhuma funcao administrativa e exposta pela rede; o unico canal e o contrato (NetRpc).
+
+## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
+const PENDING_SLACK: int = 4
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout"]
+
+var cfg: NetConfig
+var settings: ServerSettings
+var peer: ENetMultiplayerPeer
+var rpc: NetRpc
+var world: ServerWorld
+var session: ServerSession
+
+var _max_seconds: float = 0.0
+var _elapsed: float = 0.0
+var _running: bool = false
+var _quitting: bool = false
+
+
+func _ready() -> void:
+	# O NetRpc entra na raiz fora do setup da cena inicial (raiz ocupada), por isso adiado.
+	_start.call_deferred()
+
+
+func _start() -> void:
+	var extras: Dictionary = {}
+	var net_args: PackedStringArray = _split_args(OS.get_cmdline_user_args(), extras)
+	cfg = NetConfig.parse(net_args, _read_env())
+	for e: String in cfg.errors:
+		print("[server] config: %s" % e)
+	settings = ServerSettings.from_net_config(cfg)
+	_apply_extras(extras)
+	settings.session_seed = randi()
+
+	Engine.physics_ticks_per_second = cfg.tick_rate
+	Engine.max_fps = maxi(cfg.tick_rate * 2, 60)
+
+	peer = ENetMultiplayerPeer.new()
+	var err: int = peer.create_server(cfg.port, cfg.max_players + PENDING_SLACK)
+	if err != OK:
+		printerr("[server] falha ao abrir a porta %d (erro %d)" % [cfg.port, err])
+		get_tree().quit(1)
+		return
+	multiplayer.multiplayer_peer = peer
+	rpc = NetRpc.install(get_tree())
+	if cfg.sim_latency_ms > 0 or cfg.sim_jitter_ms > 0 or cfg.sim_loss_pct > 0.0:
+		rpc.sim = NetSim.new()
+		rpc.sim.configure(cfg.sim_latency_ms, cfg.sim_jitter_ms, cfg.sim_loss_pct, settings.session_seed)
+		print("[server] NetSim ativo: %d ms, jitter %d ms, perda %.1f%%" % [cfg.sim_latency_ms, cfg.sim_jitter_ms, cfg.sim_loss_pct])
+
+	world = ServerWorld.new()
+	world.name = "World"
+	world.settings = settings
+	add_child(world)
+	session = ServerSession.new()
+	session.name = "Session"
+	add_child(session)
+	session.setup(settings, world, NetRpcTransport.new(rpc))
+
+	rpc.hello_received.connect(session.on_hello)
+	rpc.input_received.connect(session.on_input)
+	rpc.ping_received.connect(session.on_ping)
+	multiplayer.peer_connected.connect(session.on_peer_connected)
+	multiplayer.peer_disconnected.connect(session.on_peer_disconnected)
+
+	_running = true
+	print("[server] escutando na porta %d (max %d jogadores, tick %d Hz, snapshot %d Hz, protocolo %d)" % [
+		cfg.port, cfg.max_players, cfg.tick_rate, cfg.snapshot_rate, Protocol.VERSION])
+
+
+func _process(delta: float) -> void:
+	if not _running or _quitting:
+		return
+	_elapsed += delta
+	if _max_seconds > 0.0 and _elapsed >= _max_seconds:
+		print("[server] --max-seconds atingido")
+		shutdown()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		print("[server] pedido de encerramento recebido")
+		shutdown()
+
+
+## Encerramento limpo: fecha peers, solta o mundo e sai com codigo 0.
+func shutdown() -> void:
+	if _quitting:
+		return
+	_quitting = true
+	_running = false
+	if session != null:
+		session.shutdown()
+	if peer != null:
+		peer.close()
+	print("[server] encerrado")
+	get_tree().quit(0)
+
+
+func _apply_extras(extras: Dictionary) -> void:
+	if extras.has("max-seconds"):
+		_max_seconds = maxf(0.0, float(extras["max-seconds"]))
+	if extras.has("max-invalid"):
+		settings.max_invalid_inputs = clampi(int(extras["max-invalid"]), 1, 100000)
+	if extras.has("hello-timeout"):
+		settings.hello_timeout_sec = clampf(float(extras["hello-timeout"]), 0.5, 600.0)
+
+
+## Separa as chaves exclusivas do servidor dos argumentos entregues ao NetConfig.
+static func _split_args(args: PackedStringArray, extras: Dictionary) -> PackedStringArray:
+	var rest: PackedStringArray = PackedStringArray()
+	var i: int = 0
+	while i < args.size():
+		var a: String = args[i]
+		i += 1
+		var key: String = a.substr(2) if a.begins_with("--") else ""
+		var val: String = ""
+		var has_eq: bool = key.contains("=")
+		if has_eq:
+			val = key.substr(key.find("=") + 1)
+			key = key.substr(0, key.find("="))
+		key = key.replace("_", "-")
+		if EXTRA_KEYS.has(key):
+			if not has_eq and i < args.size() and not args[i].begins_with("--"):
+				val = args[i]
+				i += 1
+			if val.is_valid_float():
+				extras[key] = val.to_float()
+			continue
+		rest.append(a)
+	return rest
+
+
+static func _read_env() -> Dictionary:
+	var env: Dictionary = {}
+	for k: String in NetConfig._ENV_KEYS:
+		var ev: String = NetConfig._ENV_KEYS[k]
+		if OS.has_environment(ev):
+			env[ev] = OS.get_environment(ev)
+	return env

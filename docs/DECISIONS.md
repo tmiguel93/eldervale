@@ -42,3 +42,14 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Escolha provisória:** Opção 1 como padrão; F3 alterna para a opção 2 na arena de teste.
 - **Consequências:** Unidade de mundo 1 = 1 m, personagem ~1,8 m. A comparação NÃO foi observada visualmente pelos agentes (execução headless); a escolha final depende de o proprietário testar no editor.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0004 — Multiplayer: servidor autoritativo por input, protocolo v1 (E3)
+- **Data:** 2026-10-31
+- **Status:** PROPOSTA — aguarda revisão humana do protocolo (roadmap/AGENTS)
+- **Contexto:** E3 exige dois clientes na mesma sessão com validação server-side.
+- **Opções consideradas:** (1) cliente envia posição e servidor valida; (2) cliente envia só input e o servidor simula.
+- **Escolha provisória:** opção 2 (`shared/contracts/network_protocol.md`), ENet, tick 30 Hz, snapshots 15 Hz.
+- **Consequências:** o cliente nunca decide posição/dano; predição local simples com reconciliação. Valores de tick/snapshot ainda não medidos em CPU/banda.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.

@@ -33,6 +33,8 @@ var external_yaw: float = 0.0
 ## Integracao com PlayerCombat (E2): bloqueia o movimento livre e/ou impoe velocidade horizontal
 ## (deslocamento da esquiva). Sem PlayerCombat ficam nos valores padrao e nada muda.
 var movement_locked: bool = false
+## Multiplicador da velocidade de andar (combate reduz durante golpes; 1.0 = normal).
+var move_speed_scale: float = 1.0
 var use_forced_velocity: bool = false
 var forced_velocity: Vector3 = Vector3.ZERO
 
@@ -57,7 +59,7 @@ func _physics_process(delta: float) -> void:
 	var direction: Vector3 = get_move_direction()
 	if movement_locked:
 		direction = Vector3.ZERO
-	var horizontal: Vector3 = direction * move_speed
+	var horizontal: Vector3 = direction * move_speed * move_speed_scale
 	if use_forced_velocity:
 		horizontal = Vector3(forced_velocity.x, 0.0, forced_velocity.z)
 	velocity.x = horizontal.x

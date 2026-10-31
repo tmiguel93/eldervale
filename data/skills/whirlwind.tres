@@ -18,3 +18,4 @@ hitbox_size = Vector3(2.6, 1.0, 1.0)
 hitbox_offset = 0.0
 i_frames = 0.0
 dodge_distance = 0.0
+attack_move_scale = 0.5

@@ -29,6 +29,8 @@ var visual: EnemyVisual
 var defeat_count: int = 0
 var attack_count: int = 0
 var last_drops: Array[LootDrop] = []
+## Servidor dedicado (E3) desliga: drops sao so evento informativo, sem pickups no mundo.
+var spawn_pickups: bool = true
 
 var _strike_left: float = 0.0
 var _corpse_left: float = -1.0
@@ -175,7 +177,8 @@ func _on_died(source: Node) -> void:
 	if data.loot_table != null:
 		drops = data.loot_table.roll(rng)
 	last_drops = drops
-	_spawn_pickups.call_deferred(drops)
+	if spawn_pickups:
+		_spawn_pickups.call_deferred(drops)
 	var xp: int = data.xp_reward
 	var loadout: PlayerLoadout = PlayerLoadout.find_for(source)
 	if loadout != null:

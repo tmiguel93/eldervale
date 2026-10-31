@@ -81,11 +81,21 @@ func step(delta: float) -> void:
 	machine.tick(delta)
 	if machine.can_start_action():
 		machine.set_moving(_player.get_move_direction().length_squared() > 0.0001)
-	_player.movement_locked = machine.movement_locked()
+	var strike_scale: float = _attack_move_scale()
+	_player.movement_locked = machine.movement_locked() and strike_scale <= 0.0
+	_player.move_speed_scale = strike_scale if (machine.movement_locked() and strike_scale > 0.0) else 1.0
 	var dodging: bool = machine.state == CharacterStateMachine.State.DODGE \
 		and machine.phase != CharacterStateMachine.Phase.RECOVER
 	_player.use_forced_velocity = dodging
 	_player.forced_velocity = _dodge_velocity if dodging else Vector3.ZERO
+
+
+## Durante windup/active de um ATAQUE, devolve a fracao de velocidade permitida pela skill atual
+## (0 = travado). Fora disso devolve 0 e o chamador usa o estado da maquina.
+func _attack_move_scale() -> float:
+	if machine.state == CharacterStateMachine.State.ATTACK and _current_skill != null:
+		return _current_skill.attack_move_scale
+	return 0.0
 
 
 ## Tenta usar a habilidade. Ordem: estado -> cooldown -> custo; so gasta/inicia cooldown se TUDO ok.

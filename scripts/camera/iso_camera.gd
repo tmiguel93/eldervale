@@ -22,6 +22,18 @@ const FAR: float = 120.0
 @export var follow_speed: float = 8.0
 @export var start_orthogonal: bool = true
 @export var target_height: float = 0.9
+## Zoom pelo scroll do mouse: multiplicador de enquadramento (menor = mais perto).
+const ZOOM_MIN: float = 0.5
+const ZOOM_MAX: float = 1.8
+const ZOOM_STEP: float = 0.1
+const ZOOM_SMOOTH: float = 12.0
+var zoom: float = 1.0
+var _zoom_target: float = 1.0
+
+
+## Passo de zoom puro (testavel): direction -1 = aproxima, +1 = afasta; resultado dentro de [ZOOM_MIN, ZOOM_MAX].
+static func step_zoom(current: float, direction: int) -> float:
+	return clampf(current * (1.0 + ZOOM_STEP * float(direction)), ZOOM_MIN, ZOOM_MAX)
 
 var is_orthogonal: bool = true
 
@@ -63,7 +75,19 @@ func _process(delta: float) -> void:
 	if target == null or not is_instance_valid(target):
 		return
 	var weight: float = 1.0 - exp(-follow_speed * delta)
+	if not is_equal_approx(zoom, _zoom_target):
+		zoom = lerpf(zoom, _zoom_target, 1.0 - exp(-ZOOM_SMOOTH * delta))
+		_apply_projection(is_orthogonal)
 	global_position = global_position.lerp(_target_point(), weight)
+
+
+func _unhandled_input(event: InputEvent) -> void:
+	var mb: InputEventMouseButton = event as InputEventMouseButton
+	if mb != null and mb.pressed:
+		if mb.button_index == MOUSE_BUTTON_WHEEL_UP:
+			_zoom_target = step_zoom(_zoom_target, -1)
+		elif mb.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			_zoom_target = step_zoom(_zoom_target, 1)
 
 
 func _unhandled_key_input(event: InputEvent) -> void:
@@ -79,13 +103,13 @@ func _target_point() -> Vector3:
 func _apply_projection(orthogonal: bool) -> void:
 	is_orthogonal = orthogonal
 	var pitch: float = deg_to_rad(pitch_deg)
-	var distance: float = ORTHO_DISTANCE if orthogonal else PERSP_DISTANCE
+	var distance: float = (ORTHO_DISTANCE if orthogonal else PERSP_DISTANCE * zoom)
 	_camera.keep_aspect = Camera3D.KEEP_HEIGHT
 	_camera.near = NEAR
 	_camera.far = FAR
 	if orthogonal:
 		_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-		_camera.size = ORTHO_SIZE
+		_camera.size = ORTHO_SIZE * zoom
 	else:
 		_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
 		_camera.fov = PERSP_FOV_DEG
