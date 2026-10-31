@@ -1,3 +1,4 @@
+import type { Db } from "../persistence/db.ts";
 import type { RouteDeps } from "../http/app.ts";
 import { Errors } from "../http/errors.ts";
 import { created, noContent, ok } from "../http/respond.ts";
@@ -13,6 +14,20 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function uuidParam(v: string | undefined): string {
   if (!v || !UUID_RE.test(v)) throw Errors.badRequest("id invalido", "invalid_id");
   return v.toLowerCase();
+}
+
+/**
+ * Fencing (M4): checkpoint/recompensa so sao aceitos da sessao que detem o lock do personagem.
+ * A sessao vem no cabecalho X-Session-Id; sem lock, lock de outra sessao ou sessao encerrada => 409.
+ */
+async function assertSessionHoldsLock(db: Db, ctx: { req: Request }, characterId: string): Promise<void> {
+  const raw = ctx.req.headers.get("x-session-id");
+  if (!raw || !UUID_RE.test(raw)) throw Errors.badRequest("cabecalho X-Session-Id obrigatorio (uuid)", "invalid_session");
+  const r = await db.query(
+    `SELECT 1 FROM character_locks l JOIN game_sessions s ON s.id = l.session_id
+     WHERE l.character_id = $1 AND l.session_id = $2 AND s.closed_at IS NULL AND s.status <> 'closed'`,
+    [characterId, raw.toLowerCase()]);
+  if (r.rows.length === 0) throw Errors.conflict("sessao nao detem o lock do personagem", "session_fenced");
 }
 
 function objectBody(b: unknown): Record<string, unknown> {
@@ -59,6 +74,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
 
   router.post("/internal/characters/:id/checkpoint", requireInternal(async (ctx) => {
     const id = uuidParam(ctx.params.id);
+    await assertSessionHoldsLock(db, ctx, id);
     const body = objectBody(await ctx.json());
     for (const k of Object.keys(body)) if (k !== "expected_revision" && k !== "state") throw Errors.badRequest(`campo desconhecido "${k.slice(0, 40)}"`, "invalid_body");
     const rev = body.expected_revision;
@@ -70,6 +86,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
 
   router.post("/internal/characters/:id/rewards", requireInternal(async (ctx) => {
     const id = uuidParam(ctx.params.id);
+    await assertSessionHoldsLock(db, ctx, id);
     const req = validateRewardRequest(await ctx.json(), catalog, limits);
     const out = await grantReward(db, svc(ctx.log), id, req);
     return ok({ replayed: out.replayed, result: out.result, character: internalView(out.character, limits) });

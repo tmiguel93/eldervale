@@ -3,18 +3,19 @@ extends RefCounted
 ## Configuracao do servidor para falar com o backend (E4). Origem: argumentos extras do server_main
 ## (apos `--`) e ambiente ELDERVALE_*. O SEGREDO so vem do ambiente (ELDERVALE_INTERNAL_SECRET):
 ## nao existe argumento de CLI para ele e ele nunca e impresso.
-## Backend habilitado <=> backend_url nao vazia. Sem backend: modo dev (ticket nao exigido).
+## Backend habilitado <=> backend_url nao vazia. Sem backend EXIGE-SE modo dev explicito (M6): URL
+## ausente por typo/ambiente vazio nao pode abrir o servidor sem ticket nem persistencia.
 
 const ARG_KEYS: Array[String] = [
 	"backend-url", "public-endpoint", "region", "session-id-file",
-	"heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout",
+	"heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode",
 ]
 const ENV_KEYS: Dictionary = {
 	"backend-url": "ELDERVALE_BACKEND_URL", "public-endpoint": "ELDERVALE_PUBLIC_ENDPOINT",
 	"region": "ELDERVALE_REGION", "session-id-file": "ELDERVALE_SESSION_ID_FILE",
 	"heartbeat-interval": "ELDERVALE_HEARTBEAT_INTERVAL", "autosave-interval": "ELDERVALE_AUTOSAVE_INTERVAL",
 	"redeem-timeout": "ELDERVALE_REDEEM_TIMEOUT", "max-pending": "ELDERVALE_MAX_PENDING",
-	"shutdown-timeout": "ELDERVALE_SHUTDOWN_TIMEOUT",
+	"shutdown-timeout": "ELDERVALE_SHUTDOWN_TIMEOUT", "dev-mode": "ELDERVALE_DEV_MODE",
 }
 const SECRET_ENV: String = "ELDERVALE_INTERNAL_SECRET"
 
@@ -27,6 +28,7 @@ var autosave_interval_sec: float = 30.0
 var redeem_timeout_sec: float = 8.0
 var max_pending: int = 8
 var shutdown_timeout_sec: float = 8.0
+var dev_mode: bool = false ## modo dev EXPLICITO: sem backend, sem ticket, nada persiste
 var secret: String = "" ## NUNCA imprimir
 var errors: PackedStringArray = PackedStringArray()
 
@@ -48,6 +50,12 @@ static func parse(values: Dictionary, env: Dictionary, port: int) -> ServerBacke
 			v[k] = str(values[k])
 	c.secret = str(env.get(SECRET_ENV, ""))
 	c.backend_url = str(v.get("backend-url", "")).strip_edges()
+	var dm: String = str(v.get("dev-mode", "")).strip_edges().to_lower()
+	c.dev_mode = dm == "1" or dm == "true"
+	if not c.enabled() and not c.dev_mode:
+		c.errors.append("backend-url ausente: informe ELDERVALE_BACKEND_URL (producao) ou habilite o modo dev explicitamente (--dev-mode 1 / ELDERVALE_DEV_MODE=1)")
+	if c.enabled() and c.dev_mode:
+		c.errors.append("dev-mode e backend-url sao mutuamente exclusivos")
 	if c.enabled():
 		var err: String = BackendClient.validate_url(c.backend_url)
 		if not err.is_empty():

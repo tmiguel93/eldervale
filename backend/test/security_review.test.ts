@@ -23,11 +23,26 @@ async function realApp(env: Record<string, string> = {}) {
   const config = testConfig({ AUTH_SECRET: "auth-secret-for-tests-0123456789abcdefghij", GAME_SESSION_INTERNAL_SECRET: SECRET, ...env });
   const clock = { t: T0 };
   const app = buildApp({ config, db, now: () => clock.t });
+  const lockMemo = new Map<string, Promise<string>>();
   const call = async (method: string, path: string, o: { token?: string; secret?: string; body?: unknown; headers?: Record<string, string> } = {}) => {
     const headers: Record<string, string> = { ...(o.headers ?? {}) };
     if (o.token) headers.authorization = `Bearer ${o.token}`;
     if (o.secret) headers.authorization = `Bearer ${o.secret}`;
     if (o.body !== undefined) headers["content-type"] = "application/json";
+    const m = /^\/internal\/characters\/([0-9a-f-]{36})\/(checkpoint|rewards)$/i.exec(path);
+    if (m && o.secret === SECRET && !o.headers && o.body !== undefined && typeof o.body === "object" && o.body !== null) {
+      const cid = m[1]!.toLowerCase();
+      let p = lockMemo.get(cid);
+      if (!p) {
+        p = (async () => {
+          const sid = await mkSession(db);
+          await db.query("INSERT INTO character_locks (character_id, session_id) VALUES ($1,$2)", [cid, sid]);
+          return sid;
+        })();
+        lockMemo.set(cid, p);
+      }
+      headers["x-session-id"] = await p;
+    }
     const res = await app.handle(new Request(`http://t${path}`, { method, headers, body: o.body === undefined ? undefined : JSON.stringify(o.body) }));
     const text = await res.text();
     let json: any = null;
@@ -209,14 +224,24 @@ describe("C. integridade sob concorrencia", () => {
 });
 
 describe("C. achados de integridade (abertos)", () => {
-  it("[ACHADO M] sem fencing: checkpoint e recompensa sao aceitos de QUALQUER chamador interno, mesmo sem lock/sessao do personagem", async () => {
+  it("[CORRIGIDO M4] fencing: checkpoint e recompensa exigem a sessao dona do lock do personagem", async () => {
     real = await realApp();
     const acct = await mkAccount(real.db, "z@example.com");
     const tok = await signAccessToken(real.config, acct, T0);
     const c = await real.call("POST", "/v1/characters", { token: tok, body: { name: "Zumbi", class_id: "warrior" } });
-    const id = c.json.character.id; // nenhum lock, nenhuma sessao
-    const r = await real.call("POST", `/internal/characters/${id}/rewards`, { secret: SECRET, body: { idempotency_key: "zombie-key-0001", xp: 10 } });
-    expect(r.status).toBe(200);
+    const id = c.json.character.id;
+    const body = { idempotency_key: "zombie-key-0001", xp: 10 };
+    const sem = await real.call("POST", `/internal/characters/${id}/rewards`, { secret: SECRET, body, headers: {} });
+    expect(sem.status).toBe(400); // sem X-Session-Id
+    const sid = await mkSession(real.db);
+    const semLock = await real.call("POST", `/internal/characters/${id}/rewards`, { secret: SECRET, body, headers: { "x-session-id": sid } });
+    expect(semLock.status).toBe(409); // sessao existe mas nao detem o lock
+    await real.db.query("INSERT INTO character_locks (character_id, session_id) VALUES ($1,$2)", [id, sid]);
+    const outra = await mkSession(real.db);
+    expect((await real.call("POST", `/internal/characters/${id}/rewards`, { secret: SECRET, body, headers: { "x-session-id": outra } })).status).toBe(409);
+    expect((await real.call("POST", `/internal/characters/${id}/rewards`, { secret: SECRET, body, headers: { "x-session-id": sid } })).status).toBe(200);
+    await real.db.query("UPDATE game_sessions SET closed_at = now(), status = 'closed' WHERE id = $1", [sid]);
+    expect((await real.call("POST", `/internal/characters/${id}/rewards`, { secret: SECRET, body: { ...body, idempotency_key: "zombie-key-0002" }, headers: { "x-session-id": sid } })).status).toBe(409);
   });
 
   it("[ACHADO M] stats nao tem teto relativo: um checkpoint pode saltar attack_power 10 -> 100000", async () => {

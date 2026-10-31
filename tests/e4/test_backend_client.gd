@@ -113,6 +113,13 @@ func _test_retry_policy(ctx: Object, tree: SceneTree) -> void:
 	c.checkpoint(B.CID1, 0, {"level": 1, "xp": 0, "stats": {}, "inventory": [], "equipment": {}}, func(r: Dictionary) -> void: res.append(r))
 	await _until(tree, res, 0.3)
 	ctx.check(fake.requests.size() == 2 and fake.requests[0]["raw"] == fake.requests[1]["raw"], "checkpoint: retry com corpo identico")
+	ctx.check(String(fake.requests[0]["session_header"]).is_empty(), "checkpoint sem sessao registrada: sem X-Session-Id")
+	c.fencing_session_id = Fake.SESSION_ID
+	res.clear()
+	fake.requests.clear()
+	c.checkpoint(B.CID1, 0, {"level": 1, "xp": 0, "stats": {}, "inventory": [], "equipment": {}}, func(r: Dictionary) -> void: res.append(r))
+	await _until(tree, res, 0.3)
+	ctx.check(fake.requests.size() == 1 and fake.requests[0]["session_header"] == Fake.SESSION_ID, "checkpoint (M4): envia X-Session-Id da sessao registrada")
 	ctx.check(fake.last_auth == B.SECRET, "Authorization: Bearer <segredo> enviado")
 	ctx.check(not str(res).contains(B.SECRET), "resultado/erros nao carregam o segredo")
 	# caminho: id invalido nao injeta caminho
@@ -163,8 +170,14 @@ func _test_cancel(ctx: Object, tree: SceneTree) -> void:
 
 func _test_config_parse(ctx: Object) -> void:
 	var env: Dictionary = {"ELDERVALE_INTERNAL_SECRET": B.SECRET}
-	var c0: ServerBackendConfig = ServerBackendConfig.parse({}, {}, 24680)
-	ctx.check(not c0.enabled() and c0.errors.is_empty() and c0.public_endpoint == "127.0.0.1:24680" and c0.region == "local", "config: sem backend-url = modo dev, defaults")
+	var c0: ServerBackendConfig = ServerBackendConfig.parse({"dev-mode": "1"}, {}, 24680)
+	ctx.check(not c0.enabled() and c0.dev_mode and c0.errors.is_empty() and c0.public_endpoint == "127.0.0.1:24680" and c0.region == "local", "config: modo dev explicito, defaults")
+	var c0e: ServerBackendConfig = ServerBackendConfig.parse({}, {}, 24680)
+	ctx.check(not c0e.enabled() and not c0e.dev_mode and not c0e.errors.is_empty(), "config (M6): sem backend-url e sem dev-mode = ERRO (nao abre aberto)")
+	var c0f: ServerBackendConfig = ServerBackendConfig.parse({}, {"ELDERVALE_DEV_MODE": "true"}, 24680)
+	ctx.check(c0f.dev_mode and c0f.errors.is_empty(), "config: ELDERVALE_DEV_MODE=true habilita dev")
+	var c0g: ServerBackendConfig = ServerBackendConfig.parse({"dev-mode": "1", "backend-url": "https://api.example.com"}, env, 24680)
+	ctx.check(not c0g.errors.is_empty(), "config: dev-mode junto com backend-url = erro")
 	var c1: ServerBackendConfig = ServerBackendConfig.parse({"backend-url": "https://api.example.com", "region": "sa-east", "public-endpoint": "game.example.com:24680", "autosave-interval": "12", "redeem-timeout": "3", "max-pending": "5", "session-id-file": "/tmp/x.id"}, env, 24680)
 	ctx.check(c1.enabled() and c1.errors.is_empty() and c1.region == "sa-east" and c1.public_endpoint == "game.example.com:24680", "config: argumentos aplicados")
 	ctx.check(c1.autosave_interval_sec == 12.0 and c1.redeem_timeout_sec == 3.0 and c1.max_pending == 5 and c1.session_id_file == "/tmp/x.id" and c1.secret == B.SECRET, "config: numeros e segredo do ambiente")

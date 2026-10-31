@@ -20,7 +20,7 @@ def run(godot, port, server_extra, bots, secs, client_extra=()):
         os.makedirs(d, exist_ok=True); env[k] = d
     base = [godot, "--headless", "--path", ROOT]
     srv_log = open(os.path.join(SCR, f"srv_{port}.log"), "w")
-    srv = subprocess.Popen(base + [SERVER_SCENE, "--", "--port", str(port), "--max-seconds", str(secs + 8)] + list(server_extra),
+    srv = subprocess.Popen(base + [SERVER_SCENE, "--", "--port", str(port), "--max-seconds", str(secs + 8), "--dev-mode", "1"] + list(server_extra),
                            stdout=srv_log, stderr=subprocess.STDOUT, env=env)
     time.sleep(2.5)
     procs, outs = [], []

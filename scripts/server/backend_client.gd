@@ -14,6 +14,8 @@ extends Node
 
 var transport: BackendTransport
 var base_url: String = ""
+## Sessao dona do lock dos personagens (fencing M4): enviada em X-Session-Id em checkpoint/rewards.
+var fencing_session_id: String = ""
 var timeout_sec: float = 5.0
 var max_attempts: int = 3
 var backoff_base_sec: float = 0.25
@@ -159,6 +161,9 @@ func _dispatch(ctx: Dictionary) -> void:
 	var headers: PackedStringArray = PackedStringArray([
 		"Authorization: Bearer " + _secret, "Accept: application/json",
 	])
+	var path_s: String = String(ctx["path"])
+	if not fencing_session_id.is_empty() and (path_s.ends_with("/checkpoint") or path_s.ends_with("/rewards")):
+		headers.append("X-Session-Id: " + fencing_session_id)
 	var payload: String = ""
 	if ctx["body"] != null:
 		headers.append("Content-Type: application/json")

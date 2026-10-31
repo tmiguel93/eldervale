@@ -15,6 +15,7 @@ var tickets: Dictionary = {} ## ticket -> character_id
 var chars: Dictionary = {} ## character_id -> Dictionary (visao interna do backend)
 var forced: Dictionary = {}
 var claims: Dictionary = {} ## idempotency_key -> true
+var last_session_header: String = ""
 var last_auth: String = ""
 var cancelled: int = 0
 
@@ -47,10 +48,14 @@ func send(req: Dictionary, cb: Callable) -> void:
 		var parsed: Variant = JSON.parse_string(String(req["body"]))
 		if typeof(parsed) == TYPE_DICTIONARY:
 			body = parsed
+	var session_header: String = ""
 	for h: String in req.get("headers", PackedStringArray()):
 		if h.begins_with("Authorization: Bearer "):
 			last_auth = h.substr(22)
-	requests.append({"method": String(req["method"]), "path": path, "body": body, "raw": String(req.get("body", ""))})
+		if h.begins_with("X-Session-Id: "):
+			session_header = h.substr(14)
+	last_session_header = session_header
+	requests.append({"method": String(req["method"]), "path": path, "body": body, "raw": String(req.get("body", "")), "session_header": session_header})
 	var resp: Dictionary = {}
 	for needle: String in forced:
 		var q: Array = forced[needle]
@@ -133,6 +138,8 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 			return err(404, "not_found")
 		if method == "GET":
 			return ok({"character": ch})
+		if (path.ends_with("/checkpoint") or path.ends_with("/rewards")) and last_session_header != SESSION_ID:
+			return err(409, "session_fenced")
 		if path.ends_with("/checkpoint"):
 			if int(body.get("expected_revision", -1)) != int(ch["revision"]):
 				return err(409, "revision_conflict")

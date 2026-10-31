@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -52,8 +52,11 @@ func _start() -> void:
 		settings.redeem_timeout_sec = backend_cfg.redeem_timeout_sec
 		settings.max_pending = backend_cfg.max_pending
 	else:
-		for e: String in backend_cfg.errors:
-			print("[server] config: %s" % e)
+		if not backend_cfg.errors.is_empty():
+			for e: String in backend_cfg.errors:
+				printerr("[server] backend config: %s" % e)
+			get_tree().quit(2)
+			return
 	settings.session_seed = randi()
 
 	Engine.physics_ticks_per_second = cfg.tick_rate

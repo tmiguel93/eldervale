@@ -142,6 +142,7 @@ func _on_registered(r: Dictionary) -> void:
 	var sid: String = String(r["data"].get("session_id", "")) if r["ok"] else ""
 	if r["ok"] and BackendClient._id(sid) != "invalid":
 		session_id = sid
+		client.fencing_session_id = sid
 		_registered = true
 		_hb_timer = 0.0
 		_hb_failures = 0
@@ -185,6 +186,7 @@ func _on_heartbeat(r: Dictionary) -> void:
 		ServerLog.warn("[sync] sessao perdida no backend (%s); registrando de novo" % String(r["code"]))
 		_registered = false
 		session_id = ""
+		client.fencing_session_id = ""
 		_register_wait = 0.0
 		_register_delay = register_retry_sec
 	else:

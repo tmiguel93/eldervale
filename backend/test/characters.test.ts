@@ -34,12 +34,28 @@ function mkApp(limits: CharacterLimits = DEFAULT_LIMITS, database: Db = db): App
   });
 }
 
-interface CallOpts { as?: string; internal?: boolean | string; body?: unknown }
+interface CallOpts { as?: string; internal?: boolean | string; body?: unknown; session?: string | null }
+const lockCache = new Map<string, Promise<string>>();
+/** Cria (uma vez por personagem; seguro sob concorrencia) sessao + lock para o fencing do M4. */
+function sessionFor(characterId: string): Promise<string> {
+  let p = lockCache.get(characterId);
+  if (!p) {
+    p = (async () => {
+      const sid = await mkSession(db);
+      await db.query("INSERT INTO character_locks (character_id, session_id) VALUES ($1,$2)", [characterId, sid]);
+      return sid;
+    })();
+    lockCache.set(characterId, p);
+  }
+  return p;
+}
 async function call(app: App, method: string, path: string, o: CallOpts = {}) {
   const headers: Record<string, string> = {};
   if (o.as) headers.authorization = `Bearer tok-${o.as}`;
   if (o.internal) headers.authorization = `Bearer ${o.internal === true ? SECRET : o.internal}`;
   if (o.body !== undefined) headers["content-type"] = "application/json";
+  const m = /^\/internal\/characters\/([0-9a-f-]{36})\/(checkpoint|rewards)$/i.exec(path);
+  if (m && o.internal && o.session !== null) headers["x-session-id"] = o.session ?? (await sessionFor(m[1]!.toLowerCase()));
   const res = await app.handle(new Request(`http://t${path}`, { method, headers, body: o.body === undefined ? undefined : JSON.stringify(o.body) }));
   const text = await res.text();
   return { status: res.status, json: text ? JSON.parse(text) : null };
@@ -54,9 +70,10 @@ async function newChar(accountId: string, a: App = app) {
 }
 const get = (id: string) => call(app, "GET", `/internal/characters/${id}`, { internal: true }).then((r) => r.json.character);
 const stateOf = (c: any) => ({ schema_version: c.schema_version, level: c.level, xp: c.xp, stats: c.stats, inventory: c.inventory, equipment: c.equipment });
-const cp = (id: string, expected_revision: number, state: unknown) =>
-  call(app, "POST", `/internal/characters/${id}/checkpoint`, { internal: true, body: { expected_revision, state } });
-const reward = (id: string, body: unknown) => call(app, "POST", `/internal/characters/${id}/rewards`, { internal: true, body });
+const cp = (id: string, expected_revision: number, state: unknown, session?: string | null) =>
+  call(app, "POST", `/internal/characters/${id}/checkpoint`, { internal: true, body: { expected_revision, state }, session });
+const FAKE_SESSION = "11111111-1111-4111-8111-111111111111";
+const reward = (id: string, body: unknown, session?: string | null) => call(app, "POST", `/internal/characters/${id}/rewards`, { internal: true, body, session });
 
 describe("catalogo", () => {
   it("carrega do disco com os 7 itens do jogo e dados corretos", () => {
@@ -269,14 +286,17 @@ describe("checkpoint", () => {
     expect((await cp(c.id, 7, stateOf(g))).status).toBe(409); // revision futura
   });
 
-  it("checkpoint de personagem inexistente/apagado => 404; estado vazio => 422", async () => {
+  it("checkpoint sem lock (personagem inexistente/apagado/sem sessao) => 409 fencing; sem cabecalho => 400; estado vazio => 422", async () => {
     const a = await newAccount();
     const c = await newChar(a);
     const st = stateOf(c);
-    expect((await cp("00000000-0000-4000-8000-000000000000", 0, st)).status).toBe(404);
-    await call(app, "DELETE", `/v1/characters/${c.id}`, { as: a });
-    expect((await cp(c.id, 0, st)).status).toBe(404);
+    const fake = "11111111-1111-4111-8111-111111111111";
+    expect((await cp("00000000-0000-4000-8000-000000000000", 0, st, fake)).status).toBe(409);
+    expect((await cp(c.id, 0, st, null)).status).toBe(400);
     expect((await cp(c.id, 0, {})).status).toBe(422);
+    const d = await newChar(a);
+    await call(app, "DELETE", `/v1/characters/${d.id}`, { as: a });
+    expect((await cp(d.id, 0, st, fake)).status).toBe(409);
   });
 
   const bad: [string, (s: any) => void][] = [
@@ -559,14 +579,14 @@ describe("recompensas", () => {
       expect(r.status, name).toBe(400);
     }
     expect((await reward(c.id, { idempotency_key: ok1, items: Array.from({ length: 20 }, () => ({ item_id: "scrap_material", qty: 1 })) })).status).toBe(200);
-    expect((await reward("00000000-0000-4000-8000-000000000000", { idempotency_key: key(), xp: 1 })).status).toBe(404);
+    expect((await reward("00000000-0000-4000-8000-000000000000", { idempotency_key: key(), xp: 1 }, FAKE_SESSION)).status).toBe(409); // sem lock: fencing
     expect((await get(c.id)).inventory).toEqual([{ slot: 0, item_id: "scrap_material", qty: 20 }]); // 20 linhas mescladas
   });
 
-  it("recompensa em personagem apagado => 404", async () => {
+  it("recompensa em personagem apagado (sem lock) => 409 fencing", async () => {
     const a = await newAccount();
     const c = await newChar(a);
     await call(app, "DELETE", `/v1/characters/${c.id}`, { as: a });
-    expect((await reward(c.id, { idempotency_key: key(), xp: 1 })).status).toBe(404);
+    expect((await reward(c.id, { idempotency_key: key(), xp: 1 }, FAKE_SESSION)).status).toBe(409);
   });
 });

@@ -12,7 +12,7 @@ Cliente (M5b): obter o ticket em `POST /v1/sessions/:id/join-ticket` e enviar no
 ## Configuracao (argumentos apos `--`, ou ambiente)
 | Argumento | Ambiente | Padrao |
 |---|---|---|
-| `--backend-url U` | `ELDERVALE_BACKEND_URL` | vazio = MODO DEV (sem ticket, nada persiste, aviso no log) |
+| `--backend-url U` | `ELDERVALE_BACKEND_URL` | vazio = ERRO, a menos que `--dev-mode 1` / `ELDERVALE_DEV_MODE=1` (MODO DEV explícito: sem ticket, nada persiste) |
 | (nao existe argumento) | `ELDERVALE_INTERNAL_SECRET` | OBRIGATORIO com backend; so por ambiente; nunca logado |
 | `--public-endpoint host:porta` | `ELDERVALE_PUBLIC_ENDPOINT` | `127.0.0.1:<port>` |
 | `--region R` (`[a-z0-9-]{2,32}`) | `ELDERVALE_REGION` | `local` |

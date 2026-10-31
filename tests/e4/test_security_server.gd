@@ -107,11 +107,13 @@ func _test_secret_only_env(ctx: Object) -> void:
 
 
 func _test_dev_mode_open(ctx: Object, tree: SceneTree) -> void:
-	# [ACHADO M] Basta o ELDERVALE_BACKEND_URL faltar (typo/ambiente vazio) para o servidor subir ABERTO:
-	# so um aviso, sem ticket, sem persistencia. Nao ha flag "exigir backend".
+	# [CORRIGIDO M6] URL do backend ausente (typo/ambiente vazio) nao abre mais o servidor sem ticket:
+	# exige --dev-mode 1 / ELDERVALE_DEV_MODE=1 explicito.
 	var only_secret: ServerBackendConfig = ServerBackendConfig.parse({}, {"ELDERVALE_INTERNAL_SECRET": "env-secret-xyz"}, 24680)
-	ctx.check(not only_secret.enabled() and only_secret.errors.is_empty(), "[ACHADO] segredo presente + URL ausente => modo dev silencioso (sem erro)")
+	ctx.check(not only_secret.enabled() and not only_secret.errors.is_empty(), "[M6] segredo presente + URL ausente => ERRO de configuracao (servidor nao sobe aberto)")
+	var explicit: ServerBackendConfig = ServerBackendConfig.parse({"dev-mode": "1"}, {}, 24680)
+	ctx.check(explicit.dev_mode and explicit.errors.is_empty(), "[M6] modo dev so com flag explicita")
 	var dev: Object = B.H.make_rig(tree)
 	var id: int = B.H.join(dev, 7, "Anon")
-	ctx.check(id > 0 and dev.session.sync == null, "[ACHADO] em modo dev qualquer peer entra sem ticket")
+	ctx.check(id > 0 and dev.session.sync == null, "em modo dev explicito qualquer peer entra sem ticket")
 	dev.free_all()
