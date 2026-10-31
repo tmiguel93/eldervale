@@ -29,3 +29,16 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Escolha:** Opção 2.
 - **Consequências:** Nenhum projeto Vercel, deploy, push ou token é criado/registrado por agentes na E0. O servidor Godot e o PostgreSQL ficam em infraestrutura separada.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0003 — Câmera top-down: ortográfica inclinada como padrão (E1)
+- **Data:** 2026-10-31
+- **Status:** PROPOSTA — aguarda aprovação visual do proprietário (gate do E1)
+- **Contexto:** O E1 exige comparar câmera ortográfica inclinada e perspectiva de baixa distorção e aprovar câmera, escala e unidade de mundo antes de produzir assets.
+- **Opções consideradas:**
+  1. Ortográfica, yaw 45°, pitch 50°, tamanho 14.
+  2. Perspectiva de baixa distorção, FOV 28.
+- **Escolha provisória:** Opção 1 como padrão; F3 alterna para a opção 2 na arena de teste.
+- **Consequências:** Unidade de mundo 1 = 1 m, personagem ~1,8 m. A comparação NÃO foi observada visualmente pelos agentes (execução headless); a escolha final depende de o proprietário testar no editor.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.

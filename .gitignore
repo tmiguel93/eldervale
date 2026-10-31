@@ -52,3 +52,6 @@ desktop.ini
 *.swp
 *.swo
 *~
+
+# Ferramentas locais (binários e caches do agente)
+.tools/

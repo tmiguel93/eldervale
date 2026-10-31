@@ -56,6 +56,11 @@ Estes comandos dependem do `project.godot` (etapa E0, módulo M2) e ainda não f
 ## GitHub e Vercel (ações manuais do proprietário)
 A conexão com GitHub e Vercel é feita manualmente pelo proprietário; agentes não criam projeto Vercel, deploy ou push sem autorização. O servidor Godot multiplayer (ENet/UDP) **não** vai na Vercel.
 
+## E1 — Arena de teste
+- Abrir `scenes/arena/test_arena.tscn` no editor e executar (F6). Controles: WASD move, F2 alterna qualidade, F3 alterna câmera ortográfica/perspectiva.
+- Testes headless: `Godot_v4.7.2-stable_win64_console.exe --headless --path . --script res://tests/run_tests.gd`
+- Detalhes: `docs/E1_ARENA.md` e `docs/E1_CAMERA_PLAYER.md`. Decisão de câmera: DEC-0003 (pendente de aprovação).
+
 ## Observação
 O nome Eldervale é provisório. A arquitetura e os prazos são propostas iniciais e devem ser validados por protótipos. Não há código de jogo implementado neste pacote.
 

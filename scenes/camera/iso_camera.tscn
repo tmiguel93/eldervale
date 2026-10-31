@@ -1,0 +1,9 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/camera/iso_camera.gd" id="1_cam"]
+
+[node name="IsoCamera" type="Node3D" groups=["game_camera"]]
+script = ExtResource("1_cam")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+current = true
