@@ -25,8 +25,10 @@ var input: LocalInput = LocalInput.new()
 var result: BotResult = BotResult.new()
 var local_entity: Dictionary = {}
 var last_input_seq_ack: int = 0
+var last_entities: Array = []      # entidades validadas do ultimo snapshot (para bots)
+var _used_ticket: bool = false
 
-## Callables injetados: send_hello(version:int, build:String, name:String),
+## Callables injetados: send_hello(version:int, build:String, name:String, ticket:String),
 ## send_input(seq:int, move:Vector2, yaw:float, actions:int, client_tick:int), send_ping(client_time_ms:int).
 var send_hello: Callable
 var send_input: Callable
@@ -37,11 +39,13 @@ var _client_tick: int = 0
 var _last_sent_seq: int = 0
 
 
-func begin(version: int, build: String, player_name: String) -> void:
+## Hello v2: o ticket (join ticket do backend, uso unico) vai so no c_hello e nao e guardado.
+func begin(version: int, build: String, player_name: String, ticket: String = "") -> void:
 	state = State.HELLO_SENT
 	message = "Conectando..."
+	_used_ticket = not ticket.is_empty()
 	if send_hello.is_valid():
-		send_hello.call(version, build, player_name)
+		send_hello.call(version, build, player_name, ticket)
 
 
 func on_welcome(p_player_id: int, p_tick_rate: int, p_seed: int) -> void:
@@ -54,6 +58,7 @@ func on_welcome(p_player_id: int, p_tick_rate: int, p_seed: int) -> void:
 	message = "Conectado (id %d)" % player_id
 	interpolator.configure(tick_rate)
 	result.on_welcome(player_id, tick_rate)
+	result.ticket_used_ok = _used_ticket
 
 
 func on_reject(code: int, text: String) -> void:
@@ -82,6 +87,7 @@ func on_snapshot(server_tick: int, last_input_seq: int, raw_entities: Array, now
 		return
 	result.on_snapshot(now_ms, server_tick, entities)
 	entity_count = entities.size()
+	last_entities = entities
 	last_input_seq_ack = last_input_seq
 	local_entity = {}
 	for e: Variant in entities:

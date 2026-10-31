@@ -20,6 +20,7 @@ export/
 # Segredos
 .env
 .env.*
+!.env.example
 *.pem
 *.key
 *.p12
@@ -55,3 +56,5 @@ desktop.ini
 
 # Ferramentas locais (binários e caches do agente)
 .tools/
+
+backend/.data/

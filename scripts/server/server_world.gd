@@ -7,6 +7,9 @@ extends Node3D
 ## Ordem por tick de fisica: apply_inputs (prioridade -20) -> PlayerCombat (-10) -> Player/Enemy (0).
 
 signal event_emitted(kind: int, data: Dictionary)
+## E4: inimigo morto por um jogador. `items` = [{item_id: String, qty: int}] realmente concedidos ao
+## inventario do matador (persist_drops) ou os drops rolados (modo dev). XP ja foi dado pelo Enemy (E2).
+signal enemy_killed(enemy_id: int, killer_id: int, xp: int, items: Array)
 
 const PLAYER_SCENE_PATH: String = "res://scenes/player/player.tscn"
 ## Nos puramente cosmeticos removidos das instancias do servidor.
@@ -36,6 +39,7 @@ var _players: Dictionary = {} ## entity_id -> PlayerSlot
 var _enemies: Dictionary = {} ## entity_id -> Enemy
 var _node_ids: Dictionary = {} ## instance_id -> entity_id
 var _enemies_active: bool = true
+var _last_hit_by: Dictionary = {} ## target entity_id -> entity_id do ultimo jogador que causou dano
 
 
 func _ready() -> void:
@@ -73,7 +77,7 @@ func get_player_ids() -> Array[int]:
 
 
 ## Cria o jogador do servidor para `peer_id`. Devolve o entity_id (> 0) ou 0 em falha.
-func add_player(peer_id: int, player_name: String) -> int:
+func add_player(peer_id: int, player_name: String, starting_items: bool = true) -> int:
 	if _players.size() >= settings.max_players:
 		return 0
 	var scene: PackedScene = load(PLAYER_SCENE_PATH) as PackedScene
@@ -100,7 +104,7 @@ func add_player(peer_id: int, player_name: String) -> int:
 	slot.node = player
 	slot.health = player.get_node("Health") as HealthComponent
 	slot.loadout = PlayerLoadout.find_for(player)
-	if slot.loadout != null and slot.loadout.inventory != null:
+	if starting_items and slot.loadout != null and slot.loadout.inventory != null:
 		for item_id: StringName in TestArena.STARTING_ITEMS:
 			slot.loadout.inventory.add(item_id, 1)
 	_players[slot.id] = slot
@@ -308,6 +312,8 @@ func _on_damaged(info: DamageInfo, final_amount: float, target_id: int) -> void:
 	var source_id: int = 0
 	if is_instance_valid(info.source):
 		source_id = int(_node_ids.get(info.source.get_instance_id(), 0))
+	if _players.has(source_id) and _enemies.has(target_id):
+		_last_hit_by[target_id] = source_id # `damaged` precede `died`: ao morrer, este e o matador
 	event_emitted.emit(Protocol.EVENT_DAMAGE, {
 		"source_id": source_id, "target_id": target_id,
 		"amount": final_amount, "crit": info.is_critical,
@@ -318,9 +324,22 @@ func _on_player_died(entity_id: int) -> void:
 	event_emitted.emit(Protocol.EVENT_DEATH, {"id": entity_id})
 
 
-func _on_enemy_defeated(enemy: Enemy, _xp: int, drops: Array[LootDrop], entity_id: int) -> void:
+func _on_enemy_defeated(enemy: Enemy, xp: int, drops: Array[LootDrop], entity_id: int) -> void:
 	event_emitted.emit(Protocol.EVENT_DEATH, {"id": entity_id})
 	for drop: LootDrop in drops:
 		event_emitted.emit(Protocol.EVENT_DROP, {
 			"pos": enemy.global_position, "item_id": String(drop.item_id), "qty": drop.quantity,
 		})
+	var killer_id: int = int(_last_hit_by.get(entity_id, 0))
+	_last_hit_by.erase(entity_id)
+	var killer: PlayerSlot = _players.get(killer_id) as PlayerSlot
+	if killer == null:
+		return
+	var items: Array = []
+	for drop: LootDrop in drops:
+		var qty: int = drop.quantity
+		if settings.persist_drops and killer.loadout != null and killer.loadout.inventory != null:
+			qty -= killer.loadout.inventory.add(drop.item_id, drop.quantity) # so o que coube
+		if qty > 0:
+			items.append({"item_id": String(drop.item_id), "qty": qty})
+	enemy_killed.emit(entity_id, killer_id, xp, items)

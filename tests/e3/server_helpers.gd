@@ -89,6 +89,6 @@ static func make_rig(tree: SceneTree, spawn_enemies: bool = false, max_players: 
 ## Conecta e envia um hello valido. Devolve o entity_id (0 se nao entrou).
 static func join(rig: Rig, peer_id: int, player_name: String = "Tester") -> int:
 	rig.session.on_peer_connected(peer_id)
-	rig.session.on_hello(peer_id, 1, "test", player_name)
+	rig.session.on_hello(peer_id, Protocol.VERSION, "test", player_name, "")
 	var st: ServerSession.PeerState = rig.session.get_peer_state(peer_id)
 	return st.entity_id if st != null else 0

@@ -40,7 +40,9 @@ func disconnect_peer(peer_id: int) -> void:
 	if mp == null:
 		return
 	var do_it: Callable = func() -> void:
-		if mp != null and mp.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED:
+		# O peer pode ter saido antes da entrega atrasada: nao gera erro do ENet.
+		if mp != null and mp.get_connection_status() == MultiplayerPeer.CONNECTION_CONNECTED \
+				and rpc.multiplayer.get_peers().has(peer_id):
 			mp.disconnect_peer(peer_id)
 	if rpc.sim != null:
 		rpc.sim.submit(do_it, true, Time.get_ticks_msec())

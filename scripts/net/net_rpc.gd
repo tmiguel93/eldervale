@@ -4,7 +4,8 @@ extends Node
 ## "NetRpc" na raiz). Os @rpc so validam remetente/tipos basicos e emitem sinais. Sem logica de jogo.
 ## Os parametros @rpc sao Variant de proposito: o que chega do fio nao e confiavel.
 
-signal hello_received(peer_id: int, version: int, build: String, player_name: String)
+## v2: hello_received carrega o ticket de sessao (NUNCA logar). M5b: send_hello agora tem 4 parametros.
+signal hello_received(peer_id: int, version: int, build: String, player_name: String, ticket: String)
 signal input_received(peer_id: int, seq: int, move: Vector2, yaw: float, actions: int, client_tick: int)
 signal ping_received(peer_id: int, client_time_ms: int)
 signal welcome_received(player_id: int, tick_rate: int, session_seed: int)
@@ -16,6 +17,7 @@ signal pong_received(client_time_ms: int)
 const NODE_NAME: String = "NetRpc"
 const SERVER_PEER_ID: int = 1
 const MAX_STRING: int = 256
+const MAX_TICKET: int = 1024
 const MAX_MESSAGE: int = 512
 const MAX_ENTITIES: int = 256
 const CH_ORDERED: int = 1
@@ -48,17 +50,18 @@ func _process(_delta: float) -> void:
 # ---------------------------------------------------------------- recepcao (C -> S)
 
 @rpc("any_peer", "call_remote", "reliable")
-func c_hello(version: Variant, build: Variant, player_name: Variant) -> void:
+func c_hello(version: Variant, build: Variant, player_name: Variant, ticket: Variant) -> void:
 	var sender: int = multiplayer.get_remote_sender_id()
 	if not multiplayer.is_server() or sender == 0:
 		return
-	if typeof(version) != TYPE_INT or typeof(build) != TYPE_STRING or typeof(player_name) != TYPE_STRING:
+	if typeof(version) != TYPE_INT or typeof(build) != TYPE_STRING or typeof(player_name) != TYPE_STRING or typeof(ticket) != TYPE_STRING:
 		return
 	var b: String = build
 	var n: String = player_name
-	if b.length() > MAX_STRING or n.length() > MAX_STRING:
+	var t: String = ticket
+	if b.length() > MAX_STRING or n.length() > MAX_STRING or t.length() > MAX_TICKET:
 		return
-	hello_received.emit(sender, int(version), b, n)
+	hello_received.emit(sender, int(version), b, n, t)
 
 
 @rpc("any_peer", "call_remote", "unreliable_ordered", CH_ORDERED)
@@ -178,8 +181,8 @@ func _send(peer: int, method: StringName, args: Array, reliable: bool) -> void:
 
 
 # Cliente -> servidor
-func send_hello(version: int, build: String, player_name: String) -> void:
-	_send(SERVER_PEER_ID, &"c_hello", [version, build, player_name], true)
+func send_hello(version: int, build: String, player_name: String, ticket: String) -> void:
+	_send(SERVER_PEER_ID, &"c_hello", [version, build, player_name, ticket], true)
 
 
 func send_input(seq: int, move: Vector2, yaw: float, actions: int, client_tick: int) -> void:

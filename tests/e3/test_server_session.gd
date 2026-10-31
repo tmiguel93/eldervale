@@ -40,22 +40,22 @@ func _test_hello_ok(ctx: Object, tree: SceneTree) -> void:
 func _test_hello_rejects(ctx: Object, tree: SceneTree) -> void:
 	var rig: H.Rig = H.make_rig(tree)
 	rig.session.on_peer_connected(1)
-	rig.session.on_hello(1, 2, "test", "Bob")
+	rig.session.on_hello(1, Protocol.VERSION + 1, "test", "Bob", "")
 	ctx.check(rig.transport.reject_codes(1) == [Protocol.REJECT_VERSION], "versao errada -> reject(1)")
 	ctx.check(rig.transport.disconnects.has(1) and not rig.session.has_peer(1), "versao errada desconecta e esquece o peer")
 	ctx.check(rig.world.player_count() == 0, "nenhum jogador criado na versao errada")
 
 	rig.session.on_peer_connected(2)
-	rig.session.on_hello(2, 1, "test", "bad<name>")
+	rig.session.on_hello(2, Protocol.VERSION, "test", "bad<name>", "")
 	ctx.check(rig.transport.reject_codes(2) == [Protocol.REJECT_INVALID_PAYLOAD], "nome invalido -> reject(2)")
 	rig.session.on_peer_connected(3)
-	rig.session.on_hello(3, "1", 5, null)
+	rig.session.on_hello(3, "1", 5, null, "")
 	ctx.check(rig.transport.reject_codes(3) == [Protocol.REJECT_INVALID_PAYLOAD], "tipos errados no hello -> reject(2)")
 	rig.session.on_peer_connected(4)
-	rig.session.on_hello(4, 1, "x".repeat(40), "Ok")
+	rig.session.on_hello(4, Protocol.VERSION, "x".repeat(40), "Ok", "")
 	ctx.check(rig.transport.reject_codes(4) == [Protocol.REJECT_INVALID_PAYLOAD], "build longo -> reject(2)")
 	# mensagens de peer ja fechado sao ignoradas (sem segundo reject)
-	rig.session.on_hello(1, 1, "test", "Bob")
+	rig.session.on_hello(1, Protocol.VERSION, "test", "Bob", "")
 	rig.session.on_input(1, 1, Vector2.ZERO, 0.0, 0, 0)
 	ctx.check(rig.transport.reject_codes(1).size() == 1, "peer fechado e ignorado")
 	rig.free_all()
@@ -64,7 +64,7 @@ func _test_hello_rejects(ctx: Object, tree: SceneTree) -> void:
 func _test_hello_order(ctx: Object, tree: SceneTree) -> void:
 	var rig: H.Rig = H.make_rig(tree)
 	var id: int = H.join(rig, 10)
-	rig.session.on_hello(10, 1, "test", "Again")
+	rig.session.on_hello(10, Protocol.VERSION, "test", "Again", "")
 	ctx.check(rig.transport.reject_codes(10) == [Protocol.REJECT_NOT_AUTHENTICATED], "hello repetido -> reject(5)")
 	ctx.check(rig.world.player_count() == 0 and not rig.session.has_peer(10) and id > 0, "hello repetido remove o jogador e o peer")
 	# input antes do hello/welcome
@@ -73,7 +73,7 @@ func _test_hello_order(ctx: Object, tree: SceneTree) -> void:
 	ctx.check(rig.transport.reject_codes(11) == [Protocol.REJECT_NOT_AUTHENTICATED], "input antes do welcome -> reject(5)")
 	ctx.check(rig.world.player_count() == 0, "input sem hello nao cria jogador")
 	# peer desconhecido (sem on_peer_connected): ignorado
-	rig.session.on_hello(99, 1, "test", "Ghost")
+	rig.session.on_hello(99, Protocol.VERSION, "test", "Ghost", "")
 	ctx.check(rig.world.player_count() == 0 and rig.transport.reject_codes(99).is_empty(), "hello de peer desconhecido ignorado")
 	# timeout de hello (relogio injetado)
 	rig.session.test_now_msec = 2000

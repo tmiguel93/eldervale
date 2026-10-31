@@ -3,11 +3,13 @@ extends RefCounted
 ## Constantes e validadores puros do protocolo de rede (contrato: shared/contracts/network_protocol.md).
 ## Todos os validadores recebem Variant (o que chega do fio) e conferem o tipo.
 
-const VERSION: int = 1
+## v2 (E4): c_hello passa a levar o ticket de sessao (emitido pelo backend).
+const VERSION: int = 2
 const DEFAULT_PORT: int = 24680
 const MAX_NAME_LEN: int = 24
 const MAX_BUILD_LEN: int = 32
 const MAX_TYPE_LEN: int = 32
+const MAX_TICKET_LEN: int = 1024
 
 const ACTION_ATTACK: int = 1
 const ACTION_SKILL_1: int = 2
@@ -74,8 +76,25 @@ static func validate_name(player_name: Variant) -> Dictionary:
 	return {"ok": true, "name": s}
 
 
-static func validate_hello(version: Variant, build: Variant, player_name: Variant) -> Dictionary:
-	if typeof(version) != TYPE_INT or typeof(build) != TYPE_STRING or typeof(player_name) != TYPE_STRING:
+## Ticket de sessao: String <= 1024 chars, charset [A-Za-z0-9._-] (JWT compacto). Vazio e valido
+## aqui; exigir (ou nao) o ticket e politica do servidor (modo dev x modo com backend).
+static func validate_ticket(ticket: Variant) -> bool:
+	if typeof(ticket) != TYPE_STRING:
+		return false
+	var t: String = ticket
+	if t.length() > MAX_TICKET_LEN:
+		return false
+	for i: int in t.length():
+		var c: int = t.unicode_at(i)
+		var okc: bool = (c >= 48 and c <= 57) or (c >= 65 and c <= 90) or (c >= 97 and c <= 122) or c == 46 or c == 95 or c == 45
+		if not okc:
+			return false
+	return true
+
+
+## Retorna {ok, code, message, name, ticket}. NUNCA inclua o ticket em mensagens de erro/log.
+static func validate_hello(version: Variant, build: Variant, player_name: Variant, ticket: Variant) -> Dictionary:
+	if typeof(version) != TYPE_INT or typeof(build) != TYPE_STRING or typeof(player_name) != TYPE_STRING or typeof(ticket) != TYPE_STRING:
 		return _fail(REJECT_INVALID_PAYLOAD, "tipos invalidos no hello")
 	var v: int = version
 	if v != VERSION:
@@ -86,7 +105,9 @@ static func validate_hello(version: Variant, build: Variant, player_name: Varian
 	var n: Dictionary = validate_name(player_name)
 	if not bool(n["ok"]):
 		return _fail(REJECT_INVALID_PAYLOAD, "nome invalido")
-	return _ok({"name": n["name"]})
+	if not validate_ticket(ticket):
+		return _fail(REJECT_INVALID_PAYLOAD, "ticket invalido")
+	return _ok({"name": n["name"], "ticket": ticket})
 
 
 ## Retorna {ok, code, message, move, yaw}. Em input velho (seq <= last_seq) ok=false e "stale"=true

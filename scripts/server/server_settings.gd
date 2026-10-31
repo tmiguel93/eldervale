@@ -19,6 +19,12 @@ var hello_burst: int = 3
 var ping_rate_per_sec: float = 4.0
 var ping_burst: int = 6
 var session_seed: int = 0
+## E4: com backend, o drop morto vai para o Inventory do matador (para o checkpoint nao apagar o que
+## a recompensa persistiu). Sem backend (modo dev) o drop segue informativo como no E3.
+var persist_drops: bool = false
+## E4: resgates de ticket simultaneos aceitos (acima disso: reject 3) e prazo do resgate+carga.
+var max_pending: int = 8
+var redeem_timeout_sec: float = 8.0
 ## Testes podem desligar os inimigos da arena.
 var spawn_enemies: bool = true
 var spawn_points: Array[Vector3] = [

@@ -17,6 +17,11 @@ class PeerState extends RefCounted:
 	var closing: bool = false
 	var entity_id: int = 0
 	var player_name: String = ""
+	## E4: resgate de ticket em andamento (sem simulacao, sem acoes) e personagem ligado ao peer.
+	var pending: bool = false
+	var pending_since_msec: int = 0
+	var pending_token: int = 0
+	var character_id: String = ""
 	var last_seq: int = -1
 	var invalid_in_window: int = 0
 	var window_start_msec: int = 0
@@ -37,6 +42,11 @@ var test_now_msec: int = -1
 
 var _peers: Dictionary = {} ## peer_id -> PeerState
 var _next_event_id: int = 1
+## E4: backend (null = modo dev, como no E3: ticket nao exigido).
+var sync: BackendSync = null
+var _character_peers: Dictionary = {} ## character_id -> peer_id
+var _next_token: int = 1
+var _registry: ContentRegistry
 
 
 func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: ServerTransport) -> void:
@@ -44,7 +54,16 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	world = p_world
 	transport = p_transport
 	world.event_emitted.connect(_broadcast_event)
+	world.enemy_killed.connect(_on_enemy_killed)
 	process_physics_priority = 20 # depois de jogadores/inimigos
+
+
+## Liga a persistencia (E4). Com backend o ticket e OBRIGATORIO e o jogador nasce do estado salvo.
+func attach_backend(p_sync: BackendSync) -> void:
+	sync = p_sync
+	settings.persist_drops = true
+	sync.snapshot_provider = snapshot_character
+	sync.conflict_handler = _on_state_conflict
 
 
 func now_msec() -> int:
@@ -108,37 +127,143 @@ func on_peer_disconnected(peer_id: int) -> void:
 func check_timeouts() -> void:
 	var now: int = now_msec()
 	var limit: int = int(settings.hello_timeout_sec * 1000.0)
+	var redeem_limit: int = int(settings.redeem_timeout_sec * 1000.0)
 	for p: PeerState in _peers.values():
-		if not p.welcomed and not p.closing and now - p.connected_msec >= limit:
+		if p.closing or p.welcomed:
+			continue
+		if p.pending:
+			if now - p.pending_since_msec >= redeem_limit:
+				ServerLog.info("[server] peer %d: resgate/carga excedeu o prazo" % p.peer_id)
+				_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "nao autenticado")
+		elif now - p.connected_msec >= limit:
 			_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "hello nao recebido a tempo")
 
 
 # ------------------------------------------------------------------ hello
 
-func on_hello(peer_id: int, version: Variant, build: Variant, player_name: Variant) -> void:
+func on_hello(peer_id: int, version: Variant, build: Variant, player_name: Variant, ticket: Variant) -> void:
 	var p: PeerState = _peers.get(peer_id) as PeerState
 	if p == null or p.closing:
 		return
-	if p.welcomed:
+	if p.welcomed or p.pending:
 		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "hello repetido")
 		return
 	if not p.hello_limiter.allow(now_msec()):
 		_reject_and_close(p, Protocol.REJECT_RATE_LIMIT, "hello rapido demais")
 		return
-	var v: Dictionary = Protocol.validate_hello(version, build, player_name)
+	var v: Dictionary = Protocol.validate_hello(version, build, player_name, ticket)
 	if not bool(v["ok"]):
 		_reject_and_close(p, int(v["code"]), String(v["message"]))
+		return
+	if world.player_count() + _pending_count() >= settings.max_players:
+		_reject_and_close(p, Protocol.REJECT_SERVER_FULL, "servidor cheio")
+		return
+	if sync == null:
+		# Modo dev (sem backend): ticket nao exigido, jogador com o kit inicial (como no E3).
+		var entity_id: int = world.add_player(peer_id, String(v["name"]))
+		if entity_id == 0:
+			_reject_and_close(p, Protocol.REJECT_SERVER_FULL, "sem vaga")
+			return
+		p.player_name = String(v["name"])
+		_complete_join(p, entity_id)
+		return
+	# Modo com backend: ticket obrigatorio, resgate assincrono; peer fica "pendente".
+	var tk: String = String(v["ticket"])
+	if tk.is_empty() or not sync.is_ready():
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "nao autenticado")
+		return
+	if _pending_count() >= settings.max_pending:
+		_reject_and_close(p, Protocol.REJECT_SERVER_FULL, "ocupado")
+		return
+	p.pending = true
+	p.pending_since_msec = now_msec()
+	p.pending_token = _next_token
+	_next_token += 1
+	p.player_name = String(v["name"])
+	sync.redeem(tk, _on_redeemed.bind(peer_id, p.pending_token))
+
+
+func _pending_count() -> int:
+	var n: int = 0
+	for p: PeerState in _peers.values():
+		if p.pending and not p.closing:
+			n += 1
+	return n
+
+
+## Peer ainda existe e e a MESMA tentativa (token)? Senao a resposta chegou tarde.
+func _live_pending(peer_id: int, token: int) -> PeerState:
+	var p: PeerState = _peers.get(peer_id) as PeerState
+	if p == null or p.closing or not p.pending or p.pending_token != token:
+		return null
+	return p
+
+
+func _on_redeemed(r: Dictionary, peer_id: int, token: int) -> void:
+	var p: PeerState = _live_pending(peer_id, token)
+	var cid: String = String(r.get("character_id", ""))
+	if p == null:
+		# Chegou tarde (peer saiu/estourou o prazo): se o resgate deu certo o lock foi adquirido -> solta.
+		if bool(r["ok"]) and not cid.is_empty() and not _character_peers.has(cid) and sync != null:
+			sync.release_character(cid, {})
+		return
+	if not bool(r["ok"]):
+		ServerLog.info("[server] peer %d: resgate recusado (status %d, %s)" % [peer_id, int(r["status"]), String(r["code"])])
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "nao autenticado")
+		return
+	if _character_peers.has(cid):
+		ServerLog.info("[server] peer %d: personagem ja conectado neste servidor" % peer_id)
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "nao autenticado")
+		return
+	_character_peers[cid] = peer_id
+	p.character_id = cid
+	sync.load_character(cid, _on_loaded.bind(peer_id, token))
+
+
+func _on_loaded(r: Dictionary, peer_id: int, token: int) -> void:
+	var p: PeerState = _live_pending(peer_id, token)
+	if p == null:
+		return # _drop_peer ja soltou o personagem
+	if not bool(r["ok"]):
+		ServerLog.info("[server] peer %d: carga do personagem falhou (status %d, %s)" % [peer_id, int(r["status"]), String(r["code"])])
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "nao autenticado")
+		return
+	var ch: Dictionary = r["character"]
+	if _registry == null:
+		_registry = ContentRegistry.new()
+		_registry.load_all()
+	var err: String = CharacterCodec.validate(ch, _registry)
+	if not err.is_empty():
+		ServerLog.warn("[server] peer %d: estado do personagem invalido (%s)" % [peer_id, err])
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "nao autenticado")
 		return
 	if world.player_count() >= settings.max_players:
 		_reject_and_close(p, Protocol.REJECT_SERVER_FULL, "servidor cheio")
 		return
-	var entity_id: int = world.add_player(peer_id, String(v["name"]))
+	var char_name: String = String(ch.get("name", ""))
+	var nm: Dictionary = Protocol.validate_name(char_name)
+	if bool(nm["ok"]):
+		p.player_name = String(nm["name"])
+	var entity_id: int = world.add_player(peer_id, p.player_name, false)
 	if entity_id == 0:
 		_reject_and_close(p, Protocol.REJECT_SERVER_FULL, "sem vaga")
 		return
+	var loadout: PlayerLoadout = PlayerLoadout.find_for(world.get_player_node(entity_id))
+	if loadout == null:
+		world.remove_player(entity_id)
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "nao autenticado")
+		return
+	CharacterCodec.apply(loadout, ch)
+	p.pending = false
+	sync.mark_live(p.character_id)
+	_complete_join(p, entity_id)
+
+
+## Welcome + estado inicial para quem entrou (caminho comum dev/backend).
+func _complete_join(p: PeerState, entity_id: int) -> void:
 	p.entity_id = entity_id
-	p.player_name = String(v["name"])
 	p.welcomed = true
+	var peer_id: int = p.peer_id
 	transport.send_welcome(peer_id, entity_id, settings.tick_rate, settings.session_seed)
 	# Estado atual para quem chegou agora (eventos novos, ids crescentes so para este peer).
 	for other: PeerState in _peers.values():
@@ -148,6 +273,58 @@ func on_hello(peer_id: int, version: Variant, build: Variant, player_name: Varia
 		_send_event_to(p, Protocol.EVENT_ENEMY_SPAWN, data)
 	print("[server] peer %d entrou como '%s' (jogador %d)" % [peer_id, p.player_name, entity_id])
 	player_joined.emit(peer_id, entity_id)
+
+
+# ------------------------------------------------------------------ persistencia (E4)
+
+func _loadout_of(p: PeerState) -> PlayerLoadout:
+	if p == null or p.entity_id == 0:
+		return null
+	var node: Player = world.get_player_node(p.entity_id)
+	return PlayerLoadout.find_for(node) if node != null else null
+
+
+func _peer_of_character(character_id: String) -> PeerState:
+	return _peers.get(int(_character_peers.get(character_id, -1))) as PeerState
+
+
+## Estado completo do personagem ({} se nao ha jogador). Usado pelo autosave.
+func snapshot_character(character_id: String) -> Dictionary:
+	var p: PeerState = _peer_of_character(character_id)
+	var loadout: PlayerLoadout = _loadout_of(p)
+	if p == null or not p.welcomed or p.closing or loadout == null:
+		return {}
+	return CharacterCodec.capture(loadout)
+
+
+## 409 de revision: o backend e a fonte; reaplica o estado recarregado ao jogador vivo.
+func _on_state_conflict(character_id: String, ch: Dictionary) -> void:
+	var p: PeerState = _peer_of_character(character_id)
+	var loadout: PlayerLoadout = _loadout_of(p)
+	if loadout == null or not p.welcomed:
+		return
+	if _registry == null:
+		_registry = ContentRegistry.new()
+		_registry.load_all()
+	var err: String = CharacterCodec.validate(ch, _registry)
+	if not err.is_empty():
+		ServerLog.warn("[server] estado recarregado invalido (%s); mantendo o da memoria" % err)
+		return
+	CharacterCodec.apply(loadout, ch)
+	ServerLog.warn("[server] estado do personagem %s reaplicado a partir do backend (conflito de revision)" % character_id)
+
+
+func _on_enemy_killed(enemy_id: int, killer_id: int, xp: int, items: Array) -> void:
+	if sync == null:
+		return
+	for p: PeerState in _peers.values():
+		if p.entity_id == killer_id and p.welcomed and not p.closing and not p.character_id.is_empty():
+			if xp <= 0 and items.is_empty():
+				return
+			# Chave ESTAVEL por evento: o retry (e qualquer replay) reutiliza a mesma.
+			var key: String = "kill:%s:%d:%s" % [sync.session_id, enemy_id, p.character_id]
+			sync.enqueue_reward(p.character_id, key, xp, items)
+			return
 
 
 # ------------------------------------------------------------------ input / ping
@@ -240,12 +417,26 @@ func _drop_peer(peer_id: int, reason: String) -> void:
 	_peers.erase(peer_id)
 	if not reason.is_empty():
 		print("[server] peer %d %s" % [peer_id, reason])
+	if not p.character_id.is_empty():
+		_character_peers.erase(p.character_id)
+		if sync != null:
+			if p.welcomed:
+				# Estado capturado ANTES de remover o no: checkpoint final + disconnect (reconexao 90 s).
+				sync.disconnect_character(p.character_id, CharacterCodec.capture(_loadout_of(p)) if _loadout_of(p) != null else {})
+			else:
+				sync.release_character(p.character_id, {}) # lock adquirido mas jogador nunca entrou
 	if p.entity_id != 0:
 		world.remove_player(p.entity_id) # emite player_left para os demais
 		player_left.emit(peer_id, p.entity_id)
 
 
-## Chamado no encerramento do servidor.
+## Chamado no encerramento do servidor: checkpoint de todos + release (nao disconnect).
 func shutdown() -> void:
 	for id: int in _peers.keys():
+		var p: PeerState = _peers[id] as PeerState
+		if sync != null and p != null and not p.character_id.is_empty() and p.welcomed:
+			var loadout: PlayerLoadout = _loadout_of(p)
+			sync.release_character(p.character_id, CharacterCodec.capture(loadout) if loadout != null else {})
+			_character_peers.erase(p.character_id)
+			p.character_id = "" # ja tratado: _drop_peer nao enfileira disconnect
 		_drop_peer(id, "")

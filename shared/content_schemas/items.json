@@ -1,0 +1,55 @@
+{
+  "schema_version": 1,
+  "source": "data/items/*.tres (gerado por tools/gen_items_catalog.mjs)",
+  "items": [
+    {
+      "id": "amulet_vigor",
+      "slot": "trinket",
+      "stackable": false,
+      "max_stack": 1,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "armor_heavy",
+      "slot": "armor",
+      "stackable": false,
+      "max_stack": 1,
+      "rarity": "uncommon"
+    },
+    {
+      "id": "armor_leather",
+      "slot": "armor",
+      "stackable": false,
+      "max_stack": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "potion_minor",
+      "slot": "none",
+      "stackable": true,
+      "max_stack": 20,
+      "rarity": "common"
+    },
+    {
+      "id": "scrap_material",
+      "slot": "none",
+      "stackable": true,
+      "max_stack": 50,
+      "rarity": "common"
+    },
+    {
+      "id": "sword_basic",
+      "slot": "weapon",
+      "stackable": false,
+      "max_stack": 1,
+      "rarity": "common"
+    },
+    {
+      "id": "sword_rare",
+      "slot": "weapon",
+      "stackable": false,
+      "max_stack": 1,
+      "rarity": "rare"
+    }
+  ]
+}

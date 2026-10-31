@@ -16,6 +16,15 @@ var events_by_kind: Dictionary = {}   # "kind" -> contagem
 var rtt_samples: Array[float] = []
 var inputs_sent: int = 0
 var errors: Array[String] = []
+# --- E4 (backend) ---
+var login_ok: bool = false
+var character_id: String = ""
+var session_id: String = ""
+var ticket_used_ok: bool = false     # o servidor aceitou (welcome) uma conexao com ticket
+var flow_error: String = ""          # codigo do erro do fluxo de backend (sem dados sensiveis)
+var attempts: Array = []             # replay_ticket: resultado de cada conexao [{connected, rejected}]
+var kills: int = 0                   # mortes de inimigo observadas (kill_enemy)
+var character_final: Dictionary = {} # GET /v1/characters/:id apos sair: {level, xp, revision, items}
 var elapsed_s: float = 0.0
 
 var _last_snapshot_ms: float = -1.0
@@ -68,6 +77,23 @@ func rtt_avg_ms() -> float:
 	return s / float(rtt_samples.size())
 
 
+func _events_total() -> int:
+	var n: int = 0
+	for k: String in events_by_kind:
+		n += int(events_by_kind[k])
+	return n
+
+
+## Resumo seguro do personagem (GET /v1/characters/:id) para o relatorio.
+func set_character_final(c: Dictionary) -> void:
+	var items: int = 0
+	if c.get("inventory") is Array:
+		for it: Variant in c["inventory"]:
+			if it is Dictionary:
+				items += int((it as Dictionary).get("qty", 0))
+	character_final = {"level": int(c.get("level", 0)), "xp": int(c.get("xp", 0)), "revision": int(c.get("revision", 0)), "inventory_qty": items}
+
+
 func to_dict() -> Dictionary:
 	return {
 		"bot": bot,
@@ -85,6 +111,17 @@ func to_dict() -> Dictionary:
 		"rtt_samples": rtt_samples.size(),
 		"inputs_sent": inputs_sent,
 		"errors": errors,
+		"login_ok": login_ok,
+		"character_id": character_id,
+		"session_id": session_id,
+		"ticket_used_ok": ticket_used_ok,
+		"flow_error": flow_error,
+		"attempts": attempts,
+		"kills": kills,
+		"events_total": _events_total(),
+		"character_final": character_final,
+		"xp": int(character_final.get("xp", -1)),
+		"level": int(character_final.get("level", -1)),
 		"elapsed_s": elapsed_s,
 	}
 

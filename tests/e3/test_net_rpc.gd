@@ -30,7 +30,7 @@ func run(ctx: Object) -> void:
 	# envio sem conexao nao quebra nem enfileira
 	n.sim = NetSim.new()
 	n.sim.configure(0, 0, 0.0, 1)
-	n.send_hello(1, "b", "Ana")
+	n.send_hello(1, "b", "Ana", "tk")
 	ctx.check(n.sim.pending() == 0, "envio sem conexao e ignorado")
 	n.free()
 
@@ -75,7 +75,7 @@ func run(ctx: Object) -> void:
 	cp.create_client("127.0.0.1", TEST_PORT)
 	sapi.multiplayer_peer = sp
 	capi.multiplayer_peer = cp
-	srv.hello_received.connect(func(p: int, v: int, bd: String, nm: String) -> void: _on("hello", [p, v, bd, nm]))
+	srv.hello_received.connect(func(p: int, v: int, bd: String, nm: String, tk: String) -> void: _on("hello", [p, v, bd, nm, tk]))
 	srv.input_received.connect(func(p: int, s: int, mv: Vector2, y: float, ac: int, ct: int) -> void: _on("input", [p, s, mv, y, ac, ct]))
 	srv.ping_received.connect(func(p: int, t: int) -> void: _on("ping", [p, t]))
 	cli.welcome_received.connect(func(pid: int, tr: int, sd: int) -> void: _on("welcome", [pid, tr, sd]))
@@ -91,9 +91,9 @@ func run(ctx: Object) -> void:
 	ctx.check(connected, "loopback: cliente conectou")
 	if connected:
 		var cid: int = capi.get_unique_id()
-		cli.send_hello(Protocol.VERSION, "dev", "Ana")
+		cli.send_hello(Protocol.VERSION, "dev", "Ana", "tk.abc-1")
 		ctx.check(await _wait_for(tree, "hello", 3000), "loopback: c_hello chegou")
-		ctx.check(_got.get("hello", []) == [cid, 1, "dev", "Ana"], "loopback: hello com remetente correto")
+		ctx.check(_got.get("hello", []) == [cid, Protocol.VERSION, "dev", "Ana", "tk.abc-1"], "loopback: hello com remetente correto")
 		srv.send_welcome(cid, cid, 30, 12345)
 		ctx.check(await _wait_for(tree, "welcome", 3000) and _got["welcome"] == [cid, 30, 12345], "loopback: s_welcome")
 		cli.send_input(7, Vector2(0.5, -0.5), 1.25, 9, 33)

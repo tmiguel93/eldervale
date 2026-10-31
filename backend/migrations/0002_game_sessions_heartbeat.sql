@@ -1,0 +1,11 @@
+-- 0002_game_sessions_heartbeat
+-- M4: vivacidade da SESSAO de jogo. O servidor Godot registra a sessao e envia heartbeat;
+-- sessao sem heartbeat alem de SESSION_HEARTBEAT_TIMEOUT_SECONDS e considerada morta
+-- (nao emite tickets, nao conta vaga, some da listagem) mesmo sem `close`.
+--
+-- Decisoes:
+--  * NOT NULL DEFAULT now(): linhas existentes recebem "agora" (nao ficam mortas na migracao);
+--    a aplicacao SEMPRE grava o valor explicito (relogio injetavel), o default so cobre INSERTs legados.
+--  * Sem trigger e sem indice novo: a listagem filtra por game_sessions_open_idx (region, closed_at IS NULL)
+--    e a data de heartbeat e filtrada em memoria sobre poucas linhas abertas.
+ALTER TABLE game_sessions ADD COLUMN heartbeat_at timestamptz NOT NULL DEFAULT now();

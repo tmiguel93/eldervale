@@ -53,3 +53,15 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Escolha provisória:** opção 2 (`shared/contracts/network_protocol.md`), ENet, tick 30 Hz, snapshots 15 Hz.
 - **Consequências:** o cliente nunca decide posição/dano; predição local simples com reconciliação. Valores de tick/snapshot ainda não medidos em CPU/banda.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0005 — Backend em Node.js/TypeScript; API deployável como Vercel Functions; PostgreSQL externo (E4)
+- **Data:** 2026-10-31
+- **Status:** APROVADA pelo proprietário (linguagem); hospedagem do banco pendente
+- **Contexto:** A arquitetura previa Go como decisão provisória e exige registrar a escolha antes de implementar autenticação. O addendum Vercel permite API HTTP em Functions, mas mantém PostgreSQL em serviço externo e o servidor Godot (ENet/UDP) fora da Vercel.
+- **Opções consideradas:** Go; Node/TypeScript; Python/FastAPI.
+- **Escolha:** Node.js 22 + TypeScript (proprietário escolheu). API em handlers Web-standard (`Request` → `Response`), adaptáveis a Vercel Functions e a servidor Node local.
+- **Banco:** PostgreSQL. Em dev/teste: PGlite (Postgres em WASM, dentro da pasta do projeto, sem instalar nada no sistema). Produção/staging: Postgres gerenciado (ex.: Neon via Marketplace da Vercel) conectado manualmente pelo proprietário via `DATABASE_URL` (segredo, fora do repositório).
+- **Consequências:** mesmas migrações SQL numeradas em todos os ambientes; `node_modules` nativo é por plataforma (rodar `npm ci` no Windows). Nenhum deploy, conta ou segredo é criado por agentes.
+- **Responsável/aprovação:** Proprietário do projeto.

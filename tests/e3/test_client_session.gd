@@ -11,7 +11,7 @@ func run(ctx: Object) -> void:
 	var sent_inputs: Array = []
 	var sent_pings: Array = []
 	var ss: ClientSession = ClientSession.new()
-	ss.send_hello = func(v: int, b: String, n: String) -> void: sent_hello.append([v, b, n])
+	ss.send_hello = func(v: int, b: String, n: String, t: String) -> void: sent_hello.append([v, b, n, t])
 	ss.send_input = func(seq: int, m: Vector2, y: float, a: int, ct: int) -> void: sent_inputs.append([seq, m, y, a, ct])
 	ss.send_ping = func(t: int) -> void: sent_pings.append(t)
 
@@ -20,7 +20,7 @@ func run(ctx: Object) -> void:
 	ss.on_welcome(7, 30, 1)
 	ctx.check(ss.state == ClientSession.State.IDLE, "sess: welcome sem hello ignorado")
 
-	ss.begin(Protocol.VERSION, "dev", "Tester")
+	ss.begin(Protocol.VERSION, "dev", "Tester", "tkt.sig.nal")
 	ctx.check(sent_hello.size() == 1 and sent_hello[0][0] == Protocol.VERSION and sent_hello[0][2] == "Tester", "sess: hello enviado com versao do Protocol")
 	ss.on_snapshot(1, 0, [_ent(7, 1, Vector3.ZERO)], 0.0)
 	ctx.check(ss.result.snapshots_received == 0, "sess: snapshot antes do welcome ignorado")
@@ -75,7 +75,7 @@ func run(ctx: Object) -> void:
 
 	# reject (versao incompativel): mensagem clara, sem crash
 	var rj: ClientSession = ClientSession.new()
-	rj.send_hello = func(_v: int, _b: String, _n: String) -> void: pass
+	rj.send_hello = func(_v: int, _b: String, _n: String, _t: String) -> void: pass
 	rj.begin(Protocol.VERSION + 99, "dev", "Bad")
 	rj.on_reject(Protocol.REJECT_VERSION, "esperado 1")
 	ctx.check(rj.state == ClientSession.State.REJECTED and rj.message.contains("Versao incompativel"), "sess: reject(1) -> mensagem clara")
@@ -95,7 +95,7 @@ func run(ctx: Object) -> void:
 	# bot: itens invalidos usam seq e seq_repeat reenvia o ultimo
 	var out2: Array = []
 	var bs: ClientSession = ClientSession.new()
-	bs.send_hello = func(_v: int, _b: String, _n: String) -> void: pass
+	bs.send_hello = func(_v: int, _b: String, _n: String, _t: String) -> void: pass
 	bs.send_input = func(seq: int, _m: Vector2, _y: float, a: int, _c: int) -> void: out2.append([seq, a])
 	bs.begin(1, "d", "b")
 	bs.on_welcome(1, 30, 0)
