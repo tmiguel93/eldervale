@@ -16,7 +16,7 @@ Este pacote contém os quatro documentos-base para iniciar o desenvolvimento.
 5. Não autorize E1 até revisar os critérios de aceite de E0.
 
 ## Requisitos
-- Godot `4.7.2-stable` win64 (`Godot_v4.7.2-stable_win64.exe` e `Godot_v4.7.2-stable_win64_console.exe`, na raiz do repositório local).
+- Godot `4.7.2-stable` win64 (`Godot_v4.7.2-stable_win64.exe` e `Godot_v4.7.2-stable_win64_console.exe`, guardados FORA da pasta do projeto, por exemplo `D:\Godot\` (o gerenciador do Godot recusa importar um projeto na mesma pasta do executável)).
   - Versão **inferida do nome do binário**, ainda **não verificada por execução** (ver DEC-0001 em `docs/DECISIONS.md`).
   - Export templates: ainda não registrados nem verificados.
 - Git (configuração local; conexão com GitHub é manual, ver abaixo).
@@ -27,7 +27,7 @@ Este pacote contém os quatro documentos-base para iniciar o desenvolvimento.
   - `docs/CONVENTIONS.md` — convenções de branch, commit e código.
   - `docs/DECISIONS.md` — registro de decisões.
   - `docs/ASSET_CREDITS.md` — créditos e licenças de assets.
-- `Godot_v4.7.2-stable_win64*.exe` — binários da engine (a tratar no `.gitignore`).
+- Binários do Godot: mantenha fora desta pasta (`*.exe` já é ignorado pelo git).
 
 ## Comandos (a partir da raiz, no Windows)
 Abrir o editor:
