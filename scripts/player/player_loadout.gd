@@ -21,6 +21,9 @@ var registry: ContentRegistry
 var inventory: Inventory
 var equipment: Equipment
 var progress: CharacterProgress = CharacterProgress.new()
+## E5.1: estado persistido de quests do personagem (o QuestTracker do servidor opera sobre ESTA instancia;
+## CharacterCodec restaura/captura em-place). O cliente nunca escreve aqui.
+var quest_state: QuestState = QuestState.new()
 var final_stats: StatBlock
 
 var combat: PlayerCombat

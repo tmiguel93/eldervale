@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="LootTable" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/loot_entry.gd" id="1_8v2cv"]
+[ext_resource type="Script" path="res://scripts/data/loot_table.gd" id="2_olwke"]
+
+[sub_resource type="Resource" id="Resource_r3mfi"]
+script = ExtResource("1_8v2cv")
+item_id = &"potion_minor"
+weight = 30.0
+max_qty = 3
+
+[sub_resource type="Resource" id="Resource_wpigq"]
+script = ExtResource("1_8v2cv")
+item_id = &"scrap_material"
+weight = 30.0
+min_qty = 3
+max_qty = 6
+
+[sub_resource type="Resource" id="Resource_oomwf"]
+script = ExtResource("1_8v2cv")
+item_id = &"amulet_vigor"
+weight = 15.0
+
+[sub_resource type="Resource" id="Resource_kcyk1"]
+script = ExtResource("1_8v2cv")
+item_id = &"armor_heavy"
+weight = 15.0
+
+[sub_resource type="Resource" id="Resource_ibaoa"]
+script = ExtResource("1_8v2cv")
+item_id = &"sword_rare"
+weight = 10.0
+
+[resource]
+script = ExtResource("2_olwke")
+id = &"loot_thorn_alpha"
+entries = Array[ExtResource("1_8v2cv")]([SubResource("Resource_r3mfi"), SubResource("Resource_wpigq"), SubResource("Resource_oomwf"), SubResource("Resource_kcyk1"), SubResource("Resource_ibaoa")])
+rolls = 3
+nothing_weight = 10.0
+placeholder = true

@@ -33,6 +33,7 @@ func add_character(cid: String, level: int = 1, xp: int = 0, inventory: Array = 
 		"account_id": "acc", "id": cid, "name": char_name, "class_id": "warrior", "level": level, "xp": xp,
 		"stats": {"max_health": 100, "max_resource": 50, "resource_regen": 5, "attack_power": 10, "defense": 0, "resistance": 0, "move_speed": 5},
 		"schema_version": 1, "revision": revision, "inventory_capacity": 24, "inventory": inventory.duplicate(true), "equipment": equipment.duplicate(true),
+		"quests": {"active": {}, "completed": []},
 	}
 
 
@@ -146,16 +147,28 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 			var st: Dictionary = body["state"]
 			for k: String in ["level", "xp", "stats", "inventory", "equipment"]:
 				ch[k] = st[k]
+			if st.has("quests"):
+				ch["quests"] = st["quests"].duplicate(true) # E5.1: quests persistem junto do checkpoint
 			ch["revision"] = int(ch["revision"]) + 1
 			return ok({"character": ch})
 		if path.ends_with("/rewards"):
 			var key: String = String(body.get("idempotency_key", ""))
 			var replay: bool = claims.has(key)
+			var quest_id: String = String(body.get("quest_id", ""))
+			if not quest_id.is_empty():
+				# E5.1: espelha o backend real: chave estavel obrigatoria; quest ja concluida (sem replay) = 409.
+				if key != "quest:%s:%s" % [quest_id, cid]:
+					return err(400, "invalid_reward")
+				if not replay and (ch["quests"]["completed"] as Array).has(quest_id):
+					return err(409, "quest_already_completed")
 			if not replay:
 				claims[key] = true
 				ch["xp"] = int(ch["xp"]) + int(body.get("xp", 0))
 				for it: Variant in body.get("items", []):
 					(ch["inventory"] as Array).append({"slot": (ch["inventory"] as Array).size(), "item_id": (it as Dictionary)["item_id"], "qty": (it as Dictionary)["qty"]})
+				if not quest_id.is_empty():
+					(ch["quests"]["active"] as Dictionary).erase(quest_id)
+					(ch["quests"]["completed"] as Array).append(quest_id)
 				ch["revision"] = int(ch["revision"]) + 1
 			return ok({"replayed": replay, "result": {}, "character": ch})
 		if path.ends_with("/disconnect"):

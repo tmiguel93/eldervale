@@ -67,6 +67,8 @@ func update_frame(samples: Dictionary, p_local_id: int, local_pos: Variant, delt
 		av.position = pos
 		av.rotation.y = yaw
 		_last_pos[id] = pos
+		if int(s["kind"]) == Protocol.KIND_ENEMY:
+			_update_enemy_telegraph(av, s)
 	var gone: Array = []
 	for id: Variant in avatars:
 		if not samples.has(id):
@@ -99,6 +101,12 @@ func _create_avatar(id: int, s: Dictionary) -> Node3D:
 		body.position.y = 0.6
 		var h: float = float(absi(String(s["type"]).hash()) % 100) / 100.0
 		mat.albedo_color = Color.from_hsv(0.0 + h * 0.08, 0.75, 0.8)
+		# E5.2: cor/escala vindas dos dados do tipo (o cliente so apresenta).
+		var edata: EnemyData = EnemyCatalog.data_for(StringName(String(s["type"])))
+		if edata != null:
+			if edata.visual_color.a > 0.0:
+				mat.albedo_color = Color(edata.visual_color.r, edata.visual_color.g, edata.visual_color.b, 1.0)
+			vis.scale = Vector3.ONE * edata.visual_scale
 	else:
 		var cm: CapsuleMesh = CapsuleMesh.new()
 		cm.radius = 0.4
@@ -110,6 +118,34 @@ func _create_avatar(id: int, s: Dictionary) -> Node3D:
 	vis.add_child(body)
 	add_child(root)
 	return root
+
+
+## E5.2: indicador de chao do telegrafo. O servidor manda `atk` (id) enquanto o inimigo esta em ATTACK;
+## o desenho vem do EnemyAttack do tipo. So apresentacao.
+func _update_enemy_telegraph(av: Node3D, s: Dictionary) -> void:
+	var atk_id: String = String(s.get("atk", ""))
+	var existing: Node = av.get_node_or_null("Telegraph")
+	if atk_id.is_empty() or int(s.get("state", 0)) != int(EnemyAI.State.ATTACK):
+		_drop_telegraph(av, existing)
+		return
+	if existing != null and String(existing.get_meta("atk_id", "")) == atk_id:
+		return
+	_drop_telegraph(av, existing)
+	var edata: EnemyData = EnemyCatalog.data_for(StringName(String(s["type"])))
+	if edata == null:
+		return
+	for a: EnemyAttack in edata.all_attacks():
+		if a != null and String(a.id) == atk_id:
+			var tg: MeshInstance3D = EnemyTelegraph.build(a)
+			tg.set_meta("atk_id", atk_id)
+			av.add_child(tg) # filho da raiz (nao do Visual escalado); gira com o yaw da entidade
+			return
+
+
+func _drop_telegraph(av: Node3D, existing: Node) -> void:
+	if existing != null:
+		av.remove_child(existing)
+		existing.free()
 
 
 func apply_event(kind: int, data: Dictionary) -> void:

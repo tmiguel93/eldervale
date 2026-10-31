@@ -242,11 +242,11 @@ func enqueue_checkpoint(character_id: String, state: Dictionary, coalesce: bool)
 	return true
 
 
-func enqueue_reward(character_id: String, idempotency_key: String, xp: int, items: Array) -> bool:
+func enqueue_reward(character_id: String, idempotency_key: String, xp: int, items: Array, quest_id: String = "") -> bool:
 	var cs: CharSync = char_sync(character_id)
 	if cs == null:
 		return false
-	_enqueue(cs, {"kind": "reward", "key": idempotency_key, "xp": xp, "items": items})
+	_enqueue(cs, {"kind": "reward", "key": idempotency_key, "xp": xp, "items": items, "quest_id": quest_id})
 	return true
 
 
@@ -305,7 +305,7 @@ func _pump(cs: CharSync) -> void:
 		"checkpoint":
 			client.checkpoint(cid, cs.revision, op["state"], _op_checkpoint_done.bind(cs, op))
 		"reward":
-			client.rewards(cid, String(op["key"]), int(op["xp"]), op["items"], _op_reward_done.bind(cs, op))
+			client.rewards(cid, String(op["key"]), int(op["xp"]), op["items"], _op_reward_done.bind(cs, op), String(op.get("quest_id", "")))
 		"disconnect":
 			if session_id.is_empty():
 				_op_finish(cs)

@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack.gd" id="1_nws12"]
+[ext_resource type="Resource" path="res://data/loot/loot_grove_shaman.tres" id="2_bis7q"]
+[ext_resource type="Script" path="res://scripts/data/enemy_phase.gd" id="3_uvyr8"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="4_dkarj"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="5_edg0v"]
+
+[sub_resource type="Resource" id="Resource_e7o0l"]
+script = ExtResource("1_nws12")
+id = &"thorn_bolt"
+kind = 2
+windup = 0.55
+cooldown = 2.2
+max_range = 11.0
+weight = 3.0
+projectile_speed = 11.0
+
+[sub_resource type="Resource" id="Resource_wa21t"]
+script = ExtResource("1_nws12")
+id = &"summon_sprouts"
+kind = 4
+windup = 1.2
+own_cooldown = 14.0
+max_range = 14.0
+weight = 2.0
+summon_id = &"root_sprout"
+summon_count = 2
+summon_max_alive = 3
+summon_max_total = 6
+telegraph_color = Color(0.2, 0.9, 0.8, 0.4)
+
+[sub_resource type="Resource" id="Resource_obifd"]
+script = ExtResource("5_edg0v")
+max_health = 50.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 7.0
+move_speed = 2.8
+
+[resource]
+script = ExtResource("4_dkarj")
+id = &"grove_shaman"
+display_name = "Xama do Bosque [PLACEHOLDER]"
+stats = SubResource("Resource_obifd")
+xp_reward = 90
+loot_table = ExtResource("2_bis7q")
+behavior = &"ranged"
+aggro_range = 14.0
+attack_range = 9.0
+attack_cooldown = 2.2
+projectile_speed = 11.0
+placeholder = true
+role = &"summoner"
+windup = 0.55
+attacks = Array[ExtResource("1_nws12")]([SubResource("Resource_e7o0l"), SubResource("Resource_wa21t")])
+visual_shape = &"cone"
+visual_color = Color(0.2, 0.6, 0.5, 1)

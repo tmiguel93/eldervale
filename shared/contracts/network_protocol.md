@@ -19,7 +19,8 @@ Autenticação: o cliente só envia o **ticket de sessão** (uso único, 60 s) n
 
 `actions` (bitmask): `1=attack, 2=skill_1, 4=skill_2, 8=dodge`. Bits desconhecidos → input rejeitado.
 Entidade no snapshot: `{id:int, kind:int (1=player, 2=enemy), pos:Vector3, yaw:float, hp:float, max_hp:float, state:int, type:String}`.
-Eventos (`kind`): 1 player_joined, 2 player_left, 3 damage `{source_id, target_id, amount, crit}`, 4 death `{id}`, 5 enemy_spawn, 6 drop `{pos, item_id, qty}` (informativo no E3).
+**E5.2 (aditivo, `VERSION` continua 2):** inimigos (`kind=2`) publicam também os campos OPCIONAIS `phase:int` (0..15; fase atual do chefe/mini-chefe, 0 nos demais) e `atk:String` (≤ 32 chars; id do ataque em telegrafo enquanto `state == 2` (ATTACK), `""` caso contrário — o cliente desenha o indicador de chão a partir do `EnemyAttack` do `type`). `Protocol.validate_entity_dict` aceita a ausência dos dois (clientes/servidores antigos) e rejeita tipo/faixa inválidos quando presentes; `state` de inimigo = `EnemyAI.State` (0 IDLE, 1 CHASE, 2 ATTACK, 3 RETURN, 4 DEAD). Clientes antigos ignoram os campos novos.
+Eventos (`kind`): 1 player_joined, 2 player_left, 3 damage `{source_id, target_id, amount, crit}`, 4 death `{id}`, 5 enemy_spawn `{id, type, pos}` (também para adds invocados), 6 drop `{pos, item_id, qty}` (informativo no E3), **7 enemy_phase `{id, phase}`** (E5.2; chefe entrou na fase `phase` ≥ 1, enviado uma vez por fase; clientes que não conhecem o `kind` o ignoram). Adds dispensados (invocador morreu/encontro reiniciou) não geram `death`: somem do snapshot.
 Códigos de rejeição: 1 versão incompatível, 2 payload inválido (inclui ticket malformado), 3 servidor cheio/ocupado (inclui limite de resgates pendentes), 4 rate limit, 5 não autenticado/ordem inválida (ticket ausente/inválido/expirado/já usado, personagem já conectado, falha ao carregar o personagem, backend indisponível; os detalhes NÃO são enviados ao cliente).
 Em modo com backend o `s_welcome` só sai depois do resgate + carga do personagem (pode levar alguns segundos; o servidor desiste após `--redeem-timeout`, padrão 8 s, com `reject(5)`).
 
@@ -57,3 +58,15 @@ Esclarecimentos: os sinais NÃO aplicam `Protocol.validate_*` (o servidor deve c
 ## Esclarecimentos de integração (E3)
 - `c_input.yaw` é o **yaw da câmera** (WASD é relativo à câmera); o servidor calcula a direção com `PlayerMotion.world_direction(move, yaw)`. O facing do personagem é derivado do movimento no servidor.
 - Entregas atrasadas pelo `NetSim` para um peer já desconectado são descartadas sem erro.
+
+## Extensão E5.1 — Quests e diálogo (aditiva; `VERSION` continua 2)
+Quatro RPCs novos, todos `reliable`. Clientes/servidores antigos simplesmente não os usam; nenhuma mensagem existente mudou. O progresso de quest **nunca** viaja do cliente: só avança por eventos do servidor (abate, item, área, fala). O cliente só envia *comandos* validados.
+
+- `c_quest_cmd(req_id:int, op:int, quest_id:String)` any_peer — `op`: `QUEST_OP_ACCEPT=1`, `QUEST_OP_ABANDON=2`, `QUEST_OP_TURN_IN=3`. Entregar/aceitar exige o jogador perto do NPC da quest (validado no servidor com a posição autoritativa).
+- `c_dialogue_cmd(req_id:int, op:int, npc_id:String, choice:int)` any_peer — `op`: `DIALOGUE_OP_OPEN=1` (exige `npc_id`, `choice=0`), `DIALOGUE_OP_CHOOSE=2` (`npc_id` vazio, `choice` 0..`MAX_DIALOGUE_CHOICE=15`), `DIALOGUE_OP_CLOSE=3` (`npc_id` vazio, `choice=0`).
+- `s_quest(kind:int, data:Dictionary)` authority — `QUEST_SYNC=1 {quests:{active,completed}}`, `QUEST_ACCEPTED=2 {quest_id}`, `QUEST_PROGRESS=3 {quest_id, objective_id, value, required}`, `QUEST_READY=4 {quest_id}`, `QUEST_COMPLETED=5 {quest_id, xp, items}`, `QUEST_ABANDONED=6 {quest_id}`, `QUEST_ERROR=7 {req_id, op, quest_id, code}`.
+- `s_dialogue(kind:int, data:Dictionary)` authority — `DIALOGUE_VIEW=1 {npc_id, dialogue_id, node_id, speaker, text, text_key, choices:[{index,text,text_key}], terminal}`, `DIALOGUE_END=2 {npc_id}`, `DIALOGUE_ERROR=3 {req_id, op, code}`.
+
+Validação (`Protocol.validate_quest_cmd/validate_dialogue_cmd`): `req_id` inteiro 0..`MAX_REQ_ID`; `op` no intervalo; ids de conteúdo `[a-z][a-z0-9_]*` até `MAX_CONTENT_ID_LEN=48`; tipos exatos (Variant do fio). Payload inválido conta como abuso (`_count_invalid`) e acima do limite de abuso o peer é desconectado. Antes do `s_welcome` o comando é rejeitado com `REJECT_NOT_AUTHENTICATED`. Rate limit por peer: `quest_rate_per_sec=5`, `quest_burst=10` (`ServerSettings`), compartilhado por quest e diálogo; excedido => `REJECT_RATE_LIMIT`/abuso. Sinais em `NetRpc`: `quest_cmd_received`, `dialogue_cmd_received`, `quest_update_received`, `dialogue_received`; senders `send_quest_cmd`, `send_dialogue_cmd`, `send_quest_update`, `send_dialogue`.
+
+Persistência: o estado de quests vai junto do checkpoint do personagem (`state.quests`); a recompensa usa `POST /internal/characters/:id/rewards` com `quest_id` e `idempotency_key = quest:<quest_id>:<character_id>` (ver `docs/E5_QUESTS.md` e `docs/E4_CHARACTERS.md`).

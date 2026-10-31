@@ -9,6 +9,7 @@ const DEFAULT_PORT: int = 24680
 const MAX_NAME_LEN: int = 24
 const MAX_BUILD_LEN: int = 32
 const MAX_TYPE_LEN: int = 32
+const MAX_PHASE: int = 15
 const MAX_TICKET_LEN: int = 1024
 
 const ACTION_ATTACK: int = 1
@@ -29,9 +30,35 @@ const EVENT_DAMAGE: int = 3
 const EVENT_DEATH: int = 4
 const EVENT_ENEMY_SPAWN: int = 5
 const EVENT_DROP: int = 6
+## E5.2 (aditivo, VERSION continua 2): inimigo entrou numa nova fase `{id, phase}` (phase >= 1).
+const EVENT_ENEMY_PHASE: int = 7
 
 const KIND_PLAYER: int = 1
 const KIND_ENEMY: int = 2
+
+## Extensao aditiva E5.1 (quests + dialogo; VERSION continua 2, ver network_protocol.md "Revisao E5.1").
+## c_quest_cmd: ops de quest. c_dialogue_cmd: ops de dialogo.
+const QUEST_OP_ACCEPT: int = 1
+const QUEST_OP_ABANDON: int = 2
+const QUEST_OP_TURN_IN: int = 3
+const DIALOGUE_OP_OPEN: int = 1
+const DIALOGUE_OP_CHOOSE: int = 2
+const DIALOGUE_OP_CLOSE: int = 3
+## s_quest: tipos de atualizacao (dados em `data`).
+const QUEST_SYNC: int = 1       ## {quests: {active, completed}} estado completo (entrada e apos mudancas grandes)
+const QUEST_ACCEPTED: int = 2   ## {quest_id}
+const QUEST_PROGRESS: int = 3   ## {quest_id, objective_id, value, required}
+const QUEST_READY: int = 4      ## {quest_id}
+const QUEST_COMPLETED: int = 5  ## {quest_id, xp, items:[{item_id, qty}]}
+const QUEST_ABANDONED: int = 6  ## {quest_id}
+const QUEST_ERROR: int = 7      ## {req_id, op, quest_id, code}
+## s_dialogue: tipos.
+const DIALOGUE_VIEW: int = 1    ## {npc_id, dialogue_id, node_id, speaker, text, text_key, choices:[{index,text,text_key}], terminal}
+const DIALOGUE_END: int = 2     ## {npc_id}
+const DIALOGUE_ERROR: int = 3   ## {req_id, op, code}
+const MAX_CONTENT_ID_LEN: int = 48
+const MAX_REQ_ID: int = 2147483647
+const MAX_DIALOGUE_CHOICE: int = 15
 
 ## Limite de comprimento do vetor de movimento (contrato: <= 1.001, clamp a 1.0).
 const MOVE_TOLERANCE: float = 1.001
@@ -137,6 +164,58 @@ static func validate_input(seq: Variant, move: Variant, yaw: Variant, actions: V
 	return _ok({"move": m, "yaw": y})
 
 
+## Id de conteudo estavel: `[a-z][a-z0-9_]*`, 1..MAX_CONTENT_ID_LEN. Aceita Variant (do fio).
+static func is_content_id(v: Variant) -> bool:
+	if typeof(v) != TYPE_STRING:
+		return false
+	var s: String = v
+	if s.is_empty() or s.length() > MAX_CONTENT_ID_LEN:
+		return false
+	for i: int in s.length():
+		var c: int = s.unicode_at(i)
+		var is_lower: bool = c >= 97 and c <= 122
+		var is_digit: bool = c >= 48 and c <= 57
+		if not (is_lower or ((is_digit or c == 95) and i > 0)):
+			return false
+	return true
+
+
+static func _valid_req_id(v: Variant) -> bool:
+	return typeof(v) == TYPE_INT and int(v) >= 0 and int(v) <= MAX_REQ_ID
+
+
+## c_quest_cmd(req_id, op, quest_id). Retorna {ok, code, message, req_id, op, quest_id}. Invalido = abuso.
+static func validate_quest_cmd(req_id: Variant, op: Variant, quest_id: Variant) -> Dictionary:
+	if not _valid_req_id(req_id) or typeof(op) != TYPE_INT:
+		return _fail(REJECT_INVALID_PAYLOAD, "tipos invalidos no comando de quest")
+	var o: int = op
+	if o < QUEST_OP_ACCEPT or o > QUEST_OP_TURN_IN:
+		return _fail(REJECT_INVALID_PAYLOAD, "operacao de quest desconhecida")
+	if not is_content_id(quest_id):
+		return _fail(REJECT_INVALID_PAYLOAD, "quest_id invalido")
+	return _ok({"req_id": int(req_id), "op": o, "quest_id": String(quest_id)})
+
+
+## c_dialogue_cmd(req_id, op, npc_id, choice). `npc_id` so vale em OPEN (vazio nas outras ops);
+## `choice` so vale em CHOOSE (0 nas outras). Retorna {ok, code, message, req_id, op, npc_id, choice}.
+static func validate_dialogue_cmd(req_id: Variant, op: Variant, npc_id: Variant, choice: Variant) -> Dictionary:
+	if not _valid_req_id(req_id) or typeof(op) != TYPE_INT or typeof(npc_id) != TYPE_STRING or typeof(choice) != TYPE_INT:
+		return _fail(REJECT_INVALID_PAYLOAD, "tipos invalidos no comando de dialogo")
+	var o: int = op
+	if o < DIALOGUE_OP_OPEN or o > DIALOGUE_OP_CLOSE:
+		return _fail(REJECT_INVALID_PAYLOAD, "operacao de dialogo desconhecida")
+	var c: int = choice
+	if o == DIALOGUE_OP_OPEN and not is_content_id(npc_id):
+		return _fail(REJECT_INVALID_PAYLOAD, "npc_id invalido")
+	if o != DIALOGUE_OP_OPEN and not (npc_id as String).is_empty():
+		return _fail(REJECT_INVALID_PAYLOAD, "npc_id so vale ao abrir")
+	if o == DIALOGUE_OP_CHOOSE and (c < 0 or c > MAX_DIALOGUE_CHOICE):
+		return _fail(REJECT_INVALID_PAYLOAD, "escolha fora de faixa")
+	if o != DIALOGUE_OP_CHOOSE and c != 0:
+		return _fail(REJECT_INVALID_PAYLOAD, "escolha so vale em choose")
+	return _ok({"req_id": int(req_id), "op": o, "npc_id": String(npc_id), "choice": c})
+
+
 static func _vec3_finite(v: Vector3) -> bool:
 	return is_finite_number(v.x) and is_finite_number(v.y) and is_finite_number(v.z)
 
@@ -161,5 +240,10 @@ static func validate_entity_dict(d: Variant) -> bool:
 	if float(e["hp"]) < 0.0 or float(e["max_hp"]) < 0.0:
 		return false
 	if typeof(e["type"]) != TYPE_STRING or (e["type"] as String).length() > MAX_TYPE_LEN:
+		return false
+	# E5.2: campos OPCIONAIS de inimigo (clientes antigos ignoram): fase 0..MAX_PHASE e id do ataque em telegrafo.
+	if e.has("phase") and (typeof(e["phase"]) != TYPE_INT or int(e["phase"]) < 0 or int(e["phase"]) > MAX_PHASE):
+		return false
+	if e.has("atk") and (typeof(e["atk"]) != TYPE_STRING or (e["atk"] as String).length() > MAX_TYPE_LEN):
 		return false
 	return true

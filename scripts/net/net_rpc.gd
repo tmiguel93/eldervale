@@ -13,6 +13,11 @@ signal reject_received(code: int, message: String)
 signal snapshot_received(server_tick: int, last_input_seq: int, entities: Array)
 signal event_received(event_id: int, kind: int, data: Dictionary)
 signal pong_received(client_time_ms: int)
+## Extensao aditiva E5.1 (quests + dialogo). Os sinais NAO validam o conteudo (Protocol.validate_*).
+signal quest_cmd_received(peer_id: int, req_id: int, op: int, quest_id: String)
+signal dialogue_cmd_received(peer_id: int, req_id: int, op: int, npc_id: String, choice: int)
+signal quest_update_received(kind: int, data: Dictionary)
+signal dialogue_received(kind: int, data: Dictionary)
 
 const NODE_NAME: String = "NetRpc"
 const SERVER_PEER_ID: int = 1
@@ -86,6 +91,32 @@ func c_ping(client_time_ms: Variant) -> void:
 	ping_received.emit(sender, int(client_time_ms))
 
 
+@rpc("any_peer", "call_remote", "reliable")
+func c_quest_cmd(req_id: Variant, op: Variant, quest_id: Variant) -> void:
+	var sender: int = multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or sender == 0:
+		return
+	if typeof(req_id) != TYPE_INT or typeof(op) != TYPE_INT or typeof(quest_id) != TYPE_STRING:
+		return
+	var q: String = quest_id
+	if q.length() > MAX_STRING:
+		return
+	quest_cmd_received.emit(sender, int(req_id), int(op), q)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func c_dialogue_cmd(req_id: Variant, op: Variant, npc_id: Variant, choice: Variant) -> void:
+	var sender: int = multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or sender == 0:
+		return
+	if typeof(req_id) != TYPE_INT or typeof(op) != TYPE_INT or typeof(npc_id) != TYPE_STRING or typeof(choice) != TYPE_INT:
+		return
+	var n: String = npc_id
+	if n.length() > MAX_STRING:
+		return
+	dialogue_cmd_received.emit(sender, int(req_id), int(op), n, int(choice))
+
+
 # ---------------------------------------------------------------- recepcao (S -> C)
 
 func _from_server() -> bool:
@@ -141,6 +172,24 @@ func s_pong(client_time_ms: Variant) -> void:
 	pong_received.emit(int(client_time_ms))
 
 
+@rpc("authority", "call_remote", "reliable")
+func s_quest(kind: Variant, data: Variant) -> void:
+	if not _from_server():
+		return
+	if typeof(kind) != TYPE_INT or typeof(data) != TYPE_DICTIONARY:
+		return
+	quest_update_received.emit(int(kind), data as Dictionary)
+
+
+@rpc("authority", "call_remote", "reliable")
+func s_dialogue(kind: Variant, data: Variant) -> void:
+	if not _from_server():
+		return
+	if typeof(kind) != TYPE_INT or typeof(data) != TYPE_DICTIONARY:
+		return
+	dialogue_received.emit(int(kind), data as Dictionary)
+
+
 # ---------------------------------------------------------------- envio
 
 func _can_send() -> bool:
@@ -193,7 +242,23 @@ func send_ping(client_time_ms: int) -> void:
 	_send(SERVER_PEER_ID, &"c_ping", [client_time_ms], false)
 
 
+func send_quest_cmd(req_id: int, op: int, quest_id: String) -> void:
+	_send(SERVER_PEER_ID, &"c_quest_cmd", [req_id, op, quest_id], true)
+
+
+func send_dialogue_cmd(req_id: int, op: int, npc_id: String, choice: int) -> void:
+	_send(SERVER_PEER_ID, &"c_dialogue_cmd", [req_id, op, npc_id, choice], true)
+
+
 # Servidor -> cliente
+func send_quest_update(peer: int, kind: int, data: Dictionary) -> void:
+	_send(peer, &"s_quest", [kind, data], true)
+
+
+func send_dialogue(peer: int, kind: int, data: Dictionary) -> void:
+	_send(peer, &"s_dialogue", [kind, data], true)
+
+
 func send_welcome(peer: int, player_id: int, tick_rate: int, session_seed: int) -> void:
 	_send(peer, &"s_welcome", [player_id, tick_rate, session_seed], true)
 

@@ -136,5 +136,7 @@ func _view(e: Dictionary, pos: Vector3, extrapolated: bool) -> Dictionary:
 		"state": int(e.get("state", 0)),
 		"type": String(e.get("type", "")),
 		"kind": int(e.get("kind", 0)),
+		"phase": int(e.get("phase", 0)),
+		"atk": String(e.get("atk", "")),
 		"extrapolated": extrapolated,
 	}

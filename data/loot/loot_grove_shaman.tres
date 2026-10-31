@@ -1,0 +1,29 @@
+[gd_resource type="Resource" script_class="LootTable" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/loot_entry.gd" id="1_a0ota"]
+[ext_resource type="Script" path="res://scripts/data/loot_table.gd" id="2_sumka"]
+
+[sub_resource type="Resource" id="Resource_m4jsk"]
+script = ExtResource("1_a0ota")
+item_id = &"potion_minor"
+weight = 30.0
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_4ip2b"]
+script = ExtResource("1_a0ota")
+item_id = &"scrap_material"
+weight = 30.0
+max_qty = 3
+
+[sub_resource type="Resource" id="Resource_ctafi"]
+script = ExtResource("1_a0ota")
+item_id = &"amulet_vigor"
+weight = 8.0
+
+[resource]
+script = ExtResource("2_sumka")
+id = &"loot_grove_shaman"
+entries = Array[ExtResource("1_a0ota")]([SubResource("Resource_m4jsk"), SubResource("Resource_4ip2b"), SubResource("Resource_ctafi")])
+rolls = 2
+nothing_weight = 25.0
+placeholder = true

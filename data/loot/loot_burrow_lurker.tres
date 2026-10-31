@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="LootTable" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/loot_entry.gd" id="1_71tke"]
+[ext_resource type="Script" path="res://scripts/data/loot_table.gd" id="2_8d4yi"]
+
+[sub_resource type="Resource" id="Resource_pnn2a"]
+script = ExtResource("1_71tke")
+item_id = &"scrap_material"
+weight = 30.0
+max_qty = 3
+
+[sub_resource type="Resource" id="Resource_1veio"]
+script = ExtResource("1_71tke")
+item_id = &"potion_minor"
+weight = 20.0
+
+[sub_resource type="Resource" id="Resource_qet66"]
+script = ExtResource("1_71tke")
+item_id = &"armor_leather"
+weight = 6.0
+
+[sub_resource type="Resource" id="Resource_g65w2"]
+script = ExtResource("1_71tke")
+item_id = &"sword_rare"
+weight = 2.0
+
+[resource]
+script = ExtResource("2_8d4yi")
+id = &"loot_burrow_lurker"
+entries = Array[ExtResource("1_71tke")]([SubResource("Resource_pnn2a"), SubResource("Resource_1veio"), SubResource("Resource_qet66"), SubResource("Resource_g65w2")])
+nothing_weight = 35.0
+placeholder = true

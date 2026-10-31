@@ -1,0 +1,111 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack.gd" id="1_4kpdd"]
+[ext_resource type="Resource" path="res://data/loot/loot_thorn_alpha.tres" id="2_nifjf"]
+[ext_resource type="Script" path="res://scripts/data/enemy_phase.gd" id="3_yq6sn"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="4_rrd2i"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="5_6r7y0"]
+
+[sub_resource type="Resource" id="Resource_u560j"]
+script = ExtResource("1_4kpdd")
+id = &"swipe"
+windup = 0.6
+cooldown = 1.4
+max_range = 3.0
+weight = 3.0
+width = 2.6
+
+[sub_resource type="Resource" id="Resource_f2lme"]
+script = ExtResource("1_4kpdd")
+id = &"slam"
+kind = 1
+windup = 1.0
+cooldown = 2.0
+own_cooldown = 5.0
+damage_multiplier = 1.2
+max_range = 4.0
+weight = 2.0
+radius = 3.2
+
+[sub_resource type="Resource" id="Resource_wfngw"]
+script = ExtResource("3_yq6sn")
+id = &"alpha_p1"
+attacks = Array[ExtResource("1_4kpdd")]([SubResource("Resource_u560j"), SubResource("Resource_f2lme")])
+
+[sub_resource type="Resource" id="Resource_rhxwt"]
+script = ExtResource("1_4kpdd")
+id = &"swipe"
+windup = 0.6
+cooldown = 1.4
+max_range = 3.0
+weight = 3.0
+width = 2.6
+
+[sub_resource type="Resource" id="Resource_pa2gv"]
+script = ExtResource("1_4kpdd")
+id = &"slam"
+kind = 1
+windup = 1.0
+cooldown = 2.0
+own_cooldown = 5.0
+damage_multiplier = 1.2
+max_range = 4.0
+weight = 2.0
+radius = 3.2
+
+[sub_resource type="Resource" id="Resource_jjv5s"]
+script = ExtResource("1_4kpdd")
+id = &"gore"
+kind = 3
+windup = 0.8
+cooldown = 1.8
+own_cooldown = 7.0
+damage_multiplier = 1.4
+min_range = 5.0
+max_range = 12.0
+weight = 2.0
+width = 2.2
+charge_distance = 8.0
+charge_speed = 15.0
+telegraph_color = Color(1, 0.5, 0.1, 0.45)
+
+[sub_resource type="Resource" id="Resource_wvh0m"]
+script = ExtResource("3_yq6sn")
+id = &"alpha_p2"
+health_threshold = 0.5
+attacks = Array[ExtResource("1_4kpdd")]([SubResource("Resource_rhxwt"), SubResource("Resource_pa2gv"), SubResource("Resource_jjv5s")])
+speed_mult = 1.25
+damage_mult = 1.2
+cooldown_mult = 0.8
+transition_time = 0.8
+summon_id = &"forest_stalker"
+summon_count = 2
+
+[sub_resource type="Resource" id="Resource_kptho"]
+script = ExtResource("5_6r7y0")
+max_health = 420.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 14.0
+defense = 4.0
+move_speed = 3.2
+
+[resource]
+script = ExtResource("4_rrd2i")
+id = &"thorn_alpha"
+display_name = "Alfa Espinhoso [PLACEHOLDER]"
+stats = SubResource("Resource_kptho")
+xp_reward = 400
+loot_table = ExtResource("2_nifjf")
+aggro_range = 14.0
+attack_range = 3.0
+attack_cooldown = 1.4
+placeholder = true
+tier = &"mini_boss"
+role = &"mini_boss"
+windup = 0.6
+leash_range = 30.0
+phases = Array[ExtResource("3_yq6sn")]([SubResource("Resource_wfngw"), SubResource("Resource_wvh0m")])
+visual_shape = &"box"
+visual_color = Color(0.6, 0.25, 0.1, 1)
+visual_scale = 1.7

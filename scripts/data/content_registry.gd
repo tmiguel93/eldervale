@@ -6,10 +6,12 @@ extends RefCounted
 const ITEMS_DIR: String = "res://data/items"
 const ENEMIES_DIR: String = "res://data/enemies"
 const LOOT_DIR: String = "res://data/loot"
+const DIFFICULTY_DIR: String = "res://data/difficulty"
 
 var items: Dictionary = {}    # StringName -> ItemData
 var enemies: Dictionary = {}  # StringName -> EnemyData
 var loot_tables: Dictionary = {}  # StringName -> LootTable
+var difficulties: Dictionary = {}  # StringName -> DifficultyScaling (E5.2)
 var _load_errors: Array[String] = []
 var _dups: Array[String] = []
 
@@ -30,6 +32,11 @@ func load_all() -> void:
 			register_enemy(r)
 		else:
 			_load_errors.append("%s: nao e EnemyData" % r.resource_path)
+	for r: Resource in _load_dir(DIFFICULTY_DIR):
+		if r is DifficultyScaling:
+			difficulties[(r as DifficultyScaling).id] = r
+		else:
+			_load_errors.append("%s: nao e DifficultyScaling" % r.resource_path)
 
 
 func register_item(item: ItemData) -> void:
@@ -75,6 +82,8 @@ func validate() -> Array[String]:
 		_validate_loot(loot_tables[id] as LootTable, id, errors)
 	for id: StringName in enemies:
 		_validate_enemy(enemies[id] as EnemyData, id, errors)
+	for id: StringName in difficulties:
+		errors.append_array((difficulties[id] as DifficultyScaling).validate())
 	return errors
 
 
@@ -143,6 +152,47 @@ func _validate_enemy(en: EnemyData, key: StringName, errors: Array[String]) -> v
 	if en.loot_table != null:
 		if not loot_tables.has(en.loot_table.id):
 			errors.append("%s: loot_table '%s' nao registrada" % [tag, en.loot_table.id])
+	_validate_enemy_e5(en, tag, errors)
+
+
+## Regras do E5.2: tier, telegrafo, ataques, fases, invocacoes (summon_id precisa existir).
+func _validate_enemy_e5(en: EnemyData, tag: String, errors: Array[String]) -> void:
+	if en.tier != EnemyData.TIER_NORMAL and not en.is_boss():
+		errors.append("%s: tier invalido '%s'" % [tag, en.tier])
+	if en.windup <= 0.0:
+		errors.append(tag + ": windup deve ser > 0")
+	if en.leash_range < 0.0 or (en.leash_range > 0.0 and en.leash_range < en.aggro_range):
+		errors.append(tag + ": leash_range deve ser 0 ou >= aggro_range")
+	if en.visual_scale <= 0.0 or en.visual_scale > 4.0:
+		errors.append(tag + ": visual_scale fora de (0, 4]")
+	if en.is_boss() and en.phases.is_empty():
+		errors.append(tag + ": chefe/mini-chefe exige fases")
+	if not en.phases.is_empty() and not en.attacks.is_empty():
+		errors.append(tag + ": use attacks OU phases (phases substituem attacks)")
+	var known: Array = enemies.keys()
+	for a: EnemyAttack in en.attacks:
+		if a == null:
+			errors.append(tag + ": ataque nulo")
+			continue
+		for e: String in a.validate(known):
+			errors.append("%s: %s" % [tag, e])
+	errors.append_array(_prefixed(tag, EnemyPhaseController.validate_order(en.phases)))
+	for p: EnemyPhase in en.phases:
+		if p == null:
+			errors.append(tag + ": fase nula")
+			continue
+		for e: String in p.validate(known):
+			errors.append("%s: %s" % [tag, e])
+	for a: EnemyAttack in en.all_attacks():
+		if a != null and a.kind == EnemyAttack.Kind.SUMMON and a.summon_id == en.id:
+			errors.append(tag + ": invoca a si mesmo")
+
+
+static func _prefixed(tag: String, list: Array[String]) -> Array[String]:
+	var out: Array[String] = []
+	for e: String in list:
+		out.append("%s: %s" % [tag, e])
+	return out
 
 
 static func _load_dir(path: String) -> Array[Resource]:

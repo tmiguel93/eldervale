@@ -18,6 +18,9 @@ var hello_rate_per_sec: float = 1.0
 var hello_burst: int = 3
 var ping_rate_per_sec: float = 4.0
 var ping_burst: int = 6
+## E5.1: comandos de quest/dialogo (c_quest_cmd/c_dialogue_cmd): token bucket por peer.
+var quest_rate_per_sec: float = 5.0
+var quest_burst: int = 10
 var session_seed: int = 0
 ## E4: com backend, o drop morto vai para o Inventory do matador (para o checkpoint nao apagar o que
 ## a recompensa persistiu). Sem backend (modo dev) o drop segue informativo como no E3.

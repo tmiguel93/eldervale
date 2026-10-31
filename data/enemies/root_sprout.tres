@@ -1,0 +1,42 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack.gd" id="1_2mym7"]
+[ext_resource type="Resource" path="res://data/loot/loot_root_sprout.tres" id="2_oigvl"]
+[ext_resource type="Script" path="res://scripts/data/enemy_phase.gd" id="3_kwff3"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="4_ap2iy"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="5_7jmva"]
+
+[sub_resource type="Resource" id="Resource_e06hj"]
+script = ExtResource("1_2mym7")
+id = &"lash"
+windup = 0.5
+cooldown = 1.6
+max_range = 1.5
+width = 1.1
+telegraph_color = Color(0.5, 0.9, 0.2, 0.45)
+
+[sub_resource type="Resource" id="Resource_2e7we"]
+script = ExtResource("5_7jmva")
+max_health = 18.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 5.0
+move_speed = 3.8
+
+[resource]
+script = ExtResource("4_ap2iy")
+id = &"root_sprout"
+display_name = "Broto [PLACEHOLDER]"
+stats = SubResource("Resource_2e7we")
+xp_reward = 8
+loot_table = ExtResource("2_oigvl")
+aggro_range = 12.0
+attack_range = 1.5
+attack_cooldown = 1.6
+placeholder = true
+role = &"add"
+windup = 0.5
+attacks = Array[ExtResource("1_2mym7")]([SubResource("Resource_e06hj")])
+visual_shape = &"low"
+visual_color = Color(0.3, 0.7, 0.2, 1)
+visual_scale = 0.7

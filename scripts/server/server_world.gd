@@ -10,6 +10,8 @@ signal event_emitted(kind: int, data: Dictionary)
 ## E4: inimigo morto por um jogador. `items` = [{item_id: String, qty: int}] realmente concedidos ao
 ## inventario do matador (persist_drops) ou os drops rolados (modo dev). XP ja foi dado pelo Enemy (E2).
 signal enemy_killed(enemy_id: int, killer_id: int, xp: int, items: Array)
+## E5.1: o golpe final foi de um jogador. `enemy_type` = EnemyData.id (progresso de quests de caca).
+signal player_killed_enemy(killer_id: int, enemy_id: int, enemy_type: String)
 
 const PLAYER_SCENE_PATH: String = "res://scenes/player/player.tscn"
 ## Nos puramente cosmeticos removidos das instancias do servidor.
@@ -40,6 +42,7 @@ var _enemies: Dictionary = {} ## entity_id -> Enemy
 var _node_ids: Dictionary = {} ## instance_id -> entity_id
 var _enemies_active: bool = true
 var _last_hit_by: Dictionary = {} ## target entity_id -> entity_id do ultimo jogador que causou dano
+var _difficulty: DifficultyScaling ## E5.2: escala por numero de jogadores (data/difficulty)
 
 
 func _ready() -> void:
@@ -47,6 +50,7 @@ func _ready() -> void:
 	if settings == null:
 		settings = ServerSettings.new()
 	geometry = ArenaGeometry.build(self, false)
+	_difficulty = DifficultyScaling.load_default()
 	if settings.spawn_enemies:
 		for entry: Array in TestArena.ENEMY_SPAWNS:
 			spawn_enemy(entry[0] as String, entry[1] as Vector3)
@@ -112,6 +116,7 @@ func add_player(peer_id: int, player_name: String, starting_items: bool = true) 
 	slot.health.damaged.connect(_on_damaged.bind(slot.id))
 	slot.health.died.connect(_on_player_died.bind(slot.id).unbind(1))
 	event_emitted.emit(Protocol.EVENT_PLAYER_JOINED, {"id": slot.id, "name": player_name})
+	refresh_difficulty()
 	return slot.id
 
 
@@ -131,7 +136,10 @@ func remove_player(entity_id: int) -> bool:
 				enemy.target = null
 		remove_child(slot.node)
 		slot.node.queue_free()
+	for enemy: Enemy in _live_enemies():
+		enemy.threat.remove(entity_id)
 	event_emitted.emit(Protocol.EVENT_PLAYER_LEFT, {"id": entity_id})
+	refresh_difficulty()
 	return true
 
 
@@ -179,6 +187,9 @@ func spawn_enemy(scene_path: String, pos: Vector3) -> int:
 	_node_ids[enemy.get_instance_id()] = id
 	enemy.health.damaged.connect(_on_damaged.bind(id))
 	enemy.defeated.connect(_on_enemy_defeated.bind(id))
+	enemy.phase_changed.connect(_on_enemy_phase_changed.bind(id))
+	enemy.summon_handler = _summon_for_enemy
+	_apply_difficulty_to(enemy)
 	event_emitted.emit(Protocol.EVENT_ENEMY_SPAWN, {"id": id, "type": String(enemy.data.id), "pos": enemy.global_position})
 	return id
 
@@ -238,7 +249,7 @@ func apply_inputs() -> void:
 			player.external_input = Vector2.ZERO
 			slot.pending_actions = 0
 			continue
-		alive_positions.append({"node": player})
+		alive_positions.append({"node": player, "id": id, "pos": player.global_position})
 		player.external_input = slot.move
 		player.external_yaw = slot.yaw
 		var actions: int = slot.pending_actions
@@ -261,16 +272,60 @@ func apply_inputs() -> void:
 		if not active:
 			enemy.target = null
 			continue
-		var best: Node3D = null
-		var best_d: float = INF
-		for entry: Dictionary in alive_positions:
-			var n: Node3D = entry["node"] as Node3D
-			var d: float = n.global_position.distance_squared_to(enemy.global_position)
-			if d < best_d:
-				best_d = d
-				best = n
-		enemy.target = best
+		enemy.target = _pick_target(enemy, alive_positions)
+	if not active and _enemies_active:
+		for enemy: Enemy in _live_enemies(): # todos morreram: chefes reiniciam o encontro
+			if enemy.data.is_boss():
+				enemy.reset_encounter()
 	_enemies_active = active
+
+
+## Alvo do inimigo: maior ameaca entre os vivos dentro do leash (com histerese); sem ameaca, o mais proximo.
+func _pick_target(enemy: Enemy, alive: Array[Dictionary]) -> Node3D:
+	var current_id: int = 0
+	if enemy.target != null and is_instance_valid(enemy.target):
+		current_id = int(_node_ids.get(enemy.target.get_instance_id(), 0))
+	var leash: float = enemy.ai.leash_range if enemy.ai != null else INF
+	var id: int = TargetSelector.pick(alive, enemy.global_position, enemy.threat, current_id, leash)
+	for entry: Dictionary in alive:
+		if int(entry["id"]) == id:
+			return entry["node"] as Node3D
+	return null
+
+
+## Recalcula a escala de dificuldade de todos os inimigos para o numero atual de jogadores.
+func refresh_difficulty() -> void:
+	for enemy: Enemy in _live_enemies():
+		_apply_difficulty_to(enemy)
+
+
+func difficulty_players() -> int:
+	return _players.size()
+
+
+func _apply_difficulty_to(enemy: Enemy) -> void:
+	if _difficulty == null or enemy.data == null:
+		return
+	var n: int = maxi(_players.size(), 1)
+	enemy.set_difficulty(_difficulty.health_mult(n, enemy.data.tier), _difficulty.damage_mult(n, enemy.data.tier))
+
+
+## Handler de invocacao dos inimigos: cria os adds no mundo do servidor (ids, eventos, escala).
+func _summon_for_enemy(summoner: Enemy, type_id: StringName, count: int) -> Array:
+	var made: Array = []
+	var path: String = EnemyCatalog.scene_path(type_id)
+	if path == "" or not ResourceLoader.exists(path):
+		return made
+	for i: int in count:
+		var pos: Vector3 = Enemy.summon_position(summoner.global_position, i, count)
+		var eid: int = spawn_enemy(path, pos)
+		var add: Enemy = get_enemy_node(eid)
+		if add == null:
+			continue
+		add.set_origin(pos)
+		add.target = summoner.target
+		made.append(add)
+	return made
 
 
 # ------------------------------------------------------------------ snapshot
@@ -294,6 +349,7 @@ func build_entities() -> Array:
 			"pos": enemy.global_position, "yaw": enemy.visual.rotation.y,
 			"hp": enemy.health.current_health, "max_hp": enemy.health.max_health(),
 			"state": int(enemy.ai.state), "type": String(enemy.data.id),
+			"phase": enemy.phase_index(), "atk": enemy.current_attack_id(),
 		})
 	return out
 
@@ -314,10 +370,17 @@ func _on_damaged(info: DamageInfo, final_amount: float, target_id: int) -> void:
 		source_id = int(_node_ids.get(info.source.get_instance_id(), 0))
 	if _players.has(source_id) and _enemies.has(target_id):
 		_last_hit_by[target_id] = source_id # `damaged` precede `died`: ao morrer, este e o matador
+		var hit_enemy: Enemy = _enemies[target_id] as Enemy
+		if is_instance_valid(hit_enemy):
+			hit_enemy.add_threat(source_id, final_amount)
 	event_emitted.emit(Protocol.EVENT_DAMAGE, {
 		"source_id": source_id, "target_id": target_id,
 		"amount": final_amount, "crit": info.is_critical,
 	})
+
+
+func _on_enemy_phase_changed(_enemy: Enemy, phase_index: int, entity_id: int) -> void:
+	event_emitted.emit(Protocol.EVENT_ENEMY_PHASE, {"id": entity_id, "phase": phase_index})
 
 
 func _on_player_died(entity_id: int) -> void:
@@ -335,6 +398,7 @@ func _on_enemy_defeated(enemy: Enemy, xp: int, drops: Array[LootDrop], entity_id
 	var killer: PlayerSlot = _players.get(killer_id) as PlayerSlot
 	if killer == null:
 		return
+	player_killed_enemy.emit(killer_id, entity_id, String(enemy.data.id))
 	var items: Array = []
 	for drop: LootDrop in drops:
 		var qty: int = drop.quantity

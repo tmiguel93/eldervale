@@ -88,6 +88,8 @@ func _start() -> void:
 	rpc.hello_received.connect(session.on_hello)
 	rpc.input_received.connect(session.on_input)
 	rpc.ping_received.connect(session.on_ping)
+	rpc.quest_cmd_received.connect(session.on_quest_cmd)
+	rpc.dialogue_cmd_received.connect(session.on_dialogue_cmd)
 	multiplayer.peer_connected.connect(session.on_peer_connected)
 	multiplayer.peer_disconnected.connect(session.on_peer_disconnected)
 

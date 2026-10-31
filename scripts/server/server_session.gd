@@ -32,6 +32,7 @@ class PeerState extends RefCounted:
 	var hello_limiter: RateLimiter
 	var input_limiter: RateLimiter
 	var ping_limiter: RateLimiter
+	var quest_limiter: RateLimiter
 
 
 var settings: ServerSettings
@@ -47,6 +48,8 @@ var sync: BackendSync = null
 var _character_peers: Dictionary = {} ## character_id -> peer_id
 var _next_token: int = 1
 var _registry: ContentRegistry
+## E5.1: quests + dialogo (criado em setup; usa o transporte da sessao).
+var quests: QuestService
 
 
 func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: ServerTransport) -> void:
@@ -55,6 +58,9 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	transport = p_transport
 	world.event_emitted.connect(_broadcast_event)
 	world.enemy_killed.connect(_on_enemy_killed)
+	world.player_killed_enemy.connect(_on_player_killed_enemy)
+	quests = QuestService.new(transport)
+	quests.position_of = _player_position
 	process_physics_priority = 20 # depois de jogadores/inimigos
 
 
@@ -64,6 +70,7 @@ func attach_backend(p_sync: BackendSync) -> void:
 	settings.persist_drops = true
 	sync.snapshot_provider = snapshot_character
 	sync.conflict_handler = _on_state_conflict
+	quests.sync = p_sync
 
 
 func now_msec() -> int:
@@ -78,6 +85,7 @@ func _physics_process(_delta: float) -> void:
 func step_tick() -> void:
 	world.server_tick += 1
 	check_timeouts()
+	quests.tick()
 	if world.server_tick % settings.snapshot_divisor() == 0:
 		send_snapshots()
 
@@ -116,6 +124,7 @@ func on_peer_connected(peer_id: int) -> void:
 	p.hello_limiter = RateLimiter.new(settings.hello_rate_per_sec, settings.hello_burst)
 	p.input_limiter = RateLimiter.new(settings.input_rate_per_sec, settings.input_burst)
 	p.ping_limiter = RateLimiter.new(settings.ping_rate_per_sec, settings.ping_burst)
+	p.quest_limiter = RateLimiter.new(settings.quest_rate_per_sec, settings.quest_burst)
 	_peers[peer_id] = p
 	print("[server] peer %d conectou (%d conexoes)" % [peer_id, _peers.size()])
 
@@ -272,6 +281,9 @@ func _complete_join(p: PeerState, entity_id: int) -> void:
 	for data: Dictionary in world.enemy_spawn_events():
 		_send_event_to(p, Protocol.EVENT_ENEMY_SPAWN, data)
 	print("[server] peer %d entrou como '%s' (jogador %d)" % [peer_id, p.player_name, entity_id])
+	var join_loadout: PlayerLoadout = _loadout_of(p)
+	if join_loadout != null:
+		quests.attach(entity_id, peer_id, p.character_id, join_loadout)
 	player_joined.emit(peer_id, entity_id)
 
 
@@ -311,10 +323,24 @@ func _on_state_conflict(character_id: String, ch: Dictionary) -> void:
 		ServerLog.warn("[server] estado recarregado invalido (%s); mantendo o da memoria" % err)
 		return
 	CharacterCodec.apply(loadout, ch)
+	quests.resync(p.entity_id)
 	ServerLog.warn("[server] estado do personagem %s reaplicado a partir do backend (conflito de revision)" % character_id)
 
 
+func _player_position(entity_id: int) -> Variant:
+	var node: Player = world.get_player_node(entity_id)
+	return node.global_position if node != null else null
+
+
+func _on_player_killed_enemy(killer_id: int, _enemy_id: int, enemy_type: String) -> void:
+	quests.on_enemy_killed(killer_id, enemy_type)
+
+
 func _on_enemy_killed(enemy_id: int, killer_id: int, xp: int, items: Array) -> void:
+	# Coleta para quests: so o que REALMENTE entrou no inventario (persist_drops); em modo dev os drops
+	# sao apenas informativos e nao contam.
+	if settings.persist_drops:
+		quests.on_items_gained(killer_id, items)
 	if sync == null:
 		return
 	for p: PeerState in _peers.values():
@@ -351,6 +377,48 @@ func on_input(peer_id: int, seq: Variant, move: Variant, yaw: Variant, actions: 
 	p.last_seq = int(seq)
 	p.accepted_inputs += 1
 	world.set_input(p.entity_id, v["move"] as Vector2, float(v["yaw"]), int(actions))
+
+
+## E5.1: c_quest_cmd. Payload invalido/rate limit contam como abuso; regra de jogo violada vira
+## s_quest(QUEST_ERROR) sem punir o peer.
+func on_quest_cmd(peer_id: int, req_id: Variant, op: Variant, quest_id: Variant) -> void:
+	var p: PeerState = _quest_peer_ok(peer_id)
+	if p == null:
+		return
+	var v: Dictionary = Protocol.validate_quest_cmd(req_id, op, quest_id)
+	if not bool(v["ok"]):
+		p.dropped_invalid += 1
+		_count_invalid(p, String(v["message"]))
+		return
+	quests.cmd_quest(p.entity_id, int(v["req_id"]), int(v["op"]), String(v["quest_id"]))
+
+
+## E5.1: c_dialogue_cmd (mesmas regras de on_quest_cmd).
+func on_dialogue_cmd(peer_id: int, req_id: Variant, op: Variant, npc_id: Variant, choice: Variant) -> void:
+	var p: PeerState = _quest_peer_ok(peer_id)
+	if p == null:
+		return
+	var v: Dictionary = Protocol.validate_dialogue_cmd(req_id, op, npc_id, choice)
+	if not bool(v["ok"]):
+		p.dropped_invalid += 1
+		_count_invalid(p, String(v["message"]))
+		return
+	quests.cmd_dialogue(p.entity_id, int(v["req_id"]), int(v["op"]), String(v["npc_id"]), int(v["choice"]))
+
+
+## Peer apto a enviar comandos de quest/dialogo (welcomed + dentro do rate limit) ou null.
+func _quest_peer_ok(peer_id: int) -> PeerState:
+	var p: PeerState = _peers.get(peer_id) as PeerState
+	if p == null or p.closing:
+		return null
+	if not p.welcomed:
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "comando antes do welcome")
+		return null
+	if not p.quest_limiter.allow(now_msec()):
+		p.dropped_rate += 1
+		_count_invalid(p, "rate limit de quest")
+		return null
+	return p
 
 
 func on_ping(peer_id: int, client_time_ms: Variant) -> void:
@@ -426,6 +494,7 @@ func _drop_peer(peer_id: int, reason: String) -> void:
 			else:
 				sync.release_character(p.character_id, {}) # lock adquirido mas jogador nunca entrou
 	if p.entity_id != 0:
+		quests.detach(p.entity_id)
 		world.remove_player(p.entity_id) # emite player_left para os demais
 		player_left.emit(peer_id, p.entity_id)
 

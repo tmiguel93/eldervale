@@ -11,6 +11,9 @@ extends RefCounted
 ##  ATTACK -> RETURN  alvo morreu durante o windup (ataque cancelado, sem release)
 ##  RETURN -> IDLE    chegou na origem (ou estourou return_timeout -> return_timed_out + reset)
 ##  qualquer -> DEAD  die(); DEAD e terminal (tick nao faz nada)
+## E5.2: com `attacks` nao vazio, o ataque e ESCOLHIDO (peso, alcance, recarga propria, sem repetir o
+## anterior se houver alternativa) e o telegrafo usa o windup dele; `lock_left` > 0 (transicao de
+## fase) deixa o inimigo parado, sem atacar nem perseguir. `attacks` vazio = comportamento legado.
 ## Em RETURN o alvo e ignorado (sem re-aggro ate chegar), evitando ping-pong no limite do leash.
 ## Nao ha softlock: todo estado tem saida por tempo (windup, return_timeout) ou por condicao.
 
@@ -34,6 +37,18 @@ var stop_fraction: float = 0.9
 var retreat_fraction: float = 0.0
 var arrive_radius: float = 0.6
 var return_timeout: float = 10.0
+## E5.2: lista de ataques (vazia = ataque unico legado). Preenchida pelo Enemy / pela fase atual.
+var attacks: Array[EnemyAttack] = []
+## Ataque em andamento (valido de ATTACK ate o proximo); null no modo legado.
+var current_attack: EnemyAttack = null
+## Multiplica as pausas entre ataques (fase: < 1 = mais agressivo).
+var cooldown_scale: float = 1.0
+## > 0: parado (transicao de fase). Ver begin_lock().
+var lock_left: float = 0.0
+## Ids de ataque que NAO podem ser escolhidos agora (ex.: invocacao com limite de vivos). id -> true.
+var blocked: Dictionary = {}
+var rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var last_attack_id: StringName = &""
 
 var state: State = State.IDLE
 var origin: Vector3 = Vector3.ZERO
@@ -42,7 +57,9 @@ var face_dir: Vector3 = Vector3.ZERO
 var cooldown_left: float = 0.0
 
 var _windup_left: float = 0.0
+var _windup_total: float = 0.0
 var _return_time: float = 0.0
+var _attack_cd: Dictionary = {} ## attack id -> s restantes (recarga propria)
 
 
 static func from_data(d: EnemyData) -> EnemyAI:
@@ -50,7 +67,9 @@ static func from_data(d: EnemyData) -> EnemyAI:
 	ai.aggro_range = d.aggro_range
 	ai.attack_range = d.attack_range
 	ai.attack_cooldown = d.attack_cooldown
-	ai.leash_range = d.aggro_range * 2.0
+	ai.leash_range = d.leash_range if d.leash_range > 0.0 else d.aggro_range * 2.0
+	ai.windup = d.windup
+	ai.attacks = d.attacks.duplicate()
 	if d.behavior == EnemyData.BEHAVIOR_RANGED:
 		ai.retreat_fraction = 0.5
 	return ai
@@ -71,11 +90,97 @@ static func _flat(v: Vector3) -> Vector3:
 	return Vector3(v.x, 0.0, v.z)
 
 
+## Progresso do telegrafo (0..1) enquanto em ATTACK; 0 fora dele.
+func windup_progress() -> float:
+	if state != State.ATTACK or _windup_total <= 0.0:
+		return 0.0
+	return clampf(1.0 - _windup_left / _windup_total, 0.0, 1.0)
+
+
+## Congela o inimigo por `time` s (transicao de fase). Um windup em andamento e cancelado sem release.
+func begin_lock(time: float) -> void:
+	lock_left = maxf(lock_left, time)
+	if state == State.ATTACK:
+		_set_state(State.CHASE)
+
+
+## Volta a IDLE limpo (reset de encontro): sem ataque, recargas e travas zeradas. Nao mexe na origem.
+func reset_to_idle() -> void:
+	if state == State.DEAD:
+		return
+	lock_left = 0.0
+	cooldown_left = 0.0
+	_attack_cd.clear()
+	current_attack = null
+	last_attack_id = &""
+	move_dir = Vector3.ZERO
+	_set_state(State.IDLE)
+
+
+## Escolhe um ataque para a distancia `dist` ou null. Deterministico dado o estado de `rng`.
+func pick_attack(dist: float) -> EnemyAttack:
+	var cands: Array[EnemyAttack] = []
+	for a: EnemyAttack in attacks:
+		if a == null or dist < a.min_range or dist > a.max_range:
+			continue
+		if float(_attack_cd.get(a.id, 0.0)) > 0.0 or bool(blocked.get(a.id, false)):
+			continue
+		cands.append(a)
+	if cands.size() > 1:
+		var varied: Array[EnemyAttack] = []
+		for a: EnemyAttack in cands:
+			if a.id != last_attack_id:
+				varied.append(a)
+		if not varied.is_empty():
+			cands = varied
+	if cands.is_empty():
+		return null
+	var total: float = 0.0
+	for a: EnemyAttack in cands:
+		total += maxf(a.weight, 0.0)
+	if total <= 0.0:
+		return cands[0]
+	var roll: float = rng.randf() * total
+	var acc: float = 0.0
+	for a: EnemyAttack in cands:
+		acc += maxf(a.weight, 0.0)
+		if roll < acc:
+			return a
+	return cands[cands.size() - 1]
+
+
+## Tenta iniciar um ataque (legado: dentro de attack_range; senao: escolhido da lista).
+func _try_begin_attack(dist: float) -> bool:
+	if attacks.is_empty():
+		if dist > attack_range:
+			return false
+		current_attack = null
+		_windup_total = windup
+	else:
+		var a: EnemyAttack = pick_attack(dist)
+		if a == null:
+			return false
+		current_attack = a
+		_windup_total = a.windup
+	_windup_left = _windup_total
+	return true
+
+
+func _tick_attack_cooldowns(delta: float) -> void:
+	for k: Variant in _attack_cd.keys():
+		var left: float = float(_attack_cd[k]) - delta
+		if left <= 0.0:
+			_attack_cd.erase(k)
+		else:
+			_attack_cd[k] = left
+
+
 func tick(delta: float, pos: Vector3, target_pos: Vector3, target_alive: bool) -> void:
 	move_dir = Vector3.ZERO
 	if state == State.DEAD:
 		return
 	cooldown_left = maxf(0.0, cooldown_left - delta)
+	_tick_attack_cooldowns(delta)
 	var to_target: Vector3 = _flat(target_pos - pos)
 	var dist: float = to_target.length()
 	var target_from_origin: float = _flat(target_pos - origin).length()
@@ -87,11 +192,14 @@ func tick(delta: float, pos: Vector3, target_pos: Vector3, target_alive: bool) -
 		if target_alive and dist <= aggro_range and target_from_origin <= leash_range:
 			_set_state(State.CHASE)
 
+	if lock_left > 0.0 and state != State.RETURN:
+		lock_left = maxf(0.0, lock_left - delta)
+		return # transicao de fase: parado, sem atacar nem perseguir
+
 	if state == State.CHASE:
 		if not target_alive or self_from_origin > leash_range or target_from_origin > leash_range:
 			_begin_return()
-		elif dist <= attack_range and cooldown_left <= 0.0:
-			_windup_left = windup
+		elif cooldown_left <= 0.0 and _try_begin_attack(dist):
 			_set_state(State.ATTACK)
 			attack_telegraph_started.emit()
 		elif retreat_fraction > 0.0 and dist < attack_range * retreat_fraction and dist > 0.0001:
@@ -105,7 +213,12 @@ func tick(delta: float, pos: Vector3, target_pos: Vector3, target_alive: bool) -
 		else:
 			_windup_left -= delta
 			if _windup_left <= 0.0:
-				cooldown_left = attack_cooldown
+				if current_attack != null:
+					cooldown_left = current_attack.cooldown * cooldown_scale
+					_attack_cd[current_attack.id] = current_attack.own_cooldown
+					last_attack_id = current_attack.id
+				else:
+					cooldown_left = attack_cooldown * cooldown_scale
 				_set_state(State.CHASE)
 				attack_released.emit()
 

@@ -12,6 +12,30 @@ class RecordingTransport extends ServerTransport:
 	var events: Array[Dictionary] = []
 	var pongs: Array[Dictionary] = []
 	var disconnects: Array[int] = []
+	## E5.1: mensagens de quest/dialogo gravadas ({peer, kind, data}).
+	var quest_updates: Array[Dictionary] = []
+	var dialogues: Array[Dictionary] = []
+
+	func send_quest_update(peer_id: int, kind: int, data: Dictionary) -> void:
+		quest_updates.append({"peer": peer_id, "kind": kind, "data": data})
+
+	func send_dialogue(peer_id: int, kind: int, data: Dictionary) -> void:
+		dialogues.append({"peer": peer_id, "kind": kind, "data": data})
+
+	## Dados das atualizacoes de quest de um tipo para um peer, em ordem.
+	func quest_msgs(peer_id: int, kind: int) -> Array[Dictionary]:
+		var out: Array[Dictionary] = []
+		for u: Dictionary in quest_updates:
+			if int(u["peer"]) == peer_id and int(u["kind"]) == kind:
+				out.append(u["data"])
+		return out
+
+	func dialogue_msgs(peer_id: int, kind: int) -> Array[Dictionary]:
+		var out: Array[Dictionary] = []
+		for u: Dictionary in dialogues:
+			if int(u["peer"]) == peer_id and int(u["kind"]) == kind:
+				out.append(u["data"])
+		return out
 
 	func send_welcome(peer_id: int, player_id: int, tick_rate: int, session_seed: int) -> void:
 		welcomes.append({"peer": peer_id, "player_id": player_id, "tick_rate": tick_rate, "seed": session_seed})

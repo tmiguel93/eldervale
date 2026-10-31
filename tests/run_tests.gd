@@ -14,7 +14,14 @@ func _initialize() -> void:
 
 
 func _run_all() -> void:
+	# Filtro opcional (E5.1): `-- --only=tests/e5` (prefixo/trecho do caminho) roda so uma parte da suite.
+	var only: String = ""
+	for a: String in OS.get_cmdline_user_args():
+		if a.begins_with("--only="):
+			only = a.substr(7)
 	for path: String in _discover(TESTS_ROOT):
+		if not only.is_empty() and not path.contains(only):
+			continue
 		print("== ", path)
 		var script: GDScript = load(path) as GDScript
 		if script == null:

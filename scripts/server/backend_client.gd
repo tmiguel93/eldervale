@@ -120,8 +120,13 @@ func checkpoint(character_id: String, expected_revision: int, state: Dictionary,
 
 
 ## Retry sempre com a MESMA idempotency_key (o corpo e identico).
-func rewards(character_id: String, idempotency_key: String, xp: int, items: Array, cb: Callable) -> void:
-	_request("POST", "/internal/characters/%s/rewards" % _id(character_id), {"idempotency_key": idempotency_key, "xp": xp, "items": items}, true, cb)
+## E5.1: `quest_id` (opcional) marca a quest como concluida NA MESMA transacao da recompensa; a chave
+## deve ser `quest:<quest_id>:<character_id>` (o backend confere).
+func rewards(character_id: String, idempotency_key: String, xp: int, items: Array, cb: Callable, quest_id: String = "") -> void:
+	var body: Dictionary = {"idempotency_key": idempotency_key, "xp": xp, "items": items}
+	if not quest_id.is_empty():
+		body["quest_id"] = quest_id
+	_request("POST", "/internal/characters/%s/rewards" % _id(character_id), body, true, cb)
 
 
 func disconnect_character(character_id: String, session_id: String, cb: Callable) -> void:

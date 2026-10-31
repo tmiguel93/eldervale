@@ -92,6 +92,8 @@ func _wire_session(ss: ClientSession) -> void:
 	ss.send_hello = Callable(_rpc, "send_hello")
 	ss.send_input = Callable(_rpc, "send_input")
 	ss.send_ping = Callable(_rpc, "send_ping")
+	ss.send_quest_cmd = Callable(_rpc, "send_quest_cmd")
+	ss.send_dialogue_cmd = Callable(_rpc, "send_dialogue_cmd")
 
 
 func _read_bot_seconds() -> float:
@@ -119,6 +121,8 @@ func _start() -> void:
 		_rpc.snapshot_received.connect(_on_snapshot)
 		_rpc.event_received.connect(_on_event)
 		_rpc.pong_received.connect(_on_pong)
+		_rpc.quest_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_quest_update(kind, data))
+		_rpc.dialogue_received.connect(func(kind: int, data: Dictionary) -> void: session.on_dialogue(kind, data))
 		multiplayer.connected_to_server.connect(_on_connected)
 		multiplayer.connection_failed.connect(_on_connection_failed)
 		multiplayer.server_disconnected.connect(_on_server_disconnected)

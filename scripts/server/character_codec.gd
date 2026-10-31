@@ -35,6 +35,9 @@ static func validate(ch: Dictionary, registry: ContentRegistry) -> String:
 			return "stat invalido: " + key
 	if typeof(ch["inventory"]) != TYPE_ARRAY or typeof(ch["equipment"]) != TYPE_DICTIONARY:
 		return "inventario/equipamento invalidos"
+	# E5.1: `quests` e opcional (backend antigo/personagem pre-E5.1 = sem quests); se presente, a FORMA deve ser valida.
+	if ch.has("quests") and not QuestState.shape_error(ch["quests"]).is_empty():
+		return "quests invalido"
 	var cap: int = int(ch.get("inventory_capacity", 20))
 	if cap < 1 or cap > 200 or (ch["inventory"] as Array).size() > cap:
 		return "capacidade de inventario invalida"
@@ -87,6 +90,9 @@ static func apply(loadout: PlayerLoadout, ch: Dictionary) -> void:
 		if (ch["equipment"] as Dictionary).has(nm):
 			eq._equipped[slot_value] = StringName(ch["equipment"][nm])
 	loadout.recalculate()
+	# Quests: restauracao leniente (ids desconhecidos descartados) EM-PLACE, preservando a referencia do tracker.
+	for w: String in loadout.quest_state.restore(ch.get("quests", {}), QuestCatalog.shared()):
+		ServerLog.warn("[state] " + w)
 
 
 ## Estado completo para checkpoint (so o servidor decide; nada vem do cliente).
@@ -112,4 +118,5 @@ static func capture(loadout: PlayerLoadout) -> Dictionary:
 		},
 		"inventory": inventory,
 		"equipment": equipment,
+		"quests": loadout.quest_state.to_dict(),
 	}

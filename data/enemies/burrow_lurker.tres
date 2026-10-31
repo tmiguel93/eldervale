@@ -1,0 +1,58 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack.gd" id="1_qyw7y"]
+[ext_resource type="Resource" path="res://data/loot/loot_burrow_lurker.tres" id="2_a0072"]
+[ext_resource type="Script" path="res://scripts/data/enemy_phase.gd" id="3_oha2t"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="4_lp1b5"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="5_xesu8"]
+
+[sub_resource type="Resource" id="Resource_mbc83"]
+script = ExtResource("1_qyw7y")
+id = &"pounce"
+kind = 3
+cooldown = 1.2
+own_cooldown = 6.0
+damage_multiplier = 1.3
+min_range = 2.8
+max_range = 6.5
+weight = 3.0
+charge_distance = 6.0
+charge_speed = 14.0
+telegraph_color = Color(1, 0.5, 0.1, 0.45)
+
+[sub_resource type="Resource" id="Resource_iw2hp"]
+script = ExtResource("1_qyw7y")
+id = &"claw"
+windup = 0.35
+cooldown = 1.2
+damage_multiplier = 0.9
+max_range = 1.8
+weight = 2.0
+width = 1.5
+
+[sub_resource type="Resource" id="Resource_s6edu"]
+script = ExtResource("5_xesu8")
+max_health = 55.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 11.0
+defense = 1.0
+move_speed = 4.2
+
+[resource]
+script = ExtResource("4_lp1b5")
+id = &"burrow_lurker"
+display_name = "Emboscador [PLACEHOLDER]"
+stats = SubResource("Resource_s6edu")
+xp_reward = 85
+loot_table = ExtResource("2_a0072")
+aggro_range = 6.5
+attack_cooldown = 1.2
+placeholder = true
+role = &"ambusher"
+windup = 0.35
+leash_range = 16.0
+attacks = Array[ExtResource("1_qyw7y")]([SubResource("Resource_mbc83"), SubResource("Resource_iw2hp")])
+ambush = true
+visual_shape = &"low"
+visual_color = Color(0.4, 0.3, 0.5, 1)

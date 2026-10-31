@@ -20,7 +20,7 @@ StringName snake_case estavel (`sword_rare`, `melee_grunt`, `loot_melee_grunt`);
 
 ## Adicionar conteudo
 1. Edite `scripts/data/content_generator.gd` e rode (apos `--import`): `$G --headless --path . --script res://scripts/data/content_generator.gd` (regenera TODOS os .tres de `data/`, sobrescrevendo edicoes manuais), ou crie o `.tres` direto no editor.
-2. Rode a suite: `tests/e2/test_data_content.gd` falha se houver referencia quebrada, id duplicado etc. (teste espera 7 itens/2 inimigos/2 tabelas; atualize ao crescer).
+2. Rode a suite: `tests/e2/test_data_content.gd` falha se houver referencia quebrada, id duplicado etc. (teste espera 7 itens/10 inimigos/10 tabelas desde o E5.2; atualize ao crescer; inimigos de Greenwood: `docs/E5_ENEMIES.md`).
 
 ## Limites conhecidos
 - Sem persistencia/serializacao de inventario, equipamento ou progresso (nao ha schema de save ainda).

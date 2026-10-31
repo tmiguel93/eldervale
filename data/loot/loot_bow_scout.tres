@@ -1,0 +1,27 @@
+[gd_resource type="Resource" script_class="LootTable" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/loot_entry.gd" id="1_ri1x3"]
+[ext_resource type="Script" path="res://scripts/data/loot_table.gd" id="2_oo0jb"]
+
+[sub_resource type="Resource" id="Resource_1t8cg"]
+script = ExtResource("1_ri1x3")
+item_id = &"scrap_material"
+weight = 30.0
+max_qty = 2
+
+[sub_resource type="Resource" id="Resource_8ra6n"]
+script = ExtResource("1_ri1x3")
+item_id = &"potion_minor"
+weight = 20.0
+
+[sub_resource type="Resource" id="Resource_777f1"]
+script = ExtResource("1_ri1x3")
+item_id = &"armor_leather"
+weight = 4.0
+
+[resource]
+script = ExtResource("2_oo0jb")
+id = &"loot_bow_scout"
+entries = Array[ExtResource("1_ri1x3")]([SubResource("Resource_1t8cg"), SubResource("Resource_8ra6n"), SubResource("Resource_777f1")])
+nothing_weight = 40.0
+placeholder = true

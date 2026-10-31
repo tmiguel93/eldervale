@@ -1,0 +1,40 @@
+[gd_resource type="Resource" script_class="LootTable" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/loot_entry.gd" id="1_kukws"]
+[ext_resource type="Script" path="res://scripts/data/loot_table.gd" id="2_6sal4"]
+
+[sub_resource type="Resource" id="Resource_ns24w"]
+script = ExtResource("1_kukws")
+item_id = &"potion_minor"
+weight = 25.0
+min_qty = 2
+max_qty = 4
+
+[sub_resource type="Resource" id="Resource_ayqtw"]
+script = ExtResource("1_kukws")
+item_id = &"scrap_material"
+weight = 30.0
+min_qty = 4
+max_qty = 8
+
+[sub_resource type="Resource" id="Resource_ysnql"]
+script = ExtResource("1_kukws")
+item_id = &"amulet_vigor"
+weight = 20.0
+
+[sub_resource type="Resource" id="Resource_hjd04"]
+script = ExtResource("1_kukws")
+item_id = &"armor_heavy"
+weight = 20.0
+
+[sub_resource type="Resource" id="Resource_0opos"]
+script = ExtResource("1_kukws")
+item_id = &"sword_rare"
+weight = 20.0
+
+[resource]
+script = ExtResource("2_6sal4")
+id = &"loot_blight_treant"
+entries = Array[ExtResource("1_kukws")]([SubResource("Resource_ns24w"), SubResource("Resource_ayqtw"), SubResource("Resource_ysnql"), SubResource("Resource_hjd04"), SubResource("Resource_0opos")])
+rolls = 4
+placeholder = true

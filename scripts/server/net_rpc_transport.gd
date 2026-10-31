@@ -31,6 +31,14 @@ func send_pong(peer_id: int, client_time_ms: int) -> void:
 	rpc.send_pong(peer_id, client_time_ms)
 
 
+func send_quest_update(peer_id: int, kind: int, data: Dictionary) -> void:
+	rpc.send_quest_update(peer_id, kind, data)
+
+
+func send_dialogue(peer_id: int, kind: int, data: Dictionary) -> void:
+	rpc.send_dialogue(peer_id, kind, data)
+
+
 ## Desconecta DEPOIS do s_reject: com NetSim a desconexao entra na mesma fila reliable (mesma
 ## ordem); sem NetSim espera uma folga curta para o ENet entregar o reject.
 func disconnect_peer(peer_id: int) -> void:

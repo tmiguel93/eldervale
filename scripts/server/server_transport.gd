@@ -24,5 +24,15 @@ func send_pong(_peer_id: int, _client_time_ms: int) -> void:
 	pass
 
 
+## E5.1: atualizacao de quests do jogador (reliable, so para este peer). Ver Protocol.QUEST_*.
+func send_quest_update(_peer_id: int, _kind: int, _data: Dictionary) -> void:
+	pass
+
+
+## E5.1: estado do dialogo do jogador (reliable, so para este peer). Ver Protocol.DIALOGUE_*.
+func send_dialogue(_peer_id: int, _kind: int, _data: Dictionary) -> void:
+	pass
+
+
 func disconnect_peer(_peer_id: int) -> void:
 	pass

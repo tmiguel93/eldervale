@@ -1,0 +1,57 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack.gd" id="1_oryjo"]
+[ext_resource type="Resource" path="res://data/loot/loot_bark_brute.tres" id="2_p4ocs"]
+[ext_resource type="Script" path="res://scripts/data/enemy_phase.gd" id="3_qb1j0"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="4_wafvm"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="5_ejid6"]
+
+[sub_resource type="Resource" id="Resource_e8ptq"]
+script = ExtResource("1_oryjo")
+id = &"swipe"
+windup = 0.6
+cooldown = 1.6
+damage_multiplier = 0.8
+max_range = 2.6
+weight = 2.0
+width = 2.2
+
+[sub_resource type="Resource" id="Resource_b7ahg"]
+script = ExtResource("1_oryjo")
+id = &"slam"
+kind = 1
+windup = 0.9
+cooldown = 2.4
+own_cooldown = 4.0
+damage_multiplier = 1.1
+max_range = 3.2
+weight = 2.0
+radius = 2.6
+aoe_offset = 1.4
+
+[sub_resource type="Resource" id="Resource_gp0t3"]
+script = ExtResource("5_ejid6")
+max_health = 140.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 16.0
+defense = 3.0
+move_speed = 2.6
+
+[resource]
+script = ExtResource("4_wafvm")
+id = &"bark_brute"
+display_name = "Brutamontes [PLACEHOLDER]"
+stats = SubResource("Resource_gp0t3")
+xp_reward = 110
+loot_table = ExtResource("2_p4ocs")
+aggro_range = 9.0
+attack_range = 2.6
+attack_cooldown = 2.0
+placeholder = true
+role = &"brute"
+windup = 0.9
+attacks = Array[ExtResource("1_oryjo")]([SubResource("Resource_e8ptq"), SubResource("Resource_b7ahg")])
+visual_shape = &"tall"
+visual_color = Color(0.45, 0.3, 0.15, 1)
+visual_scale = 1.3

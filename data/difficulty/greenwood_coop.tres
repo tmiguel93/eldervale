@@ -1,0 +1,6 @@
+[gd_resource type="Resource" script_class="DifficultyScaling" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/difficulty_scaling.gd" id="1_ge06j"]
+
+[resource]
+script = ExtResource("1_ge06j")

@@ -1,0 +1,186 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack.gd" id="1_h8r8c"]
+[ext_resource type="Resource" path="res://data/loot/loot_blight_treant.tres" id="2_br6aw"]
+[ext_resource type="Script" path="res://scripts/data/enemy_phase.gd" id="3_461lv"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="4_hsa4x"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="5_7f4au"]
+
+[sub_resource type="Resource" id="Resource_745nv"]
+script = ExtResource("1_h8r8c")
+id = &"sweep"
+windup = 0.8
+cooldown = 1.8
+max_range = 4.0
+weight = 3.0
+width = 3.6
+
+[sub_resource type="Resource" id="Resource_ff0ww"]
+script = ExtResource("1_h8r8c")
+id = &"stomp"
+kind = 1
+windup = 1.1
+cooldown = 2.2
+own_cooldown = 6.0
+damage_multiplier = 1.2
+max_range = 4.5
+weight = 2.0
+radius = 4.5
+
+[sub_resource type="Resource" id="Resource_xi65e"]
+script = ExtResource("3_461lv")
+id = &"treant_p1"
+attacks = Array[ExtResource("1_h8r8c")]([SubResource("Resource_745nv"), SubResource("Resource_ff0ww")])
+
+[sub_resource type="Resource" id="Resource_vxfm0"]
+script = ExtResource("1_h8r8c")
+id = &"sweep"
+windup = 0.8
+cooldown = 1.8
+max_range = 4.0
+weight = 3.0
+width = 3.6
+
+[sub_resource type="Resource" id="Resource_baxmv"]
+script = ExtResource("1_h8r8c")
+id = &"stomp"
+kind = 1
+windup = 1.1
+cooldown = 2.2
+own_cooldown = 6.0
+damage_multiplier = 1.2
+max_range = 4.5
+weight = 2.0
+radius = 4.5
+
+[sub_resource type="Resource" id="Resource_v1ioe"]
+script = ExtResource("1_h8r8c")
+id = &"seed_volley"
+kind = 2
+windup = 0.9
+cooldown = 2.0
+own_cooldown = 6.0
+damage_multiplier = 0.7
+min_range = 4.0
+max_range = 16.0
+weight = 2.0
+projectile_count = 5
+spread_degrees = 50.0
+projectile_speed = 10.0
+telegraph_color = Color(1, 0.5, 0.1, 0.45)
+
+[sub_resource type="Resource" id="Resource_rghwc"]
+script = ExtResource("1_h8r8c")
+id = &"call_sprouts"
+kind = 4
+windup = 1.3
+own_cooldown = 18.0
+max_range = 16.0
+summon_id = &"root_sprout"
+summon_count = 2
+summon_max_alive = 4
+summon_max_total = 8
+telegraph_color = Color(0.2, 0.9, 0.8, 0.4)
+
+[sub_resource type="Resource" id="Resource_c2gkq"]
+script = ExtResource("3_461lv")
+id = &"treant_p2"
+health_threshold = 0.66
+attacks = Array[ExtResource("1_h8r8c")]([SubResource("Resource_vxfm0"), SubResource("Resource_baxmv"), SubResource("Resource_v1ioe"), SubResource("Resource_rghwc")])
+transition_time = 1.0
+summon_id = &"root_sprout"
+summon_count = 3
+
+[sub_resource type="Resource" id="Resource_epa4b"]
+script = ExtResource("1_h8r8c")
+id = &"sweep"
+windup = 0.8
+cooldown = 1.8
+max_range = 4.0
+weight = 3.0
+width = 3.6
+
+[sub_resource type="Resource" id="Resource_6uep7"]
+script = ExtResource("1_h8r8c")
+id = &"stomp"
+kind = 1
+windup = 1.1
+cooldown = 2.2
+own_cooldown = 6.0
+damage_multiplier = 1.2
+max_range = 4.5
+weight = 2.0
+radius = 4.5
+
+[sub_resource type="Resource" id="Resource_e22s4"]
+script = ExtResource("1_h8r8c")
+id = &"seed_volley"
+kind = 2
+windup = 0.9
+cooldown = 2.0
+own_cooldown = 6.0
+damage_multiplier = 0.7
+min_range = 4.0
+max_range = 16.0
+weight = 2.0
+projectile_count = 7
+spread_degrees = 70.0
+projectile_speed = 10.0
+telegraph_color = Color(1, 0.5, 0.1, 0.45)
+
+[sub_resource type="Resource" id="Resource_5njjd"]
+script = ExtResource("1_h8r8c")
+id = &"trample"
+kind = 3
+windup = 1.0
+cooldown = 2.0
+own_cooldown = 9.0
+damage_multiplier = 1.5
+min_range = 6.0
+max_range = 14.0
+weight = 2.0
+width = 3.0
+charge_distance = 10.0
+charge_speed = 13.0
+telegraph_color = Color(1, 0.5, 0.1, 0.45)
+
+[sub_resource type="Resource" id="Resource_tb0vy"]
+script = ExtResource("3_461lv")
+id = &"treant_p3"
+health_threshold = 0.33
+attacks = Array[ExtResource("1_h8r8c")]([SubResource("Resource_epa4b"), SubResource("Resource_6uep7"), SubResource("Resource_e22s4"), SubResource("Resource_5njjd")])
+speed_mult = 1.2
+damage_mult = 1.25
+cooldown_mult = 0.75
+transition_time = 1.0
+summon_id = &"forest_stalker"
+summon_count = 2
+
+[sub_resource type="Resource" id="Resource_3v7v7"]
+script = ExtResource("5_7f4au")
+max_health = 1200.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 18.0
+defense = 6.0
+move_speed = 2.4
+
+[resource]
+script = ExtResource("4_hsa4x")
+id = &"blight_treant"
+display_name = "Anciao Corrompido [PLACEHOLDER]"
+stats = SubResource("Resource_3v7v7")
+xp_reward = 1200
+loot_table = ExtResource("2_br6aw")
+aggro_range = 20.0
+attack_range = 3.5
+attack_cooldown = 1.8
+placeholder = true
+tier = &"boss"
+role = &"boss"
+windup = 0.8
+leash_range = 45.0
+phases = Array[ExtResource("3_461lv")]([SubResource("Resource_xi65e"), SubResource("Resource_c2gkq"), SubResource("Resource_tb0vy")])
+visual_shape = &"tall"
+visual_color = Color(0.25, 0.4, 0.15, 1)
+visual_scale = 2.2

@@ -33,6 +33,16 @@ var _used_ticket: bool = false
 var send_hello: Callable
 var send_input: Callable
 var send_ping: Callable
+## E5.1: send_quest_cmd(req_id:int, op:int, quest_id:String); send_dialogue_cmd(req_id:int, op:int, npc_id:String, choice:int).
+var send_quest_cmd: Callable
+var send_dialogue_cmd: Callable
+
+## E5.1: espelho do diario de quests e do dialogo atual (somente leitura; a UI escuta os sinais).
+signal dialogue_changed(view: Dictionary)   ## view vazio = dialogo encerrado
+signal dialogue_error(req_id: int, op: int, code: String)
+var quest_log: ClientQuestLog = ClientQuestLog.new()
+var dialogue_view: Dictionary = {}
+var _next_req_id: int = 1
 
 var _events: Array[Dictionary] = []
 var _client_tick: int = 0
@@ -176,3 +186,79 @@ static func reject_text(code: int, server_message: String) -> String:
 		5: base = "Sessao nao autorizada / ordem de mensagens invalida."
 		_: base = "Conexao recusada (codigo %d)." % code
 	return base if server_message.is_empty() else base + " (" + server_message + ")"
+
+
+# ------------------------------------------------------------------ quests / dialogo (E5.1)
+
+## s_quest do servidor (so aceito em PLAYING).
+func on_quest_update(kind: int, data: Dictionary) -> void:
+	if state == State.PLAYING:
+		quest_log.apply(kind, data)
+
+
+## s_dialogue do servidor.
+func on_dialogue(kind: int, data: Dictionary) -> void:
+	if state != State.PLAYING:
+		return
+	match kind:
+		Protocol.DIALOGUE_VIEW:
+			if typeof(data.get("choices", null)) != TYPE_ARRAY or typeof(data.get("text", null)) != TYPE_STRING:
+				return
+			dialogue_view = data
+			dialogue_changed.emit(dialogue_view)
+		Protocol.DIALOGUE_END:
+			dialogue_view = {}
+			dialogue_changed.emit(dialogue_view)
+		Protocol.DIALOGUE_ERROR:
+			dialogue_error.emit(int(data.get("req_id", 0)), int(data.get("op", 0)), String(data.get("code", "")).substr(0, 48))
+
+
+func _next_req() -> int:
+	var r: int = _next_req_id
+	_next_req_id = (_next_req_id % Protocol.MAX_REQ_ID) + 1
+	return r
+
+
+## Pedidos (o servidor decide; resposta chega por quest_log/dialogue_*). Devolvem o req_id (-1 se nao enviou).
+func quest_accept(quest_id: String) -> int:
+	return _send_quest(Protocol.QUEST_OP_ACCEPT, quest_id)
+
+
+func quest_abandon(quest_id: String) -> int:
+	return _send_quest(Protocol.QUEST_OP_ABANDON, quest_id)
+
+
+func quest_turn_in(quest_id: String) -> int:
+	return _send_quest(Protocol.QUEST_OP_TURN_IN, quest_id)
+
+
+func _send_quest(op: int, quest_id: String) -> int:
+	if state != State.PLAYING or not send_quest_cmd.is_valid() or not Protocol.is_content_id(quest_id):
+		return -1
+	var r: int = _next_req()
+	send_quest_cmd.call(r, op, quest_id)
+	return r
+
+
+func dialogue_open(npc_id: String) -> int:
+	if not Protocol.is_content_id(npc_id):
+		return -1
+	return _send_dialogue(Protocol.DIALOGUE_OP_OPEN, npc_id, 0)
+
+
+func dialogue_choose(index: int) -> int:
+	if index < 0 or index > Protocol.MAX_DIALOGUE_CHOICE:
+		return -1
+	return _send_dialogue(Protocol.DIALOGUE_OP_CHOOSE, "", index)
+
+
+func dialogue_close() -> int:
+	return _send_dialogue(Protocol.DIALOGUE_OP_CLOSE, "", 0)
+
+
+func _send_dialogue(op: int, npc_id: String, choice: int) -> int:
+	if state != State.PLAYING or not send_dialogue_cmd.is_valid():
+		return -1
+	var r: int = _next_req()
+	send_dialogue_cmd.call(r, op, npc_id, choice)
+	return r

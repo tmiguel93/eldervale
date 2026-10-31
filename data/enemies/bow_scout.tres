@@ -1,0 +1,46 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/data/enemy_attack.gd" id="1_kqx04"]
+[ext_resource type="Resource" path="res://data/loot/loot_bow_scout.tres" id="2_nxhmp"]
+[ext_resource type="Script" path="res://scripts/data/enemy_phase.gd" id="3_r3l6n"]
+[ext_resource type="Script" path="res://scripts/data/enemy_data.gd" id="4_urxk1"]
+[ext_resource type="Script" path="res://scripts/combat/stat_block.gd" id="5_1tb6v"]
+
+[sub_resource type="Resource" id="Resource_w50be"]
+script = ExtResource("1_kqx04")
+id = &"arrow"
+kind = 2
+windup = 0.6
+cooldown = 2.0
+damage_multiplier = 1.1
+min_range = 3.0
+max_range = 12.0
+projectile_speed = 20.0
+telegraph_color = Color(1, 0.5, 0.1, 0.45)
+
+[sub_resource type="Resource" id="Resource_5h0f2"]
+script = ExtResource("5_1tb6v")
+max_health = 34.0
+max_resource = 0.0
+resource_regen = 0.0
+attack_power = 9.0
+move_speed = 3.4
+
+[resource]
+script = ExtResource("4_urxk1")
+id = &"bow_scout"
+display_name = "Arqueiro [PLACEHOLDER]"
+stats = SubResource("Resource_5h0f2")
+xp_reward = 55
+loot_table = ExtResource("2_nxhmp")
+behavior = &"ranged"
+aggro_range = 16.0
+attack_range = 11.0
+attack_cooldown = 2.0
+projectile_speed = 20.0
+placeholder = true
+role = &"ranged"
+windup = 0.6
+attacks = Array[ExtResource("1_kqx04")]([SubResource("Resource_w50be")])
+visual_shape = &"cone"
+visual_color = Color(0.3, 0.7, 0.3, 1)
