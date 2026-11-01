@@ -1,0 +1,163 @@
+{
+	"schema_version": 1,
+	"region": "greenwood",
+	"start_zone": "zone_hub",
+	"settings": {"respawn_delay": 3.0, "transition_time": 0.6, "unload_grace": 12.0, "portal_lock": 1.5},
+	"zones": [
+		{
+			"id": "zone_hub",
+			"display_name": "Vila de Greenwood",
+			"center": [0, 0, 0],
+			"size": [60, 60],
+			"sticky": true,
+			"floor_color": "#6b7f45",
+			"wall_color": "#6e5c47",
+			"checkpoint": "start",
+			"spawns": {
+				"start": [[-2, 0.05, 6], [2, 0.05, 6], [-2, 0.05, 9], [2, 0.05, 9]],
+				"from_wild": [[22, 0.05, -2], [22, 0.05, 2], [20, 0.05, -2], [20, 0.05, 2]]
+			},
+			"portals": [
+				{"id": "hub_to_wild", "pos": [27, 0, 0], "radius": 2.5, "to_zone": "zone_wild", "to_spawn": "from_hub", "label": "Trilha da Floresta"}
+			],
+			"npcs": ["npc_elder_orla", "npc_hunter_brannoch", "npc_scholar_ilmar"],
+			"props": [
+				{"kind": "box", "name": "HutOrla", "pos": [14, 2, -14], "size": [7, 4, 6], "color": "#8a5a3c", "occluder": true},
+				{"kind": "box", "name": "HutBrannoch", "pos": [24, 1.75, 8], "size": [5, 3.5, 5], "color": "#7c5238", "occluder": true},
+				{"kind": "box", "name": "HutIlmar", "pos": [-16, 2, 14], "size": [6, 4, 6], "color": "#6f5a7a", "occluder": true},
+				{"kind": "cylinder", "name": "Well", "pos": [0, 0.6, -6], "radius": 1.2, "height": 1.2, "color": "#8c8c8c"},
+				{"kind": "box", "name": "Plaza", "pos": [0, 0.02, 4], "size": [14, 0.04, 14], "color": "#a89c84", "collide": false},
+				{"kind": "box", "name": "Road", "pos": [14, 0.02, 0], "size": [28, 0.04, 5], "color": "#a89c84", "collide": false},
+				{"kind": "box", "name": "Crate1", "pos": [18, 0.5, -3.5], "size": [1.2, 1, 1.2], "color": "#9a7b4f"},
+				{"kind": "box", "name": "Crate2", "pos": [-8, 0.5, -2], "size": [1.4, 1, 1], "color": "#9a7b4f"},
+				{"kind": "tree", "name": "Tree1", "pos": [-24, 0, -24]},
+				{"kind": "tree", "name": "Tree2", "pos": [-20, 0, -10]},
+				{"kind": "tree", "name": "Tree3", "pos": [22, 0, -24]},
+				{"kind": "tree", "name": "Tree4", "pos": [-26, 0, 4]},
+				{"kind": "tree", "name": "Tree5", "pos": [10, 0, 24]},
+				{"kind": "tree", "name": "Tree6", "pos": [-6, 0, 26]},
+				{"kind": "tree", "name": "Tree7", "pos": [26, 0, -13]},
+				{"kind": "tree", "name": "Tree8", "pos": [-12, 0, -24]}
+			],
+			"enemies": []
+		},
+		{
+			"id": "zone_wild",
+			"display_name": "Mata Selvagem",
+			"center": [200, 0, 0],
+			"size": [100, 80],
+			"floor_color": "#3f5f32",
+			"wall_color": "#4a3d2e",
+			"checkpoint": "from_hub",
+			"spawns": {
+				"from_hub": [[159, 0.05, -2], [159, 0.05, 2], [161, 0.05, -2], [161, 0.05, 2]],
+				"from_ruins": [[240, 0.05, -2], [240, 0.05, 2], [238, 0.05, -2], [238, 0.05, 2]]
+			},
+			"portals": [
+				{"id": "wild_to_hub", "pos": [153, 0, 0], "radius": 2.5, "to_zone": "zone_hub", "to_spawn": "from_wild", "label": "Vila"},
+				{"id": "wild_to_ruins", "pos": [247, 0, 0], "radius": 2.5, "to_zone": "zone_ruins", "to_spawn": "from_wild", "label": "Ruinas Antigas"}
+			],
+			"npcs": [],
+			"props": [
+				{"kind": "box", "name": "Trail", "pos": [200, 0.02, 0], "size": [92, 0.04, 6], "color": "#8a7a58", "collide": false},
+				{"kind": "box", "name": "Log1", "pos": [185, 0.4, 12], "size": [4, 0.8, 0.9], "color": "#6a4a2c"},
+				{"kind": "box", "name": "Rock1", "pos": [215, 0.7, 10], "size": [2.4, 1.4, 2], "color": "#7d7d7d"},
+				{"kind": "box", "name": "Rock2", "pos": [172, 0.6, -12], "size": [2, 1.2, 2.2], "color": "#7d7d7d"},
+				{"kind": "box", "name": "DenStone1", "pos": [232, 1.2, -26], "size": [1.4, 2.4, 1.4], "color": "#6a6a72", "occluder": true},
+				{"kind": "box", "name": "DenStone2", "pos": [241, 1.2, -26], "size": [1.4, 2.4, 1.4], "color": "#6a6a72", "occluder": true},
+				{"kind": "box", "name": "DenStone3", "pos": [236, 1.2, -36], "size": [1.4, 2.4, 1.4], "color": "#6a6a72", "occluder": true},
+				{"kind": "tree", "name": "Tree1", "pos": [165, 0, 18]},
+				{"kind": "tree", "name": "Tree2", "pos": [172, 0, 8]},
+				{"kind": "tree", "name": "Tree3", "pos": [178, 0, -8]},
+				{"kind": "tree", "name": "Tree4", "pos": [190, 0, 10]},
+				{"kind": "tree", "name": "Tree5", "pos": [196, 0, -10]},
+				{"kind": "tree", "name": "Tree6", "pos": [205, 0, 14]},
+				{"kind": "tree", "name": "Tree7", "pos": [212, 0, -12]},
+				{"kind": "tree", "name": "Tree8", "pos": [224, 0, 9]},
+				{"kind": "tree", "name": "Tree9", "pos": [228, 0, -9]},
+				{"kind": "tree", "name": "Tree10", "pos": [160, 0, -30]},
+				{"kind": "tree", "name": "Tree11", "pos": [166, 0, 32]},
+				{"kind": "tree", "name": "Tree12", "pos": [244, 0, 30]},
+				{"kind": "tree", "name": "Tree13", "pos": [206, 0, 36]},
+				{"kind": "tree", "name": "Tree14", "pos": [194, 0, -37]}
+			],
+			"enemies": [
+				{"type": "melee_grunt", "pos": [180, 0.05, -26]},
+				{"type": "melee_grunt", "pos": [186, 0.05, -30]},
+				{"type": "melee_grunt", "pos": [192, 0.05, -24]},
+				{"type": "melee_grunt", "pos": [184, 0.05, -22]},
+				{"type": "melee_grunt", "pos": [190, 0.05, -34]},
+				{"type": "melee_grunt", "pos": [178, 0.05, -33]},
+				{"type": "ranged_caster", "pos": [196, 0.05, 28]},
+				{"type": "ranged_caster", "pos": [205, 0.05, 30]},
+				{"type": "forest_stalker", "pos": [170, 0.05, 30]},
+				{"type": "forest_stalker", "pos": [176, 0.05, 33]},
+				{"type": "bow_scout", "pos": [215, 0.05, -30]},
+				{"type": "bow_scout", "pos": [222, 0.05, -33]},
+				{"type": "bark_brute", "pos": [210, 0.05, 27]},
+				{"type": "grove_shaman", "pos": [200, 0.05, -35]},
+				{"type": "burrow_lurker", "pos": [232, 0.05, 22]},
+				{"type": "burrow_lurker", "pos": [226, 0.05, 31]},
+				{"type": "thorn_alpha", "pos": [236, 0.05, -31]}
+			]
+		},
+		{
+			"id": "zone_ruins",
+			"display_name": "Ruinas de Greenwood",
+			"center": [400, 0, 0],
+			"size": [90, 60],
+			"floor_color": "#5a5f68",
+			"wall_color": "#4b4f58",
+			"checkpoint": "from_wild",
+			"spawns": {
+				"from_wild": [[364, 0.05, -2], [364, 0.05, 2], [366, 0.05, -2], [366, 0.05, 2]]
+			},
+			"portals": [
+				{"id": "ruins_to_wild", "pos": [358, 0, 0], "radius": 2.5, "to_zone": "zone_wild", "to_spawn": "from_ruins", "label": "Mata Selvagem"}
+			],
+			"npcs": [],
+			"props": [
+				{"kind": "box", "name": "DividerN", "pos": [395, 2.5, -16.5], "size": [2, 5, 27], "color": "#6c717c", "occluder": true},
+				{"kind": "box", "name": "DividerS", "pos": [395, 2.5, 16.5], "size": [2, 5, 27], "color": "#6c717c", "occluder": true},
+				{"kind": "box", "name": "HallFloor", "pos": [420, 0.02, 0], "size": [48, 0.04, 20], "color": "#7a7f8a", "collide": false},
+				{"kind": "box", "name": "AnteFloor", "pos": [378, 0.02, 0], "size": [36, 0.04, 6], "color": "#7a7f8a", "collide": false},
+				{"kind": "box", "name": "Pillar1", "pos": [372, 3, -17], "size": [1.4, 6, 1.4], "color": "#7d828c", "occluder": true},
+				{"kind": "box", "name": "Pillar2", "pos": [372, 3, 17], "size": [1.4, 6, 1.4], "color": "#7d828c", "occluder": true},
+				{"kind": "box", "name": "Pillar3", "pos": [386, 3, -11], "size": [1.4, 6, 1.4], "color": "#7d828c", "occluder": true},
+				{"kind": "box", "name": "Pillar4", "pos": [386, 3, 11], "size": [1.4, 6, 1.4], "color": "#7d828c", "occluder": true},
+				{"kind": "box", "name": "Rubble1", "pos": [366, 0.5, -20], "size": [3, 1, 2], "color": "#6a6e76"},
+				{"kind": "box", "name": "Rubble2", "pos": [368, 0.5, 21], "size": [2.4, 1, 3], "color": "#6a6e76"},
+				{"kind": "box", "name": "HallColumn1", "pos": [410, 3, -12], "size": [1.6, 6, 1.6], "color": "#7d828c", "occluder": true},
+				{"kind": "box", "name": "HallColumn2", "pos": [410, 3, 12], "size": [1.6, 6, 1.6], "color": "#7d828c", "occluder": true},
+				{"kind": "box", "name": "HallColumn3", "pos": [425, 3, -12], "size": [1.6, 6, 1.6], "color": "#7d828c", "occluder": true},
+				{"kind": "box", "name": "HallColumn4", "pos": [425, 3, 12], "size": [1.6, 6, 1.6], "color": "#7d828c", "occluder": true},
+				{"kind": "box", "name": "Altar", "pos": [440, 0.6, 0], "size": [2.4, 1.2, 4], "color": "#8a6a9c"}
+			],
+			"enemies": [
+				{"type": "ranged_caster", "pos": [392, 0.05, -26]},
+				{"type": "ranged_caster", "pos": [392, 0.05, 26]},
+				{"type": "forest_stalker", "pos": [372, 0.05, -25]},
+				{"type": "forest_stalker", "pos": [372, 0.05, 25]},
+				{"type": "ranged_caster", "pos": [412, 0.05, -22]},
+				{"type": "ranged_caster", "pos": [412, 0.05, 22]}
+			],
+			"puzzle": {
+				"id": "ruins_plates",
+				"plates": [
+					{"pos": [380, 0, -14], "radius": 1.8},
+					{"pos": [380, 0, 14], "radius": 1.8}
+				],
+				"latch_time": 10.0,
+				"gate_pos": [395, 2.5, 0],
+				"gate_size": [2, 5, 6]
+			},
+			"encounter": {
+				"id": "ruins_boss",
+				"boss": "blight_treant",
+				"spawn": [432, 0.05, 0],
+				"trigger_center": [415, 0, 0],
+				"trigger_radius": 9.0
+			}
+		}
+	]
+}

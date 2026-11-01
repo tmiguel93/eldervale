@@ -57,6 +57,7 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	world = p_world
 	transport = p_transport
 	world.event_emitted.connect(_broadcast_event)
+	world.event_to_player.connect(_on_event_to_player)
 	world.enemy_killed.connect(_on_enemy_killed)
 	world.player_killed_enemy.connect(_on_player_killed_enemy)
 	quests = QuestService.new(transport)
@@ -278,8 +279,8 @@ func _complete_join(p: PeerState, entity_id: int) -> void:
 	for other: PeerState in _peers.values():
 		if other != p and other.welcomed and not other.closing:
 			_send_event_to(p, Protocol.EVENT_PLAYER_JOINED, {"id": other.entity_id, "name": other.player_name})
-	for data: Dictionary in world.enemy_spawn_events():
-		_send_event_to(p, Protocol.EVENT_ENEMY_SPAWN, data)
+	for ev: Dictionary in world.state_events_for_player(entity_id): # arena: enemy_spawn; mundo: zona+inimigos+puzzle+chefe
+		_send_event_to(p, int(ev["kind"]), ev["data"] as Dictionary)
 	print("[server] peer %d entrou como '%s' (jogador %d)" % [peer_id, p.player_name, entity_id])
 	var join_loadout: PlayerLoadout = _loadout_of(p)
 	if join_loadout != null:
@@ -449,15 +450,29 @@ func send_snapshots() -> void:
 	var entities: Array = world.build_entities()
 	for p: PeerState in _peers.values():
 		if p.welcomed and not p.closing:
+			if world.director != null:
+				# modo mundo: interesse por zona + raio (settings.aoi_radius) em volta do proprio jogador
+				var node: Player = world.get_player_node(p.entity_id)
+				var center: Vector3 = node.global_position if node != null else Vector3.ZERO
+				entities = world.build_entities_for_zone(world.zone_of_player(p.entity_id), center, settings.aoi_radius)
 			transport.send_snapshot(p.peer_id, world.server_tick, p.last_seq, entities)
 
 
 func _broadcast_event(kind: int, data: Dictionary) -> void:
 	var event_id: int = _next_event_id
 	_next_event_id += 1
+	var targets: Variant = world.event_targets(kind, data) # null = todos (arena); mundo: so a zona do evento
 	for p: PeerState in _peers.values():
-		if p.welcomed and not p.closing:
+		if p.welcomed and not p.closing and (targets == null or (targets as Array).has(p.entity_id)):
 			transport.send_event(p.peer_id, event_id, kind, data)
+
+
+## E5.3: evento so para um jogador (catch-up ao trocar de zona / aviso de transicao).
+func _on_event_to_player(entity_id: int, kind: int, data: Dictionary) -> void:
+	for p: PeerState in _peers.values():
+		if p.entity_id == entity_id and p.welcomed and not p.closing:
+			_send_event_to(p, kind, data)
+			return
 
 
 func _send_event_to(p: PeerState, kind: int, data: Dictionary) -> void:

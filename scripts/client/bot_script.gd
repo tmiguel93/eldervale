@@ -4,7 +4,7 @@ extends RefCounted
 ## (30 Hz). Cada item: {move: Vector2, yaw: float, actions: int, seq_repeat: bool (opcional)}.
 ## Sem "seq" no item, a sessao atribui o proximo seq crescente; com seq_repeat reenvia o ultimo.
 
-const NAMES: PackedStringArray = ["idle", "walk_square", "attack_loop", "cheat_speed", "invalid_flood", "bad_version", "kill_enemy", "replay_ticket", "bad_ticket"]
+const NAMES: PackedStringArray = ["idle", "walk_square", "attack_loop", "cheat_speed", "invalid_flood", "bad_version", "kill_enemy", "replay_ticket", "bad_ticket", "world_tour"]
 const SQUARE_SIDE_S: float = 1.5  # s por lado
 const KILL_MELEE_RANGE: float = 1.3  # distancia (m) em que o bot para de andar e so golpeia
 const KILL_YAW: float = 0.0  # yaw de camera usado pelo bot: forward = -Z, right = +X
@@ -96,6 +96,55 @@ static func kill_enemy_step(self_pos: Vector3, entities: Array, target_id: int) 
 		move *= 0.05  # quase parado, mas mantem a direcao do golpe
 	items.append(_in(move.limit_length(1.0), Protocol.ACTION_ATTACK if dist_flat <= KILL_MELEE_RANGE + 0.8 else 0, KILL_YAW))
 	return {"items": items, "target_id": int(target["id"])}
+
+
+## world_tour (E5.3): percorre hub -> portal -> selvagem (trilha) -> portal -> ruinas (placas A e B, portao) ->
+## salao do chefe. Dirigido pelos DADOS do mundo e pela posicao autoritativa; `memo` guarda o estagio do puzzle.
+## Devolve {items, done}. `done` = chegou ao salao (depois do portao).
+static func world_tour_step(pos: Vector3, memo: Dictionary) -> Dictionary:
+	var def: WorldDef = WorldDef.shared()
+	var zid: String = def.zone_id_at(pos)
+	var zone: ZoneDef = def.get_zone(zid)
+	var target: Vector3 = pos
+	var done: bool = false
+	if zone != null:
+		if not zone.puzzle.is_empty():
+			var plates: Array = zone.puzzle["plates"]
+			var stage: int = int(memo.get("stage", 0))
+			if stage < plates.size():
+				target = (plates[stage] as Dictionary)["pos"]
+				if _flat(pos, target) < 1.0:
+					memo["stage"] = stage + 1
+			else:
+				# depois das placas: entra pela abertura do portao (nao ha caminho reto, a divisoria bloqueia) e segue ao salao
+				var gate: Vector3 = zone.puzzle["gate_pos"]
+				var hall: Vector3 = (zone.encounter["trigger_center"] as Vector3) + Vector3(5.0, 0.0, 0.0)
+				if not bool(memo.get("through", false)):
+					target = Vector3(gate.x - 4.0, 0.0, gate.z)
+					if _flat(pos, target) < 1.5:
+						memo["through"] = true
+				else:
+					target = hall
+					done = _flat(pos, hall) < 2.0
+		elif not zone.portals.is_empty():
+			# hub: o unico portal; selvagem: o portal que leva para ALEM do hub (maior indice de zona)
+			var best: Dictionary = zone.portals[0]
+			for p: Dictionary in zone.portals:
+				if def.zone_order.find(String(p["to_zone"])) > def.zone_order.find(String(best["to_zone"])):
+					best = p
+			target = best["pos"]
+	var d: Vector3 = target - pos
+	d.y = 0.0
+	var move: Vector2 = Vector2.ZERO
+	if d.length() > 0.3:
+		var dir: Vector3 = d.normalized()
+		move = Vector2(dir.x, -dir.z) # yaw 0: direita = +X, frente = -Z
+	var items: Array[Dictionary] = [_in(move.limit_length(1.0), 0, KILL_YAW)]
+	return {"items": items, "done": done}
+
+
+static func _flat(a: Vector3, b: Vector3) -> float:
+	return Vector2(a.x - b.x, a.z - b.z).length()
 
 
 ## Versao enviada no hello pelo bot.

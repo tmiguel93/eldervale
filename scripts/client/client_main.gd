@@ -30,6 +30,7 @@ var _peer: ENetMultiplayerPeer
 var _world: ClientWorld
 var _hud: ClientHud
 var _camera: IsoCamera
+var _fader: OcclusionFader
 var _send_acc: float = 0.0
 var _ping_acc: float = 0.0
 var _elapsed: float = 0.0
@@ -45,6 +46,8 @@ var _replay_phase: int = 0              # 0 = nao e replay, 1 = 1a conexao, 2 = 
 var _replay_timer: float = 0.0
 var _kill_target: int = -1
 var _kill_done_at: float = -1.0
+var _tour_memo: Dictionary = {}         # world_tour: estagio do puzzle
+var _tour_done_at: float = -1.0
 var _signals_wired: bool = false
 var _return_to_login: bool = false
 
@@ -398,6 +401,8 @@ func _tick_playing(delta: float) -> void:
 		if is_bot:
 			if cfg.bot_script == "kill_enemy":
 				_kill_enemy_tick()
+			elif cfg.bot_script == "world_tour":
+				_world_tour_tick()
 			else:
 				session.send_bot_items(BotScript.step(cfg.bot_script, _play_elapsed, _tick))
 		else:
@@ -411,6 +416,8 @@ func _tick_playing(delta: float) -> void:
 		var grace: float = args.kill_grace_s if args.kill_grace_s >= 0.0 else KILL_GRACE_S
 		if _kill_done_at >= 0.0 and _play_elapsed - _kill_done_at >= grace:
 			_finish(0)
+		elif _tour_done_at >= 0.0 and _play_elapsed - _tour_done_at >= 1.0:
+			_finish(0)
 		elif _play_elapsed >= bot_seconds:
 			_finish(0)
 
@@ -423,9 +430,20 @@ func _kill_enemy_tick() -> void:
 	session.send_bot_items(r["items"])
 
 
+func _world_tour_tick() -> void:
+	if session.local_entity.is_empty() or _tour_done_at >= 0.0:
+		return
+	var r: Dictionary = BotScript.world_tour_step(session.local_entity["pos"], _tour_memo)
+	session.send_bot_items(r["items"])
+	if bool(r["done"]):
+		_tour_done_at = _play_elapsed
+		session.result.tour_done = true
+
+
 ## Bots nao tem apresentacao: consomem os eventos aqui (contam mortes do alvo do kill_enemy).
 func _bot_drain_events() -> void:
 	for ev: Dictionary in session.drain_events():
+		session.result.on_world_event(int(ev["kind"]), ev["data"] as Dictionary, session.player_id)
 		if int(ev["kind"]) == Protocol.EVENT_DEATH and cfg.bot_script == "kill_enemy":
 			var d: Variant = ev["data"]
 			if d is Dictionary and int((d as Dictionary).get("id", -2)) == _kill_target and _kill_target >= 0:
@@ -449,6 +467,25 @@ func _update_presentation(delta: float, now: float) -> void:
 	_world.update_frame(samples, session.player_id, local_pos, delta)
 	if _camera != null and _world.local_avatar != null and _camera.target != _world.local_avatar:
 		_camera.set_target(_world.local_avatar)
+	_ensure_occlusion_fader()
+
+
+## E5.3: com o mundo em zonas ha muralhas/pilares/arvores (grupo occluder): o fader do E1 liga ao avatar local.
+func _ensure_occlusion_fader() -> void:
+	if _camera == null or _world == null or _world.local_avatar == null:
+		return
+	if _fader != null:
+		if _fader.target != _world.local_avatar:
+			_fader.target = _world.local_avatar
+		return
+	var cam: Camera3D = _camera.get_camera()
+	if cam == null:
+		return
+	_fader = OcclusionFader.new()
+	_fader.name = "OcclusionFader"
+	_fader.camera = cam
+	_fader.target = _world.local_avatar
+	add_child(_fader)
 
 
 func _finish(code: int) -> void:

@@ -10,10 +10,15 @@ var _notice_left: float = 0.0
 static func format_status(session: ClientSession) -> String:
 	var rtt: String = "-" if session.last_rtt_ms < 0.0 else "%d ms" % int(round(session.last_rtt_ms))
 	var state_name: String = ClientSession.State.keys()[session.state]
-	return "%s\nEstado: %s | Jogador: %s | Entidades: %d | RTT: %s | Snapshots: %d" % [
+	var text: String = "%s\nEstado: %s | Jogador: %s | Entidades: %d | RTT: %s | Snapshots: %d" % [
 		session.message, state_name,
 		"-" if session.player_id < 0 else str(session.player_id),
 		session.entity_count, rtt, session.result.snapshots_received]
+	if not session.zone_id.is_empty():
+		var def: WorldDef = WorldDef.shared()
+		var zone: ZoneDef = def.get_zone(session.zone_id)
+		text += "\nZona: %s" % (zone.display_name if zone != null else session.zone_id)
+	return text
 
 
 func _ready() -> void:

@@ -70,3 +70,15 @@ Quatro RPCs novos, todos `reliable`. Clientes/servidores antigos simplesmente n�
 Validação (`Protocol.validate_quest_cmd/validate_dialogue_cmd`): `req_id` inteiro 0..`MAX_REQ_ID`; `op` no intervalo; ids de conteúdo `[a-z][a-z0-9_]*` até `MAX_CONTENT_ID_LEN=48`; tipos exatos (Variant do fio). Payload inválido conta como abuso (`_count_invalid`) e acima do limite de abuso o peer é desconectado. Antes do `s_welcome` o comando é rejeitado com `REJECT_NOT_AUTHENTICATED`. Rate limit por peer: `quest_rate_per_sec=5`, `quest_burst=10` (`ServerSettings`), compartilhado por quest e diálogo; excedido => `REJECT_RATE_LIMIT`/abuso. Sinais em `NetRpc`: `quest_cmd_received`, `dialogue_cmd_received`, `quest_update_received`, `dialogue_received`; senders `send_quest_cmd`, `send_dialogue_cmd`, `send_quest_update`, `send_dialogue`.
 
 Persistência: o estado de quests vai junto do checkpoint do personagem (`state.quests`); a recompensa usa `POST /internal/characters/:id/rewards` com `quest_id` e `idempotency_key = quest:<quest_id>:<character_id>` (ver `docs/E5_QUESTS.md` e `docs/E4_CHARACTERS.md`).
+
+## Extensão E5.3 — Mundo em zonas (aditiva; `VERSION` continua 2)
+Nenhum RPC novo e nenhuma mensagem existente mudou: o mundo usa 4 *kinds* novos em `s_event(event_id, kind, data)` (reliable). Clientes antigos ignoram kinds desconhecidos. Só o servidor decide zona, puzzle, chefe e respawn; o cliente apenas apresenta. Modo opt-in: `--world greenwood` (padrão continua a arena).
+
+- `EVENT_ZONE=8 {id:int, zone:String, phase:int, pos:[x,y,z]}` — `ZONE_PHASE_LEAVING=0` (transição iniciada, jogador parado) e `ZONE_PHASE_ARRIVED=1` (teleportado; `pos` = chegada). Também enviado no join (zona inicial).
+- `EVENT_PUZZLE=9 {zone, puzzle:String, plates:[bool] (1..MAX_PLATES=8), open:bool, state:int}` — `PUZZLE_IDLE=0, PUZZLE_PARTIAL=1, PUZZLE_OPEN=2`; enviado só quando muda e como catch-up a quem chega à zona.
+- `EVENT_RESPAWN=10 {id, zone, pos}` — jogador reanimado no checkpoint da zona.
+- `EVENT_BOSS=11 {zone, encounter:String, boss:String, state:int}` — `BOSS_ARMED=0, BOSS_ACTIVE=1, BOSS_DEFEATED=2`; wipe volta a `ARMED`.
+
+Validação: `Protocol.validate_zone_event/validate_puzzle_event/validate_respawn_event/validate_boss_event` e o despachante `Protocol.validate_world_event(kind, data)` (tipos exatos, ids `[a-z][a-z0-9_]*` até 48, vetores finitos, `plates` limitado). `ClientSession` descarta eventos malformados (`world_events_rejected`).
+
+Audiência: eventos de combate/drop/spawn/puzzle/chefe/respawn/zona vão **só aos jogadores da zona** (`ServerWorld.event_targets`); `player_joined/left` seguem globais. Ao entrar numa zona o jogador recebe catch-up (enemy_spawn da zona, puzzle, chefe). Snapshots em modo mundo contêm apenas jogadores da zona do peer e inimigos da zona dentro de `ServerSettings.aoi_radius` (50 m). Na arena (`world_id` vazio) nada disso muda. Detalhes em `docs/E5_WORLD.md`; esquema dos dados em `shared/content_schemas/world.schema.json`.

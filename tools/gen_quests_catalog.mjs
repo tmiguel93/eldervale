@@ -27,7 +27,9 @@ function enemyIds(root) {
   const ids = new Set();
   if (!existsSync(dir)) return ids;
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".tres"))) {
-    const m = /^id\s*=\s*&?"([a-z][a-z0-9_]*)"\s*$/m.exec(readFileSync(join(dir, f), "utf8"));
+    // O `id` do inimigo esta na secao [resource] (as sub-resources de ataques/fases tambem tem `id`).
+    const text = readFileSync(join(dir, f), "utf8");
+    const m = /^id\s*=\s*&?"([a-z][a-z0-9_]*)"\s*$/m.exec(text.includes("[resource]") ? text.slice(text.lastIndexOf("[resource]")) : text);
     if (m) ids.add(m[1]);
   }
   return ids;

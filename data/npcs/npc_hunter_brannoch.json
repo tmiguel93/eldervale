@@ -6,6 +6,6 @@
 	"region": "greenwood",
 	"dialogue_id": "dlg_hunter_brannoch",
 	"interact_radius": 3.5,
-	"position": [-10.0, 0.0, 12.0],
-	"placeholder": true
+	"position": [21.0, 0.0, 3.0],
+	"placeholder": false
 }

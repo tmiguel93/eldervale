@@ -28,6 +28,12 @@ var persist_drops: bool = false
 ## E4: resgates de ticket simultaneos aceitos (acima disso: reject 3) e prazo do resgate+carga.
 var max_pending: int = 8
 var redeem_timeout_sec: float = 8.0
+## E5.3: id da regiao do mundo (data/areas/world/<id>_world.json). "" = arena de teste do E1/E3
+## (padrao: comportamento anterior). O servidor dedicado liga com `--world greenwood`.
+var world_id: String = ""
+## E5.3: interesse por distancia dentro da zona: o snapshot de cada peer so leva inimigos a ate este raio (m)
+## do jogador dele (jogadores da mesma zona sempre entram). 0 = sem limite (so filtro por zona).
+var aoi_radius: float = 50.0
 ## Testes podem desligar os inimigos da arena.
 var spawn_enemies: bool = true
 var spawn_points: Array[Vector3] = [

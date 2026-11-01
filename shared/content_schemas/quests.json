@@ -46,7 +46,7 @@
         {
           "id": "kill_guardian",
           "type": "kill",
-          "target": "ruin_guardian",
+          "target": "blight_treant",
           "required": 1
         }
       ],

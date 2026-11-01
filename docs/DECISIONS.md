@@ -76,3 +76,14 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Escolha provisória:** (a) JSON em `data/quests|dialogues|npcs|areas` (o backend e as ferramentas leem os mesmos arquivos; catálogo derivado em `shared/content_schemas/quests.json`); (b) coluna `characters.quests jsonb` (migração 0003, aditiva): estado pequeno, sempre lido com o personagem, mesma `revision`/lock; (c) `completed` é somente-servidor: só `POST …/rewards` com `quest_id` o altera, na MESMA transação que paga xp/itens (reenvio com a mesma chave devolve o original; chave nova para quest concluída => 409 `quest_already_completed`), e o checkpoint ignora tentativas de concluir/desfazer; (d) 4 RPCs novos sem mudar a versão do protocolo.
 - **Consequências:** impossível pagar duas vezes ou concluir sem pagar; o backend valida a recompensa contra o catálogo (`quest_reward_mismatch`). Pré-requisitos não são revalidados no backend (o servidor de sessão é confiável). Remover uma quest do conteúdo faz o jogo descartá-la ao carregar (a conclusão no banco é preservada). Se o inventário estiver cheio na entrega, a quest fica "pronta" no banco e o jogador repete a entrega.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0007 — Mundo de Greenwood: zonas no mesmo espaço físico, modo opt-in, interesse por zona (E5.3)
+- **Data:** 2026-10-31
+- **Status:** PROPOSTA — aguarda revisão humana (padrão do servidor e contrato de rede)
+- **Contexto:** E5.3 precisa de hub/selvagem/ruínas conectados, puzzle cooperativo, transição, respawn e chefe, sem quebrar a arena do E1/E3 nem o protocolo v2.
+- **Opções consideradas:** (a) um mundo contínuo vs zonas separadas; (b) um `PhysicsServer` por zona vs um espaço com zonas afastadas; (c) tornar o mundo o padrão vs opt-in; (d) subir `Protocol.VERSION` vs eventos aditivos.
+- **Escolha provisória:** (a) zonas ligadas por portais; (b) mesmo espaço físico com zonas a >= 20 m umas das outras (centros 0/200/400 m), pertencimento por jogador/inimigo; hub sempre carregado, demais sob demanda e descarregadas após 12 s vazias; (c) `--world greenwood` opt-in, padrão arena; (d) eventos 8..11 aditivos e snapshots filtrados por zona + raio de 50 m.
+- **Consequências:** nenhum RPC novo; arena e testes antigos intactos; puzzle/chefe reiniciam ao descarregar (sem softlock); jogadores de outras zonas não aparecem nos snapshots. Trocar o padrão para o mundo é uma linha em `server_main.gd`.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.

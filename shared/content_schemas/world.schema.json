@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eldervale/world.schema.json",
+  "title": "Mundo de uma regiao em zonas (data/areas/world/<regiao>_world.json) - E5.3",
+  "description": "Zonas conectadas por portais, spawns, props, inimigos, puzzle de placas e encontro de chefe. Coordenadas em MUNDO (m). Lido por WorldDef (Godot); o backend nao usa. Referencias cruzadas e jogabilidade sao validadas por WorldDef.validate().",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "region", "start_zone", "zones"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "region": { "type": "string" },
+    "start_zone": { "type": "string" },
+    "settings": {
+      "type": "object",
+      "properties": {
+        "respawn_delay": { "type": "number", "minimum": 0.5, "maximum": 30 },
+        "transition_time": { "type": "number", "minimum": 0, "maximum": 5 },
+        "unload_grace": { "type": "number", "minimum": 0, "maximum": 300 },
+        "portal_lock": { "type": "number", "minimum": 0.2, "maximum": 10 }
+      }
+    },
+    "zones": {
+      "type": "array", "minItems": 1, "maxItems": 16,
+      "items": {
+        "type": "object",
+        "required": ["id", "center", "size", "spawns", "checkpoint"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
+          "display_name": { "type": "string" },
+          "center": { "$ref": "#/$defs/vec3" },
+          "size": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "type": "number", "minimum": 10, "maximum": 400 } },
+          "sticky": { "type": "boolean" },
+          "floor_color": { "type": "string" }, "wall_color": { "type": "string" },
+          "checkpoint": { "type": "string" },
+          "spawns": { "type": "object", "additionalProperties": { "type": "array", "minItems": 1, "maxItems": 8, "items": { "$ref": "#/$defs/vec3" } } },
+          "portals": { "type": "array", "items": { "type": "object", "required": ["id", "pos", "radius", "to_zone", "to_spawn"],
+            "properties": { "id": { "type": "string" }, "pos": { "$ref": "#/$defs/vec3" }, "radius": { "type": "number", "minimum": 0.5, "maximum": 10 }, "to_zone": { "type": "string" }, "to_spawn": { "type": "string" }, "label": { "type": "string" } } } },
+          "npcs": { "type": "array", "items": { "type": "string" } },
+          "props": { "type": "array", "maxItems": 200, "items": { "type": "object", "required": ["kind", "name", "pos"],
+            "properties": { "kind": { "enum": ["box", "cylinder", "tree"] }, "name": { "type": "string" }, "pos": { "$ref": "#/$defs/vec3" }, "size": { "$ref": "#/$defs/vec3" }, "radius": { "type": "number" }, "height": { "type": "number" }, "color": { "type": "string" }, "occluder": { "type": "boolean" }, "collide": { "type": "boolean" } } } },
+          "enemies": { "type": "array", "maxItems": 60, "items": { "type": "object", "required": ["type", "pos"], "properties": { "type": { "type": "string" }, "pos": { "$ref": "#/$defs/vec3" } } } },
+          "puzzle": { "type": "object", "required": ["id", "plates", "gate_pos", "gate_size"],
+            "properties": { "id": { "type": "string" }, "plates": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "type": "object", "required": ["pos", "radius"], "properties": { "pos": { "$ref": "#/$defs/vec3" }, "radius": { "type": "number", "minimum": 0.5, "maximum": 6 } } } }, "latch_time": { "type": "number", "minimum": 0, "maximum": 120 }, "gate_pos": { "$ref": "#/$defs/vec3" }, "gate_size": { "$ref": "#/$defs/vec3" } } },
+          "encounter": { "type": "object", "required": ["id", "boss", "spawn", "trigger_center", "trigger_radius"],
+            "properties": { "id": { "type": "string" }, "boss": { "type": "string" }, "spawn": { "$ref": "#/$defs/vec3" }, "trigger_center": { "$ref": "#/$defs/vec3" }, "trigger_radius": { "type": "number", "exclusiveMinimum": 0, "maximum": 60 } } }
+        }
+      }
+    }
+  },
+  "$defs": { "vec3": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } } }
+}

@@ -32,6 +32,24 @@ const EVENT_ENEMY_SPAWN: int = 5
 const EVENT_DROP: int = 6
 ## E5.2 (aditivo, VERSION continua 2): inimigo entrou numa nova fase `{id, phase}` (phase >= 1).
 const EVENT_ENEMY_PHASE: int = 7
+## E5.3 (aditivo, VERSION continua 2; docs/E5_WORLD.md): mundo de Greenwood em zonas.
+## 8 zone `{id, zone, phase, pos}` (so para o jogador `id`): phase 0 = saindo (transicao iniciada), 1 = chegou em `zone`.
+const EVENT_ZONE: int = 8
+## 9 puzzle `{zone, puzzle, plates:[bool], open, state}` (jogadores da zona; reenviado a quem chega).
+const EVENT_PUZZLE: int = 9
+## 10 respawn `{id, zone, pos}` (jogadores da zona do jogador que reapareceu).
+const EVENT_RESPAWN: int = 10
+## 11 boss `{zone, encounter, boss, state}` (jogadores da zona): 0 armado/reiniciado, 1 ativo, 2 derrotado.
+const EVENT_BOSS: int = 11
+const ZONE_PHASE_LEAVING: int = 0
+const ZONE_PHASE_ARRIVED: int = 1
+const BOSS_ARMED: int = 0
+const BOSS_ACTIVE: int = 1
+const BOSS_DEFEATED: int = 2
+const PUZZLE_IDLE: int = 0
+const PUZZLE_PARTIAL: int = 1
+const PUZZLE_OPEN: int = 2
+const MAX_PLATES: int = 8
 
 const KIND_PLAYER: int = 1
 const KIND_ENEMY: int = 2
@@ -246,4 +264,62 @@ static func validate_entity_dict(d: Variant) -> bool:
 		return false
 	if e.has("atk") and (typeof(e["atk"]) != TYPE_STRING or (e["atk"] as String).length() > MAX_TYPE_LEN):
 		return false
+	return true
+
+
+## E5.3: valida os dados de um evento do mundo vindo do fio (o cliente descarta o que falhar).
+static func validate_zone_event(d: Variant) -> bool:
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	if typeof(e.get("id", null)) != TYPE_INT or not is_content_id(e.get("zone", null)):
+		return false
+	var phase: Variant = e.get("phase", null)
+	if typeof(phase) != TYPE_INT or int(phase) < ZONE_PHASE_LEAVING or int(phase) > ZONE_PHASE_ARRIVED:
+		return false
+	return typeof(e.get("pos", null)) == TYPE_VECTOR3 and _vec3_finite(e["pos"])
+
+
+static func validate_puzzle_event(d: Variant) -> bool:
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	if not is_content_id(e.get("zone", null)) or not is_content_id(e.get("puzzle", null)) or typeof(e.get("open", null)) != TYPE_BOOL:
+		return false
+	var state: Variant = e.get("state", null)
+	if typeof(state) != TYPE_INT or int(state) < PUZZLE_IDLE or int(state) > PUZZLE_OPEN:
+		return false
+	var plates: Variant = e.get("plates", null)
+	if typeof(plates) != TYPE_ARRAY or (plates as Array).is_empty() or (plates as Array).size() > MAX_PLATES:
+		return false
+	for p: Variant in plates:
+		if typeof(p) != TYPE_BOOL:
+			return false
+	return true
+
+
+static func validate_respawn_event(d: Variant) -> bool:
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	return typeof(e.get("id", null)) == TYPE_INT and is_content_id(e.get("zone", null)) \
+		and typeof(e.get("pos", null)) == TYPE_VECTOR3 and _vec3_finite(e["pos"])
+
+
+static func validate_boss_event(d: Variant) -> bool:
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	var state: Variant = e.get("state", null)
+	return is_content_id(e.get("zone", null)) and is_content_id(e.get("encounter", null)) and is_content_id(e.get("boss", null)) \
+		and typeof(state) == TYPE_INT and int(state) >= BOSS_ARMED and int(state) <= BOSS_DEFEATED
+
+
+## Valida um evento pelo `kind` (kinds sem validador especifico passam: sao tratados como antes).
+static func validate_world_event(kind: int, d: Variant) -> bool:
+	match kind:
+		EVENT_ZONE: return validate_zone_event(d)
+		EVENT_PUZZLE: return validate_puzzle_event(d)
+		EVENT_RESPAWN: return validate_respawn_event(d)
+		EVENT_BOSS: return validate_boss_event(d)
 	return true

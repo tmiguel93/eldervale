@@ -19,6 +19,11 @@ var _last_pos: Dictionary = {}     # id -> Vector3 (para o efeito de morte)
 var _facing: Dictionary = {}       # id -> yaw
 var _flash_mat: StandardMaterial3D
 var _prev_local: Vector3 = Vector3.ZERO
+## E5.3: visual da zona atual (montado dos mesmos dados do servidor) e ultimo estado do puzzle.
+var zone_root: Node3D = null
+var zone_id: String = ""
+var _ground: MeshInstance3D
+var _puzzle_event: Dictionary = {}
 
 
 func _ready() -> void:
@@ -38,6 +43,7 @@ func _build_ground() -> void:
 	plane.material = mat
 	ground.mesh = plane
 	ground.name = "Ground"
+	_ground = ground
 	add_child(ground)
 	var sun: DirectionalLight3D = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55.0, 30.0, 0.0)
@@ -163,12 +169,58 @@ func apply_event(kind: int, data: Dictionary) -> void:
 				_flash(target, av)
 		Protocol.EVENT_DEATH:
 			_play_death(int(data.get("id", -1)))
+		Protocol.EVENT_ZONE:
+			if int(data.get("id", -1)) == local_id and int(data.get("phase", -1)) == Protocol.ZONE_PHASE_ARRIVED:
+				show_zone(String(data.get("zone", "")))
+		Protocol.EVENT_PUZZLE:
+			_puzzle_event = data
+			_apply_puzzle()
+		Protocol.EVENT_BOSS:
+			if int(data.get("state", -1)) == Protocol.BOSS_ACTIVE:
+				notice.emit("O Anciao Corrompido desperta!")
+			elif int(data.get("state", -1)) == Protocol.BOSS_DEFEATED:
+				notice.emit("O Anciao Corrompido foi derrotado!")
+			elif int(data.get("state", -1)) == Protocol.BOSS_ARMED:
+				notice.emit("O encontro reiniciou.")
+		Protocol.EVENT_RESPAWN:
+			if int(data.get("id", -1)) == local_id:
+				notice.emit("Voce reapareceu no ponto de retorno.")
 		Protocol.EVENT_PLAYER_JOINED:
 			notice.emit("Jogador entrou: %s" % str(data.get("id", data.get("player_id", "?"))))
 		Protocol.EVENT_PLAYER_LEFT:
 			notice.emit("Jogador saiu: %s" % str(data.get("id", data.get("player_id", "?"))))
 		_:
 			pass
+
+
+## E5.3: monta o visual da zona (primitivas, mesmos dados do servidor) e esconde o chao generico.
+func show_zone(new_zone_id: String, def: WorldDef = null) -> bool:
+	var world_def: WorldDef = def if def != null else WorldDef.shared()
+	var zone: ZoneDef = world_def.get_zone(new_zone_id)
+	if zone == null:
+		return false
+	if zone_id == new_zone_id and zone_root != null and is_instance_valid(zone_root):
+		return true
+	if zone_root != null and is_instance_valid(zone_root):
+		remove_child(zone_root)
+		zone_root.queue_free()
+	zone_root = WorldBuilder.build_zone(self, zone, true, NpcDirectory.shared())
+	zone_id = new_zone_id
+	if _ground != null:
+		_ground.visible = false
+	_apply_puzzle()
+	return true
+
+
+func _apply_puzzle() -> void:
+	if zone_root == null or not is_instance_valid(zone_root) or _puzzle_event.is_empty():
+		return
+	if String(_puzzle_event.get("zone", "")) != zone_id:
+		return
+	var plates: Array = _puzzle_event.get("plates", [])
+	for i: int in plates.size():
+		WorldBuilder.set_plate_lit(zone_root, i, bool(plates[i]))
+	WorldBuilder.set_gate_open(zone_root, bool(_puzzle_event.get("open", false)))
 
 
 func _flash(id: int, av: Node3D) -> void:

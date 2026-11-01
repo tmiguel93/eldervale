@@ -12,6 +12,8 @@ signal event_emitted(kind: int, data: Dictionary)
 signal enemy_killed(enemy_id: int, killer_id: int, xp: int, items: Array)
 ## E5.1: o golpe final foi de um jogador. `enemy_type` = EnemyData.id (progresso de quests de caca).
 signal player_killed_enemy(killer_id: int, enemy_id: int, enemy_type: String)
+## E5.3: evento so para UM jogador (catch-up de zona/puzzle/chefe ao entrar ou trocar de zona).
+signal event_to_player(entity_id: int, kind: int, data: Dictionary)
 
 const PLAYER_SCENE_PATH: String = "res://scenes/player/player.tscn"
 ## Nos puramente cosmeticos removidos das instancias do servidor.
@@ -30,6 +32,13 @@ class PlayerSlot extends RefCounted:
 	var move: Vector2 = Vector2.ZERO
 	var yaw: float = 0.0
 	var pending_actions: int = 0
+	## E5.3 (modo mundo): zona atual, transicao em andamento, respawn pendente e trava de portal.
+	var zone_id: String = ""
+	var transit_left: float = 0.0
+	var transit_to: String = ""
+	var transit_spawn: String = ""
+	var respawn_left: float = 0.0
+	var portal_lock: float = 0.0
 
 
 var settings: ServerSettings
@@ -43,21 +52,38 @@ var _node_ids: Dictionary = {} ## instance_id -> entity_id
 var _enemies_active: bool = true
 var _last_hit_by: Dictionary = {} ## target entity_id -> entity_id do ultimo jogador que causou dano
 var _difficulty: DifficultyScaling ## E5.2: escala por numero de jogadores (data/difficulty)
+## E5.3: diretor do mundo (null = arena de teste do E1/E3, comportamento anterior intacto).
+var director: WorldDirector = null
+var _entity_zone: Dictionary = {}   ## entity_id (inimigo) -> zone_id
+var _zone_active: Dictionary = {}   ## zone_id -> havia jogador vivo na zona no ultimo tick
 
 
 func _ready() -> void:
 	process_physics_priority = -20
 	if settings == null:
 		settings = ServerSettings.new()
-	geometry = ArenaGeometry.build(self, false)
 	_difficulty = DifficultyScaling.load_default()
+	if not settings.world_id.is_empty():
+		var def: WorldDef = WorldDef.shared(settings.world_id)
+		var errs: Array[String] = def.validate(NpcDirectory.shared(), AreaSet.shared())
+		if errs.is_empty():
+			director = WorldDirector.new(self, def)
+			director.spawn_enemies = settings.spawn_enemies
+			geometry = director.build_geometry()
+			director.start()
+			return
+		for e: String in errs:
+			push_error("ServerWorld: mundo '%s' invalido: %s (usando a arena de teste)" % [settings.world_id, e])
+	geometry = ArenaGeometry.build(self, false)
 	if settings.spawn_enemies:
 		for entry: Array in TestArena.ENEMY_SPAWNS:
 			spawn_enemy(entry[0] as String, entry[1] as Vector3)
 
 
-func _physics_process(_delta: float) -> void:
+func _physics_process(delta: float) -> void:
 	apply_inputs()
+	if director != null:
+		director.tick(delta)
 
 
 # ------------------------------------------------------------------ jogadores
@@ -102,6 +128,9 @@ func add_player(peer_id: int, player_name: String, starting_items: bool = true) 
 	slot.spawn_index = _free_spawn_index()
 	player.name = "Player_%d" % slot.id
 	player.position = settings.spawn_points[slot.spawn_index % settings.spawn_points.size()]
+	if director != null:
+		slot.zone_id = director.start_zone_id()
+		player.position = director.spawn_for(slot.zone_id, director.spawn_name_for_new(), slot.spawn_index)
 	slot.combat = player.get_node("Combat") as PlayerCombat
 	slot.combat.read_input_actions = false # acoes vem do input validado, nunca de Input
 	add_child(player)
@@ -117,6 +146,8 @@ func add_player(peer_id: int, player_name: String, starting_items: bool = true) 
 	slot.health.died.connect(_on_player_died.bind(slot.id).unbind(1))
 	event_emitted.emit(Protocol.EVENT_PLAYER_JOINED, {"id": slot.id, "name": player_name})
 	refresh_difficulty()
+	if director != null:
+		director.on_player_added(slot.id)
 	return slot.id
 
 
@@ -125,7 +156,7 @@ func remove_player(entity_id: int) -> bool:
 	var slot: PlayerSlot = _players.get(entity_id) as PlayerSlot
 	if slot == null:
 		return false
-	_players.erase(entity_id)
+	_players.erase(entity_id) # transicao/respawn pendentes morrem junto com o slot
 	if is_instance_valid(slot.node):
 		_node_ids.erase(slot.node.get_instance_id())
 		slot.node.remove_from_group(&"player")
@@ -166,7 +197,7 @@ func _free_spawn_index() -> int:
 
 # ------------------------------------------------------------------ inimigos
 
-func spawn_enemy(scene_path: String, pos: Vector3) -> int:
+func spawn_enemy(scene_path: String, pos: Vector3, zone_id: String = "") -> int:
 	var scene: PackedScene = load(scene_path) as PackedScene
 	if scene == null:
 		push_error("ServerWorld: cena ausente: %s" % scene_path)
@@ -185,6 +216,9 @@ func spawn_enemy(scene_path: String, pos: Vector3) -> int:
 	add_child(enemy)
 	_enemies[id] = enemy
 	_node_ids[enemy.get_instance_id()] = id
+	if zone_id.is_empty() and director != null:
+		zone_id = director.world_def.zone_id_at(pos)
+	_entity_zone[id] = zone_id
 	enemy.health.damaged.connect(_on_damaged.bind(id))
 	enemy.defeated.connect(_on_enemy_defeated.bind(id))
 	enemy.phase_changed.connect(_on_enemy_phase_changed.bind(id))
@@ -192,6 +226,40 @@ func spawn_enemy(scene_path: String, pos: Vector3) -> int:
 	_apply_difficulty_to(enemy)
 	event_emitted.emit(Protocol.EVENT_ENEMY_SPAWN, {"id": id, "type": String(enemy.data.id), "pos": enemy.global_position})
 	return id
+
+
+## Remove o inimigo (e os adds dele) do mundo SEM morte valida: sem drop, XP, sinal ou evento.
+## Usado ao descarregar uma zona e ao reiniciar o encontro do chefe depois de um wipe.
+func despawn_enemy(entity_id: int) -> bool:
+	var e: Enemy = _enemies.get(entity_id) as Enemy
+	if e == null:
+		return false
+	if is_instance_valid(e):
+		for add: Enemy in e.summoned.duplicate():
+			if is_instance_valid(add):
+				despawn_enemy(int(_node_ids.get(add.get_instance_id(), 0)))
+		_node_ids.erase(e.get_instance_id())
+		e.hitbox.end_strike()
+		e.set_physics_process(false)
+		remove_child(e)
+		e.queue_free()
+	_enemies.erase(entity_id)
+	_entity_zone.erase(entity_id)
+	_last_hit_by.erase(entity_id)
+	return true
+
+
+## Todos os inimigos (inclusive adds) da zona.
+func enemy_ids_in_zone(zone_id: String) -> Array[int]:
+	var out: Array[int] = []
+	for id: int in get_enemy_ids():
+		if String(_entity_zone.get(id, "")) == zone_id:
+			out.append(id)
+	return out
+
+
+func enemy_zone(entity_id: int) -> String:
+	return String(_entity_zone.get(entity_id, ""))
 
 
 func enemy_count() -> int:
@@ -212,11 +280,11 @@ func get_enemy_ids() -> Array[int]:
 
 
 ## Dados de enemy_spawn dos inimigos vivos (para quem acabou de entrar).
-func enemy_spawn_events() -> Array[Dictionary]:
+func enemy_spawn_events(zone_id: String = "") -> Array[Dictionary]:
 	var out: Array[Dictionary] = []
 	for id: int in get_enemy_ids():
 		var e: Enemy = _enemies[id] as Enemy
-		if e.defeat_count == 0:
+		if e.defeat_count == 0 and (zone_id.is_empty() or String(_entity_zone.get(id, "")) == zone_id):
 			out.append({"id": id, "type": String(e.data.id), "pos": e.global_position})
 	return out
 
@@ -231,15 +299,16 @@ func _live_enemies() -> Array[Enemy]:
 			dead_ids.append(id)
 	for id: int in dead_ids:
 		_enemies.erase(id)
+		_entity_zone.erase(id)
 	return out
 
 
 # ------------------------------------------------------------------ simulacao
 
 ## Aplica o input guardado aos jogadores (velocidade/cooldown/custo sao os do servidor) e escolhe
-## o alvo de cada inimigo (jogador vivo mais proximo).
+## o alvo de cada inimigo (maior ameaca / jogador vivo mais proximo DA MESMA ZONA).
 func apply_inputs() -> void:
-	var alive_positions: Array[Dictionary] = []
+	var alive_by_zone: Dictionary = {} ## zone_id -> Array[Dictionary]  (modo arena: tudo em "")
 	for id: int in _players:
 		var slot: PlayerSlot = _players[id] as PlayerSlot
 		if not is_instance_valid(slot.node):
@@ -249,7 +318,13 @@ func apply_inputs() -> void:
 			player.external_input = Vector2.ZERO
 			slot.pending_actions = 0
 			continue
-		alive_positions.append({"node": player, "id": id, "pos": player.global_position})
+		if not alive_by_zone.has(slot.zone_id):
+			alive_by_zone[slot.zone_id] = []
+		(alive_by_zone[slot.zone_id] as Array).append({"node": player, "id": id, "pos": player.global_position})
+		if slot.transit_left > 0.0: # em transicao de zona: parado, sem acoes
+			player.external_input = Vector2.ZERO
+			slot.pending_actions = 0
+			continue
 		player.external_input = slot.move
 		player.external_yaw = slot.yaw
 		var actions: int = slot.pending_actions
@@ -265,19 +340,27 @@ func apply_inputs() -> void:
 			combat.try_use(combat.skill_1)
 		elif (actions & Protocol.ACTION_SKILL_2) != 0:
 			combat.try_use(combat.skill_2)
-	var active: bool = not alive_positions.is_empty()
+	var zones_seen: Dictionary = {}
 	for enemy: Enemy in _live_enemies():
-		if active != _enemies_active:
+		var zid: String = String(_entity_zone.get(int(_node_ids.get(enemy.get_instance_id(), 0)), ""))
+		zones_seen[zid] = true
+		var alive: Array = alive_by_zone.get(zid, [])
+		var active: bool = not alive.is_empty()
+		if active != bool(_zone_active.get(zid, true)):
 			enemy.set_physics_process(active and enemy.ai != null)
 		if not active:
 			enemy.target = null
 			continue
-		enemy.target = _pick_target(enemy, alive_positions)
-	if not active and _enemies_active:
-		for enemy: Enemy in _live_enemies(): # todos morreram: chefes reiniciam o encontro
-			if enemy.data.is_boss():
-				enemy.reset_encounter()
-	_enemies_active = active
+		var typed: Array[Dictionary] = []
+		typed.assign(alive)
+		enemy.target = _pick_target(enemy, typed)
+	for zid: String in zones_seen:
+		var now_active: bool = not (alive_by_zone.get(zid, []) as Array).is_empty()
+		if not now_active and bool(_zone_active.get(zid, true)):
+			for enemy: Enemy in _live_enemies(): # todos morreram na zona: chefes dela reiniciam o encontro
+				if enemy.data.is_boss() and String(_entity_zone.get(int(_node_ids.get(enemy.get_instance_id(), 0)), "")) == zid:
+					enemy.reset_encounter()
+		_zone_active[zid] = now_active
 
 
 ## Alvo do inimigo: maior ameaca entre os vivos dentro do leash (com histerese); sem ameaca, o mais proximo.
@@ -303,10 +386,18 @@ func difficulty_players() -> int:
 	return _players.size()
 
 
+## Jogadores que contam para a escala de `enemy`: todos (arena) ou so os da zona dele (mundo).
+func difficulty_players_for(enemy: Enemy) -> int:
+	if director == null:
+		return _players.size()
+	var zid: String = String(_entity_zone.get(int(_node_ids.get(enemy.get_instance_id(), 0)), ""))
+	return players_in_zone(zid).size() + director.incoming_count(zid)
+
+
 func _apply_difficulty_to(enemy: Enemy) -> void:
 	if _difficulty == null or enemy.data == null:
 		return
-	var n: int = maxi(_players.size(), 1)
+	var n: int = maxi(difficulty_players_for(enemy), 1)
 	enemy.set_difficulty(_difficulty.health_mult(n, enemy.data.tier), _difficulty.damage_mult(n, enemy.data.tier))
 
 
@@ -354,6 +445,139 @@ func build_entities() -> Array:
 	return out
 
 
+## Entidades visiveis para quem esta em `zone_id` (interesse por zona): jogadores e inimigos da zona.
+## Com `center` e `radius > 0` os INIMIGOS alem do raio (plano XZ) ficam de fora; jogadores da zona sempre entram.
+func build_entities_for_zone(zone_id: String, center: Vector3 = Vector3.ZERO, radius: float = 0.0) -> Array:
+	if director == null:
+		return build_entities()
+	var out: Array = []
+	for e: Variant in build_entities():
+		var d: Dictionary = e
+		var eid: int = int(d["id"])
+		var is_player: bool = int(d["kind"]) == Protocol.KIND_PLAYER
+		var z: String = zone_of_player(eid) if is_player else String(_entity_zone.get(eid, ""))
+		if z != zone_id:
+			continue
+		if radius > 0.0 and not is_player:
+			var p: Vector3 = d["pos"]
+			if Vector2(p.x - center.x, p.z - center.z).length() > radius:
+				continue
+		out.append(e)
+	return out
+
+
+# ------------------------------------------------------------------ mundo (E5.3)
+
+func zone_of_player(entity_id: int) -> String:
+	var slot: PlayerSlot = _players.get(entity_id) as PlayerSlot
+	return slot.zone_id if slot != null else ""
+
+
+## Jogadores (ids) cuja zona atual e `zone_id`.
+func players_in_zone(zone_id: String) -> Array[int]:
+	var out: Array[int] = []
+	for id: int in _players:
+		if (_players[id] as PlayerSlot).zone_id == zone_id:
+			out.append(id)
+	return out
+
+
+func get_slot(entity_id: int) -> PlayerSlot:
+	return _players.get(entity_id) as PlayerSlot
+
+
+func is_player_dead(entity_id: int) -> bool:
+	var slot: PlayerSlot = _players.get(entity_id) as PlayerSlot
+	return slot != null and slot.health.is_dead
+
+
+## Move o jogador (teleporte do servidor) e zera velocidade/input. Nao mexe na zona do slot.
+func teleport_player(entity_id: int, pos: Vector3) -> bool:
+	var slot: PlayerSlot = _players.get(entity_id) as PlayerSlot
+	if slot == null or not is_instance_valid(slot.node):
+		return false
+	slot.node.global_position = pos
+	slot.node.velocity = Vector3.ZERO
+	slot.move = Vector2.ZERO
+	slot.pending_actions = 0
+	return true
+
+
+## Reanima o jogador morto: vida cheia, maquina de estados em IDLE. Posicao e do chamador.
+func revive_player(entity_id: int) -> bool:
+	var slot: PlayerSlot = _players.get(entity_id) as PlayerSlot
+	if slot == null or not slot.health.is_dead:
+		return false
+	slot.health.reset()
+	slot.combat.machine.revive()
+	if is_instance_valid(slot.node):
+		slot.node.velocity = Vector3.ZERO
+	return true
+
+
+## Remove a ameaca do jogador nos inimigos de `zone_id` (ele saiu da zona / reapareceu).
+func clear_threat_in_zone(entity_id: int, zone_id: String) -> void:
+	for enemy: Enemy in _live_enemies():
+		if String(_entity_zone.get(int(_node_ids.get(enemy.get_instance_id(), 0)), "")) == zone_id:
+			enemy.threat.remove(entity_id)
+
+
+func emit_to_player(entity_id: int, kind: int, data: Dictionary) -> void:
+	event_to_player.emit(entity_id, kind, data)
+
+
+## Quem recebe o evento: `null` = todos (arena ou eventos globais); senao a lista de entity_ids
+## (jogadores da zona do evento). Interesse por zona: dano/morte/drop de outra zona nao viaja.
+func event_targets(kind: int, data: Dictionary) -> Variant:
+	if director == null:
+		return null
+	var zone_id: String = ""
+	match kind:
+		Protocol.EVENT_PLAYER_JOINED, Protocol.EVENT_PLAYER_LEFT:
+			return null
+		Protocol.EVENT_DAMAGE:
+			zone_id = _zone_of_any(int(data.get("target_id", 0)))
+		Protocol.EVENT_DEATH, Protocol.EVENT_ENEMY_PHASE, Protocol.EVENT_RESPAWN:
+			zone_id = _zone_of_any(int(data.get("id", 0)))
+		Protocol.EVENT_ENEMY_SPAWN:
+			zone_id = _zone_of_any(int(data.get("id", 0)))
+		Protocol.EVENT_DROP:
+			zone_id = director.world_def.zone_id_at(data.get("pos", Vector3.ZERO) as Vector3)
+		Protocol.EVENT_PUZZLE, Protocol.EVENT_BOSS:
+			zone_id = String(data.get("zone", ""))
+		Protocol.EVENT_ZONE:
+			return [int(data.get("id", 0))]
+		_:
+			return null
+	if zone_id.is_empty():
+		return null
+	return players_in_zone(zone_id)
+
+
+func _zone_of_any(entity_id: int) -> String:
+	if _players.has(entity_id):
+		return (_players[entity_id] as PlayerSlot).zone_id
+	return String(_entity_zone.get(entity_id, ""))
+
+
+## Eventos de "estado atual" para quem entrou na zona do jogador (entrada na sessao ou fim de transicao).
+## Arena: so os enemy_spawn (como no E3). Mundo: zona, inimigos, puzzle e chefe.
+func state_events_for_player(entity_id: int) -> Array[Dictionary]:
+	var out: Array[Dictionary] = []
+	var zone_id: String = zone_of_player(entity_id)
+	if director == null:
+		for d: Dictionary in enemy_spawn_events():
+			out.append({"kind": Protocol.EVENT_ENEMY_SPAWN, "data": d})
+		return out
+	var node: Player = get_player_node(entity_id)
+	var pos: Vector3 = node.global_position if node != null else Vector3.ZERO
+	out.append({"kind": Protocol.EVENT_ZONE, "data": {"id": entity_id, "zone": zone_id, "phase": Protocol.ZONE_PHASE_ARRIVED, "pos": pos}})
+	for d2: Dictionary in enemy_spawn_events(zone_id):
+		out.append({"kind": Protocol.EVENT_ENEMY_SPAWN, "data": d2})
+	out.append_array(director.zone_state_events(zone_id))
+	return out
+
+
 # ------------------------------------------------------------------ eventos
 
 func _strip_cosmetic(root: Node) -> void:
@@ -385,10 +609,14 @@ func _on_enemy_phase_changed(_enemy: Enemy, phase_index: int, entity_id: int) ->
 
 func _on_player_died(entity_id: int) -> void:
 	event_emitted.emit(Protocol.EVENT_DEATH, {"id": entity_id})
+	if director != null:
+		director.on_player_died(entity_id)
 
 
 func _on_enemy_defeated(enemy: Enemy, xp: int, drops: Array[LootDrop], entity_id: int) -> void:
 	event_emitted.emit(Protocol.EVENT_DEATH, {"id": entity_id})
+	if director != null:
+		director.on_enemy_defeated(entity_id)
 	for drop: LootDrop in drops:
 		event_emitted.emit(Protocol.EVENT_DROP, {
 			"pos": enemy.global_position, "item_id": String(drop.item_id), "qty": drop.quantity,

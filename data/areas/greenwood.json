@@ -4,19 +4,17 @@
 	"areas": [
 		{
 			"id": "area_ruins_gate",
-			"display_name": "Portao das Ruinas [PLACEHOLDER]",
-			"center": [40.0, 0.0, -30.0],
+			"display_name": "Portao das Ruinas",
+			"center": [388.0, 0.0, 0.0],
 			"radius": 6.0,
-			"height": 6.0,
-			"placeholder": true
+			"height": 6.0
 		},
 		{
 			"id": "area_ruins_hall",
-			"display_name": "Salao das Ruinas [PLACEHOLDER]",
-			"center": [48.0, 0.0, -44.0],
-			"radius": 5.0,
-			"height": 6.0,
-			"placeholder": true
+			"display_name": "Salao das Ruinas",
+			"center": [408.0, 0.0, 0.0],
+			"radius": 8.0,
+			"height": 6.0
 		}
 	]
 }

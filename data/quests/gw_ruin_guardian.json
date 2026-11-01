@@ -5,14 +5,14 @@
 	"region": "greenwood",
 	"title": "O Guardiao Corrompido",
 	"title_key": "quest.gw_ruin_guardian.title",
-	"description": "Um guardiao corrompido protege o coracao das ruinas. Elimine-o e os conjuradores que o servem.",
+	"description": "O Anciao Corrompido, guardiao das ruinas, protege o salao interno. Elimine-o e os conjuradores que o servem.",
 	"description_key": "quest.gw_ruin_guardian.description",
 	"giver_npc": "npc_scholar_ilmar",
 	"turn_in_npc": "npc_scholar_ilmar",
 	"prerequisites": {"quests": ["gw_ruins_expedition"], "min_level": 3},
 	"objectives": [
 		{"id": "kill_casters", "type": "kill", "target": "ranged_caster", "required": 3, "text": "Derrote conjuradores", "text_key": "quest.gw_ruin_guardian.obj.kill_casters"},
-		{"id": "kill_guardian", "type": "kill", "target": "ruin_guardian", "required": 1, "text": "Derrote o guardiao das ruinas", "text_key": "quest.gw_ruin_guardian.obj.kill_guardian"}
+		{"id": "kill_guardian", "type": "kill", "target": "blight_treant", "required": 1, "text": "Derrote o Anciao Corrompido, guardiao das ruinas", "text_key": "quest.gw_ruin_guardian.obj.kill_guardian"}
 	],
 	"rewards": {"xp": 500, "items": [{"item_id": "amulet_vigor", "qty": 1}, {"item_id": "potion_minor", "qty": 3}]},
 	"abandonable": true

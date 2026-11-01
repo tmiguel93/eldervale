@@ -53,8 +53,8 @@ func _test_real_content(ctx: Object) -> void:
 	# id do arquivo = id da quest; ids de recompensa respeitam a chave de idempotencia (<=128)
 	for id: String in cat.ids():
 		ctx.check(QuestTracker.reward_key(id, "11111111-1111-4111-8111-111111111111").length() <= 128, "chave de recompensa de %s cabe em 128 chars" % id)
-	# cadeia: gw_ruin_guardian referencia o mini-chefe PENDENTE (E5.2); tudo o mais ja existe
-	ctx.check(QuestCatalog.load_pending_refs()["enemies"].has("ruin_guardian"), "ruin_guardian registrado como pendente")
+	# E5.3: pendencia ruin_guardian resolvida (gw_ruin_guardian mata blight_treant); nada mais pendente
+	ctx.check((QuestCatalog.load_pending_refs()["enemies"] as Array).is_empty() and (QuestCatalog.load_pending_refs()["items"] as Array).is_empty(), "sem ids pendentes em _pending_refs.json")
 
 
 func _dialogue_has_effect(d: DialogueDef, effect_type: String, quest_id: String) -> bool:

@@ -6,6 +6,6 @@
 	"region": "greenwood",
 	"dialogue_id": "dlg_elder_orla",
 	"interact_radius": 3.5,
-	"position": [8.0, 0.0, 6.0],
-	"placeholder": true
+	"position": [10.0, 0.0, -8.0],
+	"placeholder": false
 }

@@ -27,6 +27,11 @@ var local_entity: Dictionary = {}
 var last_input_seq_ack: int = 0
 var last_entities: Array = []      # entidades validadas do ultimo snapshot (para bots)
 var _used_ticket: bool = false
+## E5.3: espelho (somente leitura) do mundo: zona atual, ultimo estado do puzzle/chefe da zona.
+var zone_id: String = ""
+var puzzle_state: Dictionary = {}
+var boss_state: int = -1
+var world_events_rejected: int = 0
 
 ## Callables injetados: send_hello(version:int, build:String, name:String, ticket:String),
 ## send_input(seq:int, move:Vector2, yaw:float, actions:int, client_tick:int), send_ping(client_time_ms:int).
@@ -115,8 +120,33 @@ func on_event(event_id: int, kind: int, data: Dictionary) -> void:
 		events_dropped += 1
 		return
 	last_event_id = event_id
+	if not Protocol.validate_world_event(kind, data):
+		world_events_rejected += 1 # evento de mundo malformado: nao chega a apresentacao
+		return
 	result.on_event(kind)
+	_track_world_event(kind, data)
 	_events.append({"id": event_id, "kind": kind, "data": data})
+
+
+## E5.3: guarda o estado de mundo anunciado pelo servidor. Teleporte (zona/respawn) do jogador local
+## invalida a predicao: ela e refeita a partir da posicao do proximo snapshot.
+func _track_world_event(kind: int, data: Dictionary) -> void:
+	match kind:
+		Protocol.EVENT_ZONE:
+			if int(data["id"]) == player_id and int(data["phase"]) == Protocol.ZONE_PHASE_ARRIVED:
+				zone_id = String(data["zone"])
+				puzzle_state = {}
+				boss_state = -1
+				prediction.initialized = false
+		Protocol.EVENT_PUZZLE:
+			if String(data["zone"]) == zone_id or zone_id.is_empty():
+				puzzle_state = data
+		Protocol.EVENT_BOSS:
+			if String(data["zone"]) == zone_id or zone_id.is_empty():
+				boss_state = int(data["state"])
+		Protocol.EVENT_RESPAWN:
+			if int(data["id"]) == player_id:
+				prediction.initialized = false
 
 
 func drain_events() -> Array[Dictionary]:

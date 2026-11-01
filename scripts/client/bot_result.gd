@@ -26,6 +26,12 @@ var attempts: Array = []             # replay_ticket: resultado de cada conexao 
 var kills: int = 0                   # mortes de inimigo observadas (kill_enemy)
 var character_final: Dictionary = {} # GET /v1/characters/:id apos sair: {level, xp, revision, items}
 var elapsed_s: float = 0.0
+# --- E5.3 (mundo em zonas) ---
+var zones_seen: Array[String] = []   # zonas em que o servidor confirmou a chegada (evento zone), em ordem
+var puzzle_open_seen: bool = false   # recebeu puzzle_state com o portao aberto
+var respawns: int = 0                # eventos respawn do proprio jogador
+var boss_states: Array[int] = []     # estados de chefe recebidos (0 armado, 1 ativo, 2 derrotado)
+var tour_done: bool = false          # world_tour: chegou ao salao do chefe
 
 var _last_snapshot_ms: float = -1.0
 var _last_pos_sample_s: float = -1.0e9
@@ -55,6 +61,24 @@ func on_snapshot(now_ms: float, server_tick: int, entities: Array) -> void:
 func on_event(kind: int) -> void:
 	var k: String = str(kind)
 	events_by_kind[k] = int(events_by_kind.get(k, 0)) + 1
+
+
+## E5.3: acumula o que o bot viu do mundo (so eventos validados pela sessao).
+func on_world_event(kind: int, data: Dictionary, my_id: int) -> void:
+	match kind:
+		Protocol.EVENT_ZONE:
+			if int(data.get("id", -1)) == my_id and int(data.get("phase", -1)) == Protocol.ZONE_PHASE_ARRIVED:
+				var z: String = String(data.get("zone", ""))
+				if zones_seen.is_empty() or zones_seen[zones_seen.size() - 1] != z:
+					zones_seen.append(z)
+		Protocol.EVENT_PUZZLE:
+			if bool(data.get("open", false)):
+				puzzle_open_seen = true
+		Protocol.EVENT_RESPAWN:
+			if int(data.get("id", -1)) == my_id:
+				respawns += 1
+		Protocol.EVENT_BOSS:
+			boss_states.append(int(data.get("state", -1)))
 
 
 func on_rtt(ms: float) -> void:
@@ -123,6 +147,7 @@ func to_dict() -> Dictionary:
 		"xp": int(character_final.get("xp", -1)),
 		"level": int(character_final.get("level", -1)),
 		"elapsed_s": elapsed_s,
+		"world": {"zones": zones_seen, "puzzle_open": puzzle_open_seen, "respawns": respawns, "boss_states": boss_states, "tour_done": tour_done},
 	}
 
 

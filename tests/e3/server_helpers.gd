@@ -91,10 +91,11 @@ class Rig extends RefCounted:
 
 
 ## Monta mundo + sessao na arvore. `auto_tick` = a sessao avanca sozinha no physics_process.
-static func make_rig(tree: SceneTree, spawn_enemies: bool = false, max_players: int = 4, auto_tick: bool = false) -> Rig:
+static func make_rig(tree: SceneTree, spawn_enemies: bool = false, max_players: int = 4, auto_tick: bool = false, world_id: String = "") -> Rig:
 	var rig: Rig = Rig.new()
 	rig.tree = tree
 	rig.settings = ServerSettings.new()
+	rig.settings.world_id = world_id # E5.3: "greenwood" = mundo em zonas; "" = arena de teste
 	rig.settings.spawn_enemies = spawn_enemies
 	rig.settings.max_players = max_players
 	rig.settings.session_seed = 12345

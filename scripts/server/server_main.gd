@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -173,6 +173,10 @@ func _apply_extras(extras: Dictionary) -> void:
 		_max_seconds = maxf(0.0, float(extras["max-seconds"]))
 	if extras.has("max-invalid") and String(extras["max-invalid"]).is_valid_float():
 		settings.max_invalid_inputs = clampi(int(float(extras["max-invalid"])), 1, 100000)
+	if extras.has("world"): # E5.3: --world greenwood (mundo em zonas) | arena (padrao: arena de teste do E1/E3)
+		var w: String = String(extras["world"]).strip_edges()
+		settings.world_id = "" if w == "arena" or w.is_empty() else w
+		print("[server] mundo: %s" % ("arena de teste" if settings.world_id.is_empty() else settings.world_id))
 	if extras.has("hello-timeout") and String(extras["hello-timeout"]).is_valid_float():
 		settings.hello_timeout_sec = clampf(float(extras["hello-timeout"]), 0.5, 600.0)
 

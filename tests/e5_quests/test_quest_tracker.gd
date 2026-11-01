@@ -122,11 +122,11 @@ func _test_progress_events(ctx: Object) -> void:
 	ctx.check(r.status_of("gw_ruins_expedition", 2) == "ready" and readies == (["gw_ruins_expedition"] as Array[String]), "dois objetivos completos: ready (uma vez)")
 	r.on_area_entered("area_ruins_gate")
 	ctx.check(readies.size() == 1, "ready nao e reemitido")
-	# chefe pendente: mesmo sem existir em data/, o tracker conta por id
+	# chefe do salao (E5.3: blight_treant): o tracker conta o abate por id
 	r.complete("gw_ruins_expedition")
 	r.accept("gw_ruin_guardian", 3)
-	r.on_enemy_killed("ruin_guardian")
-	ctx.check(r.state.progress_of("gw_ruin_guardian", "kill_guardian") == 1, "kill de mini-chefe (id pendente) conta por string")
+	r.on_enemy_killed("blight_treant")
+	ctx.check(r.state.progress_of("gw_ruin_guardian", "kill_guardian") == 1, "kill do chefe blight_treant conta por string")
 	# uma morte avanca todas as quests que a usam
 	var m: QuestDef = QuestDef.parse({
 		"schema_version": 1, "id": "extra_hunt", "type": "hunt", "region": "greenwood", "title": "t", "title_key": "k", "description": "d", "description_key": "k",
