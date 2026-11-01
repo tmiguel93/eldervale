@@ -29,6 +29,7 @@ var _rpc: NetRpc
 var _peer: ENetMultiplayerPeer
 var _world: ClientWorld
 var _hud: ClientHud
+var _ui: ClientUi   ## E5.5: UI de jogo (nunca criada em modo bot)
 var _camera: IsoCamera
 var _fader: OcclusionFader
 var _send_acc: float = 0.0
@@ -88,6 +89,8 @@ func _new_session() -> ClientSession:
 	ss.result.flow_error = String(_flow_info.get("flow_error", ""))
 	if _rpc != null:
 		_wire_session(ss)
+	if _ui != null:
+		_ui.bind(ss)  # E5.5: nova sessao => a UI zera o estado e liga nos sinais novos
 	return ss
 
 
@@ -226,11 +229,17 @@ func _build_presentation() -> void:
 	_world = ClientWorld.new()
 	_world.name = "ClientWorld"
 	add_child(_world)
-	_world.notice.connect(func(t: String) -> void:
-		if _hud != null:
-			_hud.show_notice(t))
 	_hud = ClientHud.new()
 	add_child(_hud)
+	# E5.5: UI de jogo (paineis, minimapa, toasts). Avisos do mundo viram toasts; sem UI, cai no texto do HUD.
+	_ui = ClientUi.new()
+	add_child(_ui)
+	_ui.bind(session)
+	_world.notice.connect(func(t: String) -> void:
+		if _ui != null:
+			_ui.toast(t)
+		elif _hud != null:
+			_hud.show_notice(t))
 	var cam_scene: PackedScene = load("res://scenes/camera/iso_camera.tscn") as PackedScene
 	if cam_scene != null:
 		_camera = cam_scene.instantiate() as IsoCamera
@@ -244,6 +253,8 @@ func _on_connected() -> void:
 	var shown_name: String = cfg.name
 	if args.uses_backend() and not args.character.is_empty() and Protocol.validate_name(args.character)["ok"]:
 		shown_name = args.character
+	if _ui != null:
+		_ui.local_name = shown_name
 	session.begin(Protocol.VERSION if not is_bot else BotScript.hello_version(cfg.bot_script, Protocol.VERSION), BUILD, shown_name, ticket)
 
 
@@ -409,7 +420,9 @@ func _tick_playing(delta: float) -> void:
 				session.send_bot_items(BotScript.step(cfg.bot_script, _play_elapsed, _tick))
 		else:
 			session.input.yaw = _movement_yaw()
-			session.send_move(LocalInput.read_move(), LocalInput.normalize_yaw(session.input.yaw), LocalInput.read_actions())
+			# E5.5: com painel de UI aberto nao enviamos acoes (clicar em botao nao pode atacar); o movimento segue.
+			var acts: int = 0 if (_ui != null and _ui.blocks_game_actions()) else LocalInput.read_actions()
+			session.send_move(LocalInput.read_move(), LocalInput.normalize_yaw(session.input.yaw), acts)
 	session.prediction.update(delta)
 	if is_bot:
 		_bot_drain_events()
@@ -462,6 +475,8 @@ func _movement_yaw() -> float:
 func _update_presentation(delta: float, now: float) -> void:
 	for ev: Dictionary in session.drain_events():
 		_world.apply_event(int(ev["kind"]), ev["data"])
+		if _ui != null:
+			_ui.on_event(int(ev["kind"]), ev["data"])
 	var samples: Dictionary = session.interpolator.sample(now)
 	var local_pos: Variant = null
 	if session.prediction.initialized and samples.has(session.player_id):
@@ -470,6 +485,8 @@ func _update_presentation(delta: float, now: float) -> void:
 	if _camera != null and _world.local_avatar != null and _camera.target != _world.local_avatar:
 		_camera.set_target(_world.local_avatar)
 	_ensure_occlusion_fader()
+	if _ui != null:
+		_ui.update_frame(delta, _camera.get_yaw() if _camera != null and is_instance_valid(_camera) else NAN)
 
 
 ## E5.3: com o mundo em zonas ha muralhas/pilares/arvores (grupo occluder): o fader do E1 liga ao avatar local.

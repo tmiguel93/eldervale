@@ -48,6 +48,25 @@ Godot_v4.7.2-stable_win64_console.exe --version
 ```
 Estes comandos dependem do `project.godot` (etapa E0, módulo M2) e ainda não foram executados/validados.
 
+## Controles
+Cliente de jogo (`scenes/client/client_boot.tscn`, ver `docs/E3_CLIENT.md` e `docs/E5_UI.md`):
+
+| Tecla | Ação |
+|---|---|
+| W A S D | mover |
+| Mouse 1 | ataque |
+| Q / E | habilidades 1 / 2 |
+| Espaço | esquiva |
+| **F** | interagir: falar com o NPC ou usar a bancada de crafting próxima (`interact`; E já é a habilidade 2) |
+| **J** | diário de quests |
+| **I** | inventário e equipamento |
+| **M** | mapa grande da zona (o minimapa fica sempre no canto superior direito) |
+| Cima / Baixo, Enter | navegar e confirmar nos painéis (diálogo também aceita 1-9) |
+| Del (no diário) | abandonar a quest selecionada (pede confirmação com um segundo toque) |
+| Esc | fecha o painel aberto (no diálogo, avisa o servidor) |
+
+Com um painel aberto o cliente não envia ataque/habilidade/esquiva (clicar em botão não ataca); o movimento continua.
+
 ## Documentação adicional
 - Convenções: [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)
 - Decisões: [`docs/DECISIONS.md`](docs/DECISIONS.md)
