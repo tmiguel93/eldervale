@@ -23,6 +23,10 @@ func send_snapshot(peer_id: int, server_tick: int, last_input_seq: int, entities
 	rpc.send_snapshot(peer_id, server_tick, last_input_seq, entities)
 
 
+func send_snapshot_part(peer_id: int, server_tick: int, last_input_seq: int, part: int, parts: int, blob: PackedByteArray) -> void:
+	rpc.send_snapshot_part(peer_id, server_tick, last_input_seq, part, parts, blob)
+
+
 func send_event(peer_id: int, event_id: int, kind: int, data: Dictionary) -> void:
 	rpc.send_event(peer_id, event_id, kind, data)
 

@@ -23,6 +23,10 @@ signal craft_cmd_received(peer_id: int, req_id: int, recipe_id: String)
 signal craft_update_received(kind: int, data: Dictionary)
 ## Extensao aditiva E5.6 (inventario sincronizado, so servidor -> dono). NAO valida o conteudo (Protocol.validate_inventory_update).
 signal inventory_update_received(data: Dictionary)
+## Extensao aditiva E5.7 (snapshot compacto). `caps_received` NAO valida o conteudo (Protocol.validate_caps);
+## `snapshot_part_received` ja traz tipos basicos conferidos, mas o cabecalho/blob passam por Protocol.validate_snapshot_part.
+signal caps_received(peer_id: int, caps: int)
+signal snapshot_part_received(server_tick: int, last_input_seq: int, part: int, parts: int, blob: PackedByteArray)
 
 const NODE_NAME: String = "NetRpc"
 const SERVER_PEER_ID: int = 1
@@ -135,6 +139,16 @@ func c_craft_cmd(req_id: Variant, recipe_id: Variant) -> void:
 	craft_cmd_received.emit(sender, int(req_id), r)
 
 
+@rpc("any_peer", "call_remote", "reliable")
+func c_caps(caps: Variant) -> void:
+	var sender: int = multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or sender == 0:
+		return
+	if typeof(caps) != TYPE_INT:
+		return
+	caps_received.emit(sender, int(caps))
+
+
 # ---------------------------------------------------------------- recepcao (S -> C)
 
 func _from_server() -> bool:
@@ -170,6 +184,15 @@ func s_snapshot(server_tick: Variant, last_input_seq: Variant, entities: Variant
 	if arr.size() > MAX_ENTITIES:
 		return
 	snapshot_received.emit(int(server_tick), int(last_input_seq), arr)
+
+
+@rpc("authority", "call_remote", "unreliable_ordered", CH_ORDERED)
+func s_snapshot_c(server_tick: Variant, last_input_seq: Variant, part: Variant, parts: Variant, blob: Variant) -> void:
+	if not _from_server():
+		return
+	if not Protocol.validate_snapshot_part(server_tick, last_input_seq, part, parts, blob):
+		return
+	snapshot_part_received.emit(int(server_tick), int(last_input_seq), int(part), int(parts), blob as PackedByteArray)
 
 
 @rpc("authority", "call_remote", "reliable")
@@ -284,6 +307,10 @@ func send_ping(client_time_ms: int) -> void:
 	_send(SERVER_PEER_ID, &"c_ping", [client_time_ms], false)
 
 
+func send_caps(caps: int) -> void:
+	_send(SERVER_PEER_ID, &"c_caps", [caps], true)
+
+
 func send_quest_cmd(req_id: int, op: int, quest_id: String) -> void:
 	_send(SERVER_PEER_ID, &"c_quest_cmd", [req_id, op, quest_id], true)
 
@@ -323,6 +350,10 @@ func send_reject(peer: int, code: int, message: String) -> void:
 
 func send_snapshot(peer: int, server_tick: int, last_seq: int, entities: Array) -> void:
 	_send(peer, &"s_snapshot", [server_tick, last_seq, entities], false)
+
+
+func send_snapshot_part(peer: int, server_tick: int, last_seq: int, part: int, parts: int, blob: PackedByteArray) -> void:
+	_send(peer, &"s_snapshot_c", [server_tick, last_seq, part, parts, blob], false)
 
 
 func send_event(peer: int, event_id: int, kind: int, data: Dictionary) -> void:

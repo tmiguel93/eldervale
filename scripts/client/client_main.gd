@@ -103,6 +103,7 @@ func _wire_session(ss: ClientSession) -> void:
 	ss.send_quest_cmd = Callable(_rpc, "send_quest_cmd")
 	ss.send_dialogue_cmd = Callable(_rpc, "send_dialogue_cmd")
 	ss.send_craft_cmd = Callable(_rpc, "send_craft_cmd")
+	ss.send_caps = Callable(_rpc, "send_caps")
 
 
 func _read_bot_seconds() -> float:
@@ -128,6 +129,8 @@ func _start() -> void:
 		_rpc.welcome_received.connect(_on_welcome)
 		_rpc.reject_received.connect(_on_reject)
 		_rpc.snapshot_received.connect(_on_snapshot)
+		_rpc.snapshot_part_received.connect(func(tick: int, last_seq: int, part: int, parts: int, blob: PackedByteArray) -> void:
+			session.on_snapshot_part(tick, last_seq, part, parts, blob, float(Time.get_ticks_msec())))
 		_rpc.event_received.connect(_on_event)
 		_rpc.pong_received.connect(_on_pong)
 		_rpc.quest_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_quest_update(kind, data))

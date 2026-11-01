@@ -63,6 +63,11 @@ var test_enemy_hp_mult: float = 1.0
 var test_move_speed_mult: float = 1.0
 ## E5.6: mede o tamanho (aproximado) dos snapshots por peer (var_to_bytes) para o relatorio do gate. Desligado por padrao.
 var measure_snapshots: bool = false
+## E5.7: permite o snapshot compacto (s_snapshot_c) para os peers que declaram `CAP_SNAPSHOT_COMPACT`. Desligar força o
+## `s_snapshot` legado para todos (kill-switch e comparacao antes/depois: `--compact-snapshots 0`).
+var compact_snapshots: bool = true
+## E5.7: orcamento do blob por mensagem do snapshot compacto (bytes); o MTU de payload e 1392.
+var snapshot_part_bytes: int = SnapshotCodec.MAX_PART_BYTES
 ## Testes podem desligar os inimigos da arena.
 var spawn_enemies: bool = true
 var spawn_points: Array[Vector3] = [

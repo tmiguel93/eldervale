@@ -18,6 +18,11 @@ var last_rtt_ms: float = -1.0
 var last_event_id: int = 0
 var events_dropped: int = 0
 var entities_rejected: int = 0
+## E5.7: snapshot compacto. `send_caps(caps:int)` e injetado (c_caps); partes chegam por `on_snapshot_part` e so viram um
+## snapshot quando completas (SnapshotAssembler). `compact_snapshots` conta snapshots completos recebidos por este caminho.
+var send_caps: Callable
+var snapshot_assembler: SnapshotAssembler = SnapshotAssembler.new()
+var compact_snapshots: int = 0
 
 var interpolator: SnapshotInterpolator = SnapshotInterpolator.new()
 var prediction: Prediction = Prediction.new()
@@ -82,6 +87,9 @@ func on_welcome(p_player_id: int, p_tick_rate: int, p_seed: int) -> void:
 	state = State.PLAYING
 	message = "Conectado (id %d)" % player_id
 	interpolator.configure(tick_rate)
+	snapshot_assembler.reset()
+	if send_caps.is_valid():
+		send_caps.call(Protocol.CAP_SNAPSHOT_COMPACT)
 	result.on_welcome(player_id, tick_rate)
 	result.ticket_used_ok = _used_ticket
 
@@ -123,6 +131,19 @@ func on_snapshot(server_tick: int, last_input_seq: int, raw_entities: Array, now
 		var p: Variant = local_entity.get("pos", null)
 		if p is Vector3:
 			prediction.reconcile(p, last_input_seq)
+
+
+## E5.7: uma parte de s_snapshot_c. Descarta/conta parte malformada, duplicada ou velha; ao completar o tick entrega o
+## snapshot mesclado ao mesmo caminho do legado (validacao por entidade, interpolacao, reconciliacao).
+func on_snapshot_part(server_tick: int, last_input_seq: int, part: int, parts: int, blob: PackedByteArray, now_ms: float) -> void:
+	if state != State.PLAYING:
+		return
+	var r: Dictionary = snapshot_assembler.push(server_tick, last_input_seq, part, parts, blob)
+	if not bool(r["complete"]):
+		return
+	compact_snapshots += 1
+	result.compact_snapshots = compact_snapshots
+	on_snapshot(int(r["tick"]), int(r["last_seq"]), r["entities"], now_ms)
 
 
 func on_event(event_id: int, kind: int, data: Dictionary) -> void:

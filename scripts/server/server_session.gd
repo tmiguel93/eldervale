@@ -37,6 +37,9 @@ class PeerState extends RefCounted:
 	## E5.6: assinatura do ultimo inventario enviado (so reenvia quando muda) e contagem de envios.
 	var inv_sig: String = ""
 	var inv_sent: int = 0
+	## E5.7: capacidades declaradas pelo cliente (c_caps; mascaradas por Protocol.CAPS_KNOWN_MASK) e seu limitador.
+	var caps: int = 0
+	var caps_limiter: RateLimiter
 
 
 var settings: ServerSettings
@@ -57,8 +60,10 @@ var quests: QuestService
 ## E5.4: crafting (criado em setup).
 var crafting: CraftingService
 ## E5.6: medicao de snapshots (so com settings.measure_snapshots): maior payload aproximado (var_to_bytes) e contagens.
-var snapshot_stats: Dictionary = {"samples": 0, "max_bytes": 0, "max_entities": 0, "over_mtu": 0, "sum_bytes": 0}
-const MTU_PAYLOAD: int = 1392
+## E5.7: `samples`/`max_bytes`/`over_mtu`/`sum_bytes` contam MENSAGENS (uma parte do compacto = uma mensagem; o legado = 1 por snapshot).
+var snapshot_stats: Dictionary = {"samples": 0, "max_bytes": 0, "max_entities": 0, "over_mtu": 0, "sum_bytes": 0,
+	"snapshots": 0, "compact_snapshots": 0, "max_parts": 0, "encode_skipped": 0}
+const MTU_PAYLOAD: int = Protocol.MTU_PAYLOAD
 
 
 func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: ServerTransport) -> void:
@@ -145,6 +150,7 @@ func on_peer_connected(peer_id: int) -> void:
 	p.ping_limiter = RateLimiter.new(settings.ping_rate_per_sec, settings.ping_burst)
 	p.quest_limiter = RateLimiter.new(settings.quest_rate_per_sec, settings.quest_burst)
 	p.craft_limiter = RateLimiter.new(settings.craft_rate_per_sec, settings.craft_burst)
+	p.caps_limiter = RateLimiter.new(1.0, 3)
 	_peers[peer_id] = p
 	print("[server] peer %d conectou (%d conexoes)" % [peer_id, _peers.size()])
 
@@ -533,6 +539,26 @@ func on_craft_cmd(peer_id: int, req_id: Variant, recipe_id: Variant) -> void:
 	crafting.cmd_craft(p.entity_id, int(v["req_id"]), String(v["recipe_id"]))
 
 
+## E5.7: c_caps(caps) — o cliente declara o que entende (hoje: snapshot compacto). Valido so apos o welcome.
+func on_caps(peer_id: int, caps: Variant) -> void:
+	var p: PeerState = _peers.get(peer_id) as PeerState
+	if p == null or p.closing:
+		return
+	if not p.welcomed:
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "comando antes do welcome")
+		return
+	if not p.caps_limiter.allow(now_msec()):
+		p.dropped_rate += 1
+		_count_invalid(p, "rate limit de caps")
+		return
+	var v: Dictionary = Protocol.validate_caps(caps)
+	if not bool(v["ok"]):
+		p.dropped_invalid += 1
+		_count_invalid(p, String(v["message"]))
+		return
+	p.caps = int(v["caps"])
+
+
 func on_ping(peer_id: int, client_time_ms: Variant) -> void:
 	var p: PeerState = _peers.get(peer_id) as PeerState
 	if p == null or p.closing or typeof(client_time_ms) != TYPE_INT:
@@ -571,19 +597,52 @@ func send_snapshots() -> void:
 				# E5.4: SO os pickups do proprio dono entram no snapshot deste peer (nunca os de outro jogador).
 				mine = entities.duplicate()
 				mine.append_array(world.pickup_entities_for(p.entity_id))
+			if settings.compact_snapshots and (p.caps & Protocol.CAP_SNAPSHOT_COMPACT) != 0:
+				_send_snapshot_compact(p, mine)
+				continue
 			if settings.measure_snapshots:
 				_measure_snapshot(world.server_tick, p.last_seq, mine)
 			transport.send_snapshot(p.peer_id, world.server_tick, p.last_seq, mine)
 
 
+## E5.7: snapshot compacto do peer (as entidades `mine` ja sao o interesse DESTE peer: AOI/zona/pickups do dono). Particiona
+## em mensagens <= settings.snapshot_part_bytes de blob; todas levam o mesmo tick/last_input_seq.
+func _send_snapshot_compact(p: PeerState, mine: Array) -> void:
+	var enc: Dictionary = SnapshotCodec.encode(mine, settings.snapshot_part_bytes)
+	var parts: Array = enc["parts"]
+	if parts.size() > Protocol.MAX_SNAPSHOT_PARTS:
+		# Excede o limite do protocolo (nao ocorre com <= 256 entidades): descarta este snapshot em vez de enviar mensagens invalidas.
+		print("[server] snapshot do peer %d com %d partes excede o limite; descartado" % [p.peer_id, parts.size()])
+		return
+	if settings.measure_snapshots:
+		snapshot_stats["snapshots"] = int(snapshot_stats["snapshots"]) + 1
+		snapshot_stats["compact_snapshots"] = int(snapshot_stats["compact_snapshots"]) + 1
+		snapshot_stats["max_parts"] = maxi(int(snapshot_stats["max_parts"]), parts.size())
+		snapshot_stats["encode_skipped"] = int(snapshot_stats["encode_skipped"]) + int(enc["skipped"])
+		snapshot_stats["max_entities"] = maxi(int(snapshot_stats["max_entities"]), mine.size())
+	for i: int in parts.size():
+		var blob: PackedByteArray = parts[i]
+		if settings.measure_snapshots:
+			_measure_bytes(var_to_bytes(world.server_tick).size() + var_to_bytes(p.last_seq).size() + var_to_bytes(i).size()
+				+ var_to_bytes(parts.size()).size() + var_to_bytes(blob).size())
+		transport.send_snapshot_part(p.peer_id, world.server_tick, p.last_seq, i, parts.size(), blob)
+
+
 ## Tamanho aproximado do s_snapshot no fio (codificacao Variant do Godot dos 3 argumentos; sem cabecalhos de RPC/ENet).
 func _measure_snapshot(tick: int, last_seq: int, entities: Array) -> void:
 	var bytes: int = var_to_bytes(tick).size() + var_to_bytes(last_seq).size() + var_to_bytes(entities).size()
+	snapshot_stats["snapshots"] = int(snapshot_stats["snapshots"]) + 1
+	snapshot_stats["max_parts"] = maxi(int(snapshot_stats["max_parts"]), 1)
+	snapshot_stats["max_entities"] = maxi(int(snapshot_stats["max_entities"]), entities.size())
+	_measure_bytes(bytes)
+
+
+## Acumula o tamanho (bytes de argumentos Variant) de UMA mensagem de snapshot nas estatisticas.
+func _measure_bytes(bytes: int) -> void:
 	snapshot_stats["samples"] = int(snapshot_stats["samples"]) + 1
 	snapshot_stats["sum_bytes"] = int(snapshot_stats["sum_bytes"]) + bytes
 	var new_max: bool = bytes > int(snapshot_stats["max_bytes"])
 	snapshot_stats["max_bytes"] = maxi(int(snapshot_stats["max_bytes"]), bytes)
-	snapshot_stats["max_entities"] = maxi(int(snapshot_stats["max_entities"]), entities.size())
 	if bytes > MTU_PAYLOAD:
 		snapshot_stats["over_mtu"] = int(snapshot_stats["over_mtu"]) + 1
 	# Linha de resumo a cada novo maximo (e a cada 200 amostras): o harness le a ultima; nao depende do encerramento limpo.

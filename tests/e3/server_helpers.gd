@@ -71,6 +71,12 @@ class RecordingTransport extends ServerTransport:
 	func send_snapshot(peer_id: int, server_tick: int, last_input_seq: int, entities: Array) -> void:
 		snapshots.append({"peer": peer_id, "tick": server_tick, "last_seq": last_input_seq, "entities": entities})
 
+	## E5.7: partes de snapshot compacto gravadas ({peer, tick, last_seq, part, parts, blob}).
+	var snapshot_parts: Array[Dictionary] = []
+
+	func send_snapshot_part(peer_id: int, server_tick: int, last_input_seq: int, part: int, parts: int, blob: PackedByteArray) -> void:
+		snapshot_parts.append({"peer": peer_id, "tick": server_tick, "last_seq": last_input_seq, "part": part, "parts": parts, "blob": blob})
+
 	func send_event(peer_id: int, event_id: int, kind: int, data: Dictionary) -> void:
 		events.append({"peer": peer_id, "id": event_id, "kind": kind, "data": data})
 

@@ -35,21 +35,26 @@ Hub, selvagem, ruínas, puzzle, 10 tipos de inimigos, mini-chefe e chefe, NPCs/d
 | Segredos em logs | **OK** | Todos os cenários varrem logs e JSONs procurando senha, tokens, segredos internos e tickets (nenhum encontrado); segredos são aleatórios por execução e passados só por ambiente. |
 | `ERROR` nos logs do servidor | **OK** | Todos os cenários checam; o único achado real (envio a peer já fechado) foi corrigido (seção 1). |
 
-## 4. Snapshots e MTU (medido)
-`--measure-snapshots` mede o tamanho aproximado da codificação Variant dos 3 argumentos de `s_snapshot` (sem cabeçalhos de RPC/ENet) a cada envio. MTU de payload considerado: 1392 B.
+## 4. Snapshots e MTU (medido; E5.6 mediu, E5.7 corrigiu)
+`--measure-snapshots` mede o tamanho aproximado da codificação Variant dos argumentos de cada **mensagem** de snapshot (sem cabeçalhos de RPC/ENet). MTU de payload considerado: 1392 B. O formato legado `s_snapshot` (Dictionary por entidade, ~240 B/entidade) excedia o MTU; o ENet fragmenta `unreliable` acima do MTU e a perda de um fragmento descarta o snapshot inteiro.
 
-| Situação | Máx. entidades | Máx. bytes | Amostras acima do MTU |
-|---|---|---|---|
-| `party` (4 jogadores, luta de chefe) | 21 | **4912** | 2091 de 3600 (~58%) |
-| `ruins` (1 jogador, antecâmara/salão/chefe) | 18 | **4456** | 806 de 1000 (~81%) |
+**Correção (E5.7, aditiva, `VERSION` 2)**: codificação binária compacta por entidade (posição 1 cm em `s16` relativo a uma origem por parte, yaw `u16`, hp/max_hp inteiros em varint, `type`/`atk` por índice de tabela por parte, `phase`/`atk` só quando diferentes do padrão) **+** particionamento automático em mensagens de blob <= 1200 B com mescla no cliente. Negociada por `c_caps(CAP_SNAPSHOT_COMPACT)` após o welcome; quem não declara continua no legado. Escolha: medi os dois mecanismos juntos porque a codificação sozinha já reduz ~10x (30 entidades = 620 B contra 7216 B no legado, `tests/e5_snapshot`) e o particionamento só é exercitado acima de ~65 entidades por peer (garantia de teto: 256 entidades = 4 partes, maior mensagem 1236 B <= 1392 B). Detalhes e justificativa na DEC-0009 e no contrato (Extensão E5.7).
 
-Conclusão: **os snapshots dessas zonas excedem o MTU com frequência**, mesmo com 1 jogador (cada entidade ocupa ~230–250 B porque é um `Dictionary` com chaves string). O ENet fragmenta pacotes `unreliable` maiores que o MTU e **a perda de qualquer fragmento descarta o snapshot inteiro**. Em localhost não há perda (nenhum cenário falhou), mas na Internet o efeito seria maior perda efetiva de snapshots (a interpolação do cliente tolera lacunas curtas; não medido).
+| Situação | Formato | Máx. entidades | Máx. bytes/mensagem | Mensagens acima do MTU |
+|---|---|---|---|---|
+| `party` (4 jogadores, luta de chefe) | legado (E5.6, medido) | 21 | **4912** | 2091 de 3600 (~58%) |
+| `party` — mesmo build, `--compact-snapshots 0` (E5.7) | legado | 20 | **4748** | 1946 de 3400 (~57%) |
+| `party` (E5.7) | **compacto** | 20 | **792** | **0 de 3400** (máx. 1 parte) |
+| `ruins` (1 jogador) | legado (E5.6, medido) | 18 | **4456** | 806 de 1000 (~81%) |
+| `ruins` — re-medido antes da mudança (E5.7) | legado | 18 | **4456** | 804 de 1000 |
+| `ruins` (E5.7) | **compacto** | 18 | **400** | **0 de 1000** (máx. 1 parte) |
+| Teste unitário `tests/e5_snapshot` (arena, 4 jogadores + 30 inimigos = 34 entidades) | legado → compacto | 34 | 7996 → **560** | 4 de 4 → **0 de 4** |
 
-**Correção simples não aplicada**: omitir `phase`/`atk` padrão economiza só ~20 B por inimigo (insuficiente) e o `BossBar` usa a presença de `phase`. Reduzir o AOI não ajuda na arena do chefe. A solução real é estrutural e mexe no contrato: **codificação compacta de entidade** (arrays posicionais/quantização) ou **snapshot particionado** (várias mensagens por tick com mescla no cliente). Fica como **risco alto #1** para decisão antes do E6. O código de medição continua no repositório (`--measure-snapshots`) para validar a correção.
+Observações honestas: (a) o número de entidades varia de execução para execução (20–21 no `party`); (b) nas execuções compactas os primeiros ~3 snapshots de cada peer saem no formato legado (até o `c_caps` chegar, ≈ 1 RTT) e entram nas contagens (`compact_snapshots` 3395 de 3400 no `party`, 997 de 1000 no `ruins`), ainda assim 0 mensagens acima do MTU porque o hub tem poucas entidades; (c) os tamanhos são os dos argumentos Variant, não incluem o cabeçalho do RPC (~10–20 B) nem o do ENet/UDP — o orçamento do blob (1200 B) deixa ~190 B de folga para isso; (d) **não** foi medido em rede real com perda/jitter: só se sabe que cada mensagem agora cabe num pacote UDP sem fragmentação e que o cliente descarta o snapshot incompleto (mesma semântica de antes). **Erro de quantização**: posição <= 0,5 cm por eixo (<= 0,87 cm euclidiano), abaixo da zona morta de 5 cm da reconciliação (testado: 200 reconciliações sem correção espúria); yaw <= 4,8e-5 rad; hp inteiro (vivo nunca vira 0).
 
 ## 5. Riscos conhecidos (E5.1–E5.6)
 Alto
-1. **Snapshot acima do MTU** na luta de chefe e nas ruínas (seção 4).
+1. ~~**Snapshot acima do MTU** na luta de chefe e nas ruínas~~ **Mitigado no E5.7** (seção 4): com `CAP_SNAPSHOT_COMPACT` o maior snapshot medido foi 792 B por mensagem (`party`) e 400 B (`ruins`), 0 mensagens acima de 1392 B. Pendente: validar com perda/jitter reais; clientes sem a capacidade (builds antigos) continuam no formato legado e acima do MTU; servidor e cliente precisam ser atualizados juntos (tabela de RPCs).
 2. **Cenários de integração dependem de knobs de teste** (vida/velocidade) e de VM de 2 núcleos: o equilíbrio e a duração reais da luta/cadeia não foram exercitados.
 
 Médio
@@ -71,7 +76,7 @@ Baixo
 - Sensação do ritmo de combate no teclado, legibilidade de telégrafos/indicadores e do inimigo "enterrado", câmera isométrica nas ruínas, escala das zonas.
 - Duração e dificuldade reais do chefe com 1–4 jogadores (sem knobs), balanceamento de XP/loot/receitas.
 - UI: usabilidade do inventário (25 slots), diário, diálogo, mapa/minimapa, fade de zona, HUD de grupo; clareza do aviso "aguardando o inventário do servidor".
-- Qualidade da conexão real (latência, perda) com a fragmentação dos snapshots; reconexão numa rede de verdade.
+- Qualidade da conexão real (latência, perda) com o snapshot compacto/particionado (E5.7); reconexão numa rede de verdade.
 - Ausência de softlock fora do caminho previsto pelos bots (ex.: comportamentos inesperados de grupo).
 
 ## 7. Como reproduzir
@@ -85,6 +90,7 @@ cd backend && npx vitest run test/<arquivo>.test.ts                 # um arquivo
 Nota: `--only=<trecho>` filtra a suíte Godot, mas `tests/e3/test_net_rpc.gd` precisa de frames do SceneTree: com `--only=tests/e3` (primeiro teste do processo) o loopback falha por artefato do filtro; na suíte completa passa.
 
 ## 8. Resultados da execução final
-- Suíte Godot completa: **2363 passaram, 0 falharam** (inclui `tests/e5_gate/test_inventory_sync.gd`, 59 checks: validador, superfície do `NetRpc`, join, coalescência, privacidade, craft/undo, recompensa de quest, payload limitado, `ClientSession`, `ClientUi`, reentrega).
+- E5.7 (snapshot compacto): suíte Godot completa **2571 passaram, 0 falharam** (2363 anteriores + 208 de `tests/e5_snapshot/`: codec, assembler, sessão/servidor/cliente e RPC em loopback). Integração: `ruins` OK, `party` OK, e4 `happy` OK com o formato compacto; `party` com `--compact-snapshots 0` passou nas verificações funcionais (legado continua funcionando com o cliente novo), mas apresentou uma vez `ERROR: Unable to send packet on channel 0, max channels: 0` no encerramento (corrida de desconexão do ENet já vista no E5.6, fora do caminho de snapshot; não reproduzida nas execuções compactas). Não executados no E5.7: demais cenários e4/e5 e `e3_integration.py` (o script tenta apagar arquivos antigos do `.tools/scratch`, bloqueado nesta VM).
+- (E5.6) Suíte Godot completa: **2363 passaram, 0 falharam** (inclui `tests/e5_gate/test_inventory_sync.gd`, 59 checks: validador, superfície do `NetRpc`, join, coalescência, privacidade, craft/undo, recompensa de quest, payload limitado, `ClientSession`, `ClientUi`, reentrega).
 - Backend (vitest, por arquivo): auth 23, characters 68, constraints 9, crafting 21, http 10, migrate 5, misc 9, parties 9, quests 20, security_review 17, sessions 24 — **215 passaram, 0 falharam** (o backend não foi alterado no E5.6).
 - Integração: `adventure`, `ruins`, `party`, `zone_drop`, `server_crash`, `outage` OK; e4 `happy`, `replay`, `double`, `crash`, `badticket` OK; `tools/e5_world_integration.py 1bot` OK.

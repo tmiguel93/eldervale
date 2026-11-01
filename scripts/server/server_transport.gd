@@ -16,6 +16,11 @@ func send_snapshot(_peer_id: int, _server_tick: int, _last_input_seq: int, _enti
 	pass
 
 
+## E5.7: parte de snapshot compacto (unreliable). Ver SnapshotCodec / Protocol.CAP_SNAPSHOT_COMPACT.
+func send_snapshot_part(_peer_id: int, _server_tick: int, _last_input_seq: int, _part: int, _parts: int, _blob: PackedByteArray) -> void:
+	pass
+
+
 func send_event(_peer_id: int, _event_id: int, _kind: int, _data: Dictionary) -> void:
 	pass
 

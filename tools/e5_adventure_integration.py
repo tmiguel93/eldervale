@@ -13,7 +13,7 @@ Cenarios (cada um cabe em um comando de 180 s na VM de 2 nucleos; rode um por ve
   outage        backend congelado (SIGSTOP) durante a recompensa: reentrega idempotente, sem duplicar
 Parametros SO DE TESTE (ELDERVALE_TEST_MODE=1 no servidor): --test-hp-mult e --test-speed-mult reduzem a vida dos inimigos e
 aceleram os jogadores nos cenarios longos; documentado em docs/E5_GATE.md. Saida 0 = tudo PASS."""
-import argparse, importlib.util, json, os, re, shutil, signal, sys, time, urllib.error, urllib.request
+import argparse, importlib.util, json, os, re, shlex, shutil, signal, sys, time, urllib.error, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 _spec = importlib.util.spec_from_file_location("e4i", os.path.join(ROOT, "tools", "e4_integration.py"))
@@ -108,6 +108,8 @@ class A(e4.Ctx):
         if measure:
             argv += ["--measure-snapshots", "1"]
         argv += list(extra)
+        # E5.7: argumentos extras do servidor via ambiente (ex.: E5_SERVER_EXTRA="--compact-snapshots 0" mede o formato legado)
+        argv += shlex.split(os.environ.get("E5_SERVER_EXTRA", ""))
         p = e4.spawn("server_" + tag, argv, env, os.path.join(self.dir, f"server_{tag}.log"))
         return p, sid_file
 

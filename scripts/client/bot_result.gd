@@ -42,6 +42,7 @@ var drops_seen: int = 0              # eventos drop recebidos (so os proprios, l
 var quests: Dictionary = {}          # resumo final do diario: {active:{id:{obj:v}}, completed:[ids], errors:[codes]}
 var steps: Array = []                # aventura: marcos cumpridos, em ordem ({step, t})
 var deaths: int = 0                  # eventos death do proprio jogador
+var compact_snapshots: int = 0    # E5.7: snapshots completos recebidos pelo caminho compacto (s_snapshot_c)
 var snapshot_entities_max: int = 0   # maior numero de entidades em um snapshot recebido
 
 var _last_snapshot_ms: float = -1.0
@@ -180,7 +181,7 @@ func to_dict() -> Dictionary:
 		"level": int(character_final.get("level", -1)),
 		"elapsed_s": elapsed_s,
 		"adventure": {"steps": steps, "inventory": inventory, "equipment": equipment, "inventory_updates": inventory_updates, "pickups": pickups,
-			"drops_seen": drops_seen, "quests": quests, "deaths": deaths, "snapshot_entities_max": snapshot_entities_max},
+			"drops_seen": drops_seen, "quests": quests, "deaths": deaths, "snapshot_entities_max": snapshot_entities_max, "compact_snapshots": compact_snapshots},
 		"world": {"zones": zones_seen, "puzzle_open": puzzle_open_seen, "respawns": respawns, "boss_states": boss_states, "tour_done": tour_done},
 	}
 

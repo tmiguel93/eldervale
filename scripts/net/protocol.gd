@@ -73,6 +73,16 @@ const MAX_CRAFT_RESULTS: int = 4
 const MAX_INVENTORY_SLOTS: int = 200
 const INVENTORY_EQUIP_SLOTS: Array[String] = ["weapon", "armor", "trinket"]
 
+## E5.7 (aditivo, VERSION continua 2): SNAPSHOT COMPACTO. O cliente anuncia capacidades com `c_caps(caps)` (reliable, apos o
+## welcome); se `CAP_SNAPSHOT_COMPACT` estiver ligada o servidor envia `s_snapshot_c(tick, last_input_seq, part, parts, blob)`
+## (unreliable_ordered) em vez de `s_snapshot`. Codificacao em `SnapshotCodec`, mescla em `SnapshotAssembler`.
+## Sem a capacidade (cliente antigo/bot antigo) o servidor continua enviando o `s_snapshot` legado.
+const CAP_SNAPSHOT_COMPACT: int = 1
+const CAPS_KNOWN_MASK: int = 1
+const MAX_SNAPSHOT_PARTS: int = 16
+## MTU de payload considerado (ENet/UDP sem fragmentar); nenhuma mensagem unreliable de snapshot compacto passa disso.
+const MTU_PAYLOAD: int = 1392
+
 ## Extensao aditiva E5.1 (quests + dialogo; VERSION continua 2, ver network_protocol.md "Revisao E5.1").
 ## c_quest_cmd: ops de quest. c_dialogue_cmd: ops de dialogo.
 const QUEST_OP_ACCEPT: int = 1
@@ -418,6 +428,27 @@ static func validate_inventory_update(d: Variant) -> bool:
 		if typeof(k) != TYPE_STRING or not INVENTORY_EQUIP_SLOTS.has(String(k)) or not is_content_id((eq as Dictionary)[k]):
 			return false
 	return true
+
+
+## E5.7: c_caps(caps) vindo do cliente. Retorna {ok, code, message, caps}; bits desconhecidos sao IGNORADOS (mascarados) para
+## permitir clientes mais novos; tipo errado ou fora de 0..0xFFFF e invalido (abuso).
+static func validate_caps(caps: Variant) -> Dictionary:
+	if typeof(caps) != TYPE_INT or int(caps) < 0 or int(caps) > 0xFFFF:
+		return _fail(REJECT_INVALID_PAYLOAD, "caps invalido")
+	return _ok({"caps": int(caps) & CAPS_KNOWN_MASK})
+
+
+## E5.7: cabecalho de uma parte de snapshot compacto vindo do fio: tick >= 0, last_input_seq inteiro, 0 <= part < parts <=
+## MAX_SNAPSHOT_PARTS e blob PackedByteArray de 1..MTU_PAYLOAD bytes. O conteudo do blob e validado por `SnapshotCodec.decode_part`.
+static func validate_snapshot_part(server_tick: Variant, last_input_seq: Variant, part: Variant, parts: Variant, blob: Variant) -> bool:
+	if typeof(server_tick) != TYPE_INT or typeof(last_input_seq) != TYPE_INT or typeof(part) != TYPE_INT or typeof(parts) != TYPE_INT:
+		return false
+	if int(server_tick) < 0 or int(parts) < 1 or int(parts) > MAX_SNAPSHOT_PARTS or int(part) < 0 or int(part) >= int(parts):
+		return false
+	if typeof(blob) != TYPE_PACKED_BYTE_ARRAY:
+		return false
+	var n: int = (blob as PackedByteArray).size()
+	return n >= 1 and n <= MTU_PAYLOAD
 
 
 ## Valida um evento pelo `kind` (kinds sem validador especifico passam: sao tratados como antes).

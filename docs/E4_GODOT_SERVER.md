@@ -53,3 +53,4 @@ Capacidade registrada = `--max-players`. HTTPS obrigatorio, exceto `localhost`/`
 ## E5.6 — Notas
 - Recompensas (`reward`) que falham por rede/5xx/429 sao **reentregues** com a mesma chave idempotente (a cada 3 s, ate 20 vezes) na frente da fila do personagem; ver `docs/E5_GATE.md`.
 - Knobs so de teste (exigem `ELDERVALE_TEST_MODE=1`): `--test-hp-mult`, `--test-speed-mult`, `--measure-snapshots`. Nao usar em producao.
+- E5.7: `--compact-snapshots 0|1` (padrao 1; nao exige modo de teste) desliga/liga o snapshot compacto (`s_snapshot_c`) para os clientes que o declaram; `0` forca o `s_snapshot` legado (kill-switch / comparacao antes-depois). No harness `tools/e5_adventure_integration.py` use `E5_SERVER_EXTRA="--compact-snapshots 0"`.
