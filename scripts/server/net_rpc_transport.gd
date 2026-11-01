@@ -55,6 +55,10 @@ func send_class(peer_id: int, data: Dictionary) -> void:
 	rpc.send_class(peer_id, data)
 
 
+func send_talents(peer_id: int, kind: int, data: Dictionary) -> void:
+	rpc.send_talents(peer_id, kind, data)
+
+
 ## Desconecta DEPOIS do s_reject: com NetSim a desconexao entra na mesma fila reliable (mesma
 ## ordem); sem NetSim espera uma folga curta para o ENet entregar o reject.
 func disconnect_peer(peer_id: int) -> void:

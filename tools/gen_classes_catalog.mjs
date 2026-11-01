@@ -24,7 +24,7 @@ const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
 const jsonFiles = (dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_")).sort() : []);
 const isNum = (v) => typeof v === "number" && Number.isFinite(v);
 
-/** Habilidades de data/skills/*.tres: id -> { kind (0 ataque, 1 esquiva), cost }. */
+/** Habilidades de data/skills/*.tres: id -> { kind (0 ataque, 1 esquiva), cost, projectile }. */
 export function skillIndex(root = ROOT) {
   const dir = join(root, "data", "skills");
   const out = new Map();
@@ -34,7 +34,8 @@ export function skillIndex(root = ROOT) {
     const id = /^id\s*=\s*&"([a-z][a-z0-9_]*)"\s*$/m.exec(t)?.[1];
     const kind = Number(/^kind\s*=\s*(\d+)\s*$/m.exec(t)?.[1] ?? 0);
     const cost = Number(/^resource_cost\s*=\s*([0-9.]+)\s*$/m.exec(t)?.[1] ?? 0);
-    if (id) out.set(id, { kind, cost, file: f });
+    const projectile = Number(/^projectile_speed\s*=\s*([0-9.]+)\s*$/m.exec(t)?.[1] ?? 0) > 0; // E6.2: extra_projectiles so em projeteis
+    if (id) out.set(id, { kind, cost, projectile, file: f });
   }
   return out;
 }

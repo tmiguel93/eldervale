@@ -1,0 +1,517 @@
+{
+  "schema_version": 1,
+  "source": "data/talents/*.json (gerado por tools/gen_talents_catalog.mjs)",
+  "points": {
+    "first_point_level": 2,
+    "points_per_level": 1,
+    "max_points": 60
+  },
+  "respec": {
+    "cost_items": [
+      {
+        "item_id": "scrap_material",
+        "qty": 3
+      }
+    ],
+    "require_safe_zone": true
+  },
+  "trees": [
+    {
+      "class_id": "mage",
+      "specs": [
+        "elementalist"
+      ],
+      "nodes": [
+        {
+          "id": "m_intellect",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "m_reservoir",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "m_focus",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "m_warding",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "m_quick_cast",
+          "spec": "",
+          "requires": [
+            "m_intellect"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "m_blink_ward",
+          "spec": "",
+          "requires": [
+            "m_warding"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "e_ember",
+          "spec": "elementalist",
+          "requires": [
+            "m_intellect"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "e_chill",
+          "spec": "elementalist",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "e_twin_fireball",
+          "spec": "elementalist",
+          "requires": [
+            "e_ember"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "e_frozen_expanse",
+          "spec": "elementalist",
+          "requires": [
+            "m_focus"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "e_storm_bolt",
+          "spec": "elementalist",
+          "requires": [
+            "m_quick_cast"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 1
+        },
+        {
+          "id": "e_conflagration",
+          "spec": "elementalist",
+          "requires": [
+            "e_ember"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "e_shatter",
+          "spec": "elementalist",
+          "requires": [
+            "e_frozen_expanse"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "e_arc_flow",
+          "spec": "elementalist",
+          "requires": [
+            "e_ember",
+            "m_reservoir"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "e_archmage",
+          "spec": "elementalist",
+          "requires": [
+            "e_twin_fireball",
+            "e_shatter"
+          ],
+          "min_points_spent": 12,
+          "min_level": 1,
+          "cost": 5,
+          "max_rank": 1
+        }
+      ]
+    },
+    {
+      "class_id": "ranger",
+      "specs": [
+        "hunter"
+      ],
+      "nodes": [
+        {
+          "id": "r_precision",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "r_stamina",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "r_swift",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "r_hide",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "r_deep_quiver",
+          "spec": "",
+          "requires": [
+            "r_precision"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "r_long_roll",
+          "spec": "",
+          "requires": [
+            "r_swift"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "h_marksman",
+          "spec": "hunter",
+          "requires": [
+            "r_precision"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "h_keen_eye",
+          "spec": "hunter",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "h_kill_shot",
+          "spec": "hunter",
+          "requires": [
+            "h_marksman"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "h_volley",
+          "spec": "hunter",
+          "requires": [
+            "h_marksman"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "h_wide_rain",
+          "spec": "hunter",
+          "requires": [
+            "r_stamina"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "h_ambush",
+          "spec": "hunter",
+          "requires": [
+            "r_long_roll"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "h_fire_arrows",
+          "spec": "hunter",
+          "requires": [
+            "h_marksman"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 1
+        },
+        {
+          "id": "h_efficient",
+          "spec": "hunter",
+          "requires": [
+            "h_wide_rain",
+            "h_keen_eye"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "h_deadeye",
+          "spec": "hunter",
+          "requires": [
+            "h_volley",
+            "h_ambush"
+          ],
+          "min_points_spent": 12,
+          "min_level": 1,
+          "cost": 5,
+          "max_rank": 1
+        }
+      ]
+    },
+    {
+      "class_id": "warrior",
+      "specs": [
+        "berserker"
+      ],
+      "nodes": [
+        {
+          "id": "w_vigor",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "w_might",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "w_stamina",
+          "spec": "",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "w_iron_skin",
+          "spec": "",
+          "requires": [
+            "w_vigor"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "w_heavy_focus",
+          "spec": "",
+          "requires": [
+            "w_might"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "w_wide_swing",
+          "spec": "",
+          "requires": [
+            "w_stamina"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "w_quick_roll",
+          "spec": "",
+          "requires": [
+            "w_iron_skin"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "b_frenzy",
+          "spec": "berserker",
+          "requires": [
+            "w_might"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "b_bloodlust",
+          "spec": "berserker",
+          "requires": [],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 1,
+          "max_rank": 3
+        },
+        {
+          "id": "b_rage",
+          "spec": "berserker",
+          "requires": [
+            "b_frenzy"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "b_reckless",
+          "spec": "berserker",
+          "requires": [
+            "b_bloodlust"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "b_searing",
+          "spec": "berserker",
+          "requires": [
+            "b_frenzy"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 1
+        },
+        {
+          "id": "b_cyclone",
+          "spec": "berserker",
+          "requires": [
+            "w_wide_swing",
+            "b_bloodlust"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "b_carnage",
+          "spec": "berserker",
+          "requires": [
+            "b_rage"
+          ],
+          "min_points_spent": 0,
+          "min_level": 1,
+          "cost": 2,
+          "max_rank": 2
+        },
+        {
+          "id": "b_warlord",
+          "spec": "berserker",
+          "requires": [
+            "b_rage",
+            "b_cyclone"
+          ],
+          "min_points_spent": 12,
+          "min_level": 1,
+          "cost": 5,
+          "max_rank": 1
+        }
+      ]
+    }
+  ]
+}

@@ -54,5 +54,10 @@ func send_class(_peer_id: int, _data: Dictionary) -> void:
 	pass
 
 
+## E6.2: estado/erro de talentos do jogador (reliable, so para este peer). Ver Protocol.TALENTS_*.
+func send_talents(_peer_id: int, _kind: int, _data: Dictionary) -> void:
+	pass
+
+
 func disconnect_peer(_peer_id: int) -> void:
 	pass

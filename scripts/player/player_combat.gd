@@ -31,6 +31,9 @@ var read_input_actions: bool = true
 ## `not_allowed`). Vazio = jogador legado/offline sem restricao (cena do jogo local e testes E1-E5).
 var class_id: StringName = &""
 var allowed_skill_ids: Dictionary = {} ## StringName -> true
+## E6.2: modificadores de habilidade dos talentos (skill_id -> Array[Dictionary]; SkillMods.collect). So o SERVIDOR os define
+## (PlayerLoadout.apply_talents). Aplicados em TEMPO DE USO sobre uma copia do SkillData; o recurso compartilhado nunca e mutado.
+var skill_mods: Dictionary = {}
 var machine: CharacterStateMachine = CharacterStateMachine.new()
 var resource_pool: ResourcePool = ResourcePool.new()
 var cooldowns: CooldownTracker = CooldownTracker.new()
@@ -38,7 +41,10 @@ var cooldowns: CooldownTracker = CooldownTracker.new()
 var health: HealthComponent
 var hitbox: Hitbox
 var _player: Player
-var _current_skill: SkillData
+var _current_skill: SkillData ## E6.2: habilidade EFETIVA do uso em curso (copia quando ha modificadores)
+var _current_res: SkillMods.Resolved
+var _clock: float = 0.0 ## E6.2: relogio de combate (soma dos `step`) para sinergias "apos usar X"
+var _last_use: Dictionary = {} ## skill_id -> _clock do ultimo uso bem-sucedido
 var _i_frames_left: float = 0.0
 var _dodge_velocity: Vector3 = Vector3.ZERO
 
@@ -80,6 +86,7 @@ func _physics_process(delta: float) -> void:
 func step(delta: float) -> void:
 	if resource_pool.stats != health.stats:
 		resource_pool.set_stats(health.stats)
+	_clock += delta
 	cooldowns.tick(delta)
 	resource_pool.tick(delta)
 	if _i_frames_left > 0.0:
@@ -127,6 +134,8 @@ func apply_class(def: ClassDef) -> bool:
 		allowed_skill_ids[(resolved[slot] as SkillData).id] = true
 	class_id = StringName(def.id)
 	cooldowns.clear()
+	skill_mods = {}
+	_last_use.clear()
 	return true
 
 
@@ -144,7 +153,31 @@ func is_skill_allowed(skill: SkillData) -> bool:
 	return skill != null and (allowed_skill_ids.is_empty() or allowed_skill_ids.has(skill.id))
 
 
+## E6.2: define os modificadores de habilidade (SkillMods.collect(...)["skills"]); so o servidor chama.
+func set_skill_mods(mods: Dictionary) -> void:
+	skill_mods = mods.duplicate(true)
+
+
+## E6.2: valores efetivos da habilidade AGORA (custo, cooldown, dano, area...) com os modificadores dos talentos. Sem mods devolve o
+## proprio SkillData. Util para HUD/testes; `try_use` usa exatamente isto.
+func resolve_skill(skill: SkillData) -> SkillMods.Resolved:
+	var mods: Array = skill_mods.get(skill.id, []) as Array
+	if mods.is_empty():
+		var plain: SkillMods.Resolved = SkillMods.Resolved.new()
+		plain.skill = skill
+		return plain
+	var max_hp: float = health.max_health()
+	var max_res: float = resource_pool.max_value()
+	var ctx: Dictionary = {
+		"hp_ratio": health.current_health / max_hp if max_hp > 0.0 else 1.0,
+		"resource_ratio": resource_pool.current / max_res if max_res > 0.0 else 0.0,
+		"clock": _clock, "last_use": _last_use,
+	}
+	return SkillMods.resolve(skill, mods, ctx)
+
+
 ## Tenta usar a habilidade. Ordem: classe -> estado -> cooldown -> custo; so gasta/inicia cooldown se TUDO ok.
+## E6.2: custo/cooldown/dano/area vem da habilidade EFETIVA (talentos); o cooldown e identificado pelo id da habilidade base.
 func try_use(skill: SkillData) -> bool:
 	if skill == null:
 		return false
@@ -161,22 +194,26 @@ func try_use(skill: SkillData) -> bool:
 	if not cooldowns.is_ready(skill.id):
 		skill_failed.emit(skill, &"cooldown")
 		return false
-	if not resource_pool.can_afford(skill.resource_cost):
+	var res: SkillMods.Resolved = resolve_skill(skill)
+	var eff: SkillData = res.skill
+	if not resource_pool.can_afford(eff.resource_cost):
 		skill_failed.emit(skill, &"resource")
 		return false
 	var started: bool
 	if is_dodge:
-		started = machine.try_dodge(skill.windup, skill.active, skill.recover)
+		started = machine.try_dodge(eff.windup, eff.active, eff.recover)
 	else:
-		started = machine.try_attack(skill.windup, skill.active, skill.recover)
+		started = machine.try_attack(eff.windup, eff.active, eff.recover)
 	if not started:
 		skill_failed.emit(skill, &"busy")
 		return false
-	resource_pool.spend(skill.resource_cost)
-	cooldowns.start(skill.id, skill.cooldown)
-	_current_skill = skill
+	resource_pool.spend(eff.resource_cost)
+	cooldowns.start(skill.id, eff.cooldown)
+	_last_use[skill.id] = _clock
+	_current_skill = eff
+	_current_res = res
 	if is_dodge:
-		_begin_dodge(skill)
+		_begin_dodge(eff)
 	skill_started.emit(skill)
 	return true
 
@@ -208,30 +245,42 @@ func _on_state_changed(from: CharacterStateMachine.State, _to: CharacterStateMac
 
 
 func _begin_strike(skill: SkillData) -> void:
+	var res: SkillMods.Resolved = _current_res
 	if skill.is_projectile():
-		_spawn_projectile(skill)
+		_spawn_projectiles(skill, res)
 		return
 	var yaw: float = _player.facing_yaw_value
 	hitbox.configure_shape(skill)
 	hitbox.rotation.y = yaw
 	hitbox.position = _player.get_facing_direction() * skill.hitbox_offset + Vector3(0.0, hitbox_height, 0.0)
+	hitbox.damage_type = res.damage_type if res != null else &"physical"
 	var amount: float = health.stats.attack_power * skill.damage_multiplier
 	var hit_id: int = hitbox.begin_strike(amount, _player)
 	strike_started.emit(skill, hit_id)
 
 
 ## Dispara o projetil da skill a frente do jogador (dano = ataque * multiplicador, calculado AGORA pelo servidor).
-func _spawn_projectile(skill: SkillData) -> void:
+## E6.2: + `extra_projectiles` dos talentos em leque (o central tem dano cheio; os extras, `extra_damage_scale`); cada um e um golpe
+## independente (hit_id proprio), entao varios podem acertar o mesmo alvo.
+func _spawn_projectiles(skill: SkillData, res: SkillMods.Resolved) -> void:
 	var parent: Node = _player.get_parent()
 	if parent == null:
 		parent = get_tree().root
 	var amount: float = health.stats.attack_power * skill.damage_multiplier
 	var origin: Vector3 = _player.global_position + _player.get_facing_direction() * skill.hitbox_offset + Vector3(0.0, hitbox_height, 0.0)
-	var proj: SkillProjectile = SkillProjectile.from_skill(skill, _player, Vector3.ZERO, _player.get_facing_direction(), amount)
-	parent.add_child(proj)
-	proj.global_position = origin
-	projectile_spawned.emit(proj)
-	strike_started.emit(skill, proj.hit_id)
+	var extra: int = res.extra_projectiles if res != null else 0
+	var dtype: StringName = res.damage_type if res != null else &"physical"
+	for k: int in extra + 1:
+		var dir: Vector3 = _player.get_facing_direction()
+		if k > 0:
+			dir = dir.rotated(Vector3.UP, deg_to_rad(SkillMods.fan_angle(k, res.spread_deg)))
+		var dmg: float = amount if k == 0 else amount * res.extra_damage_scale
+		var proj: SkillProjectile = SkillProjectile.from_skill(skill, _player, Vector3.ZERO, dir, dmg)
+		proj.damage_type = dtype
+		parent.add_child(proj)
+		proj.global_position = origin
+		projectile_spawned.emit(proj)
+		strike_started.emit(skill, proj.hit_id)
 
 
 func _on_damaged(_info: DamageInfo, _final_amount: float) -> void:

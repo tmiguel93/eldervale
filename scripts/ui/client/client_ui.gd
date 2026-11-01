@@ -6,9 +6,9 @@ extends CanvasLayer
 ##
 ## Ligacao: `bind(session)` (refeita a cada nova sessao), `on_event(kind, data)` (eventos drenados pelo ClientMain),
 ## `update_frame(delta, view_yaw)` (por frame) e `handle_input(ev)` (teclas; tambem usada por _unhandled_input).
-## Teclas (project.godot): interact=F, quest_log_toggle=J, inventory_toggle=I, map_toggle=M, Esc fecha.
+## Teclas (project.godot): interact=F, quest_log_toggle=J, inventory_toggle=I, map_toggle=M, talent_toggle=K (E6.2), Esc fecha.
 
-const PANEL_NAMES: Array[String] = ["dialogue", "quests", "inventory", "craft", "map"]
+const PANEL_NAMES: Array[String] = ["dialogue", "quests", "inventory", "craft", "map", "talents"]
 
 var session: ClientSession = null
 var inventory: ClientInventory = ClientInventory.new()
@@ -21,6 +21,7 @@ var quests: QuestPanel
 var inventory_panel: InventoryPanel
 var craft: CraftPanel
 var map_panel: MapPanel
+var talents: TalentPanel ## E6.2: arvore de talentos (K)
 var minimap: MapView
 var minimap_box: PanelContainer
 var minimap_title: Label
@@ -102,7 +103,8 @@ func ensure_built() -> void:
 	inventory_panel = InventoryPanel.new()
 	craft = CraftPanel.new()
 	map_panel = MapPanel.new()
-	for p: UiPanel in [dialogue, quests, inventory_panel, craft, map_panel]:
+	talents = TalentPanel.new()
+	for p: UiPanel in [dialogue, quests, inventory_panel, craft, map_panel, talents]:
 		var sz: Vector2 = p.custom_minimum_size
 		_place(p, 0.5, 0.5, -sz.x * 0.5, -sz.y * 0.5, sz.x * 0.5, sz.y * 0.5)
 		p.close_requested.connect(close_panel.bind(p))
@@ -112,6 +114,9 @@ func ensure_built() -> void:
 	quests.abandon_requested.connect(func(q: String) -> void: _quest_cmd("abandon", q))
 	quests.turn_in_requested.connect(func(q: String) -> void: _quest_cmd("turn_in", q))
 	craft.craft_requested.connect(_on_craft_requested)
+	talents.allocate_requested.connect(func(node_id: String) -> void: _talent_cmd(Protocol.TALENT_OP_ALLOCATE, node_id))
+	talents.respec_requested.connect(func() -> void: _talent_cmd(Protocol.TALENT_OP_RESPEC, ""))
+	talents.spec_requested.connect(func(spec_id: String) -> void: _talent_cmd(Protocol.TALENT_OP_CHOOSE_SPEC, spec_id))
 	fade = ScreenFade.new()
 	fade.name = "Fade"
 	fade.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -156,6 +161,10 @@ func bind(p_session: ClientSession) -> void:
 	_link(session.craft_finished, _on_craft_finished)
 	_link(session.inventory_synced, _on_inventory_synced)
 	_link(session.class_synced, skill_bar.refresh)
+	_link(session.talents_changed, _on_talents_changed)
+	_link(session.talents_error, _on_talents_error)
+	if not session.talents_state.is_empty() and not session.class_id.is_empty():
+		talents.apply_state(session.class_id, session.talents_state)
 	if not session.class_id.is_empty():
 		skill_bar.refresh(session.class_id)
 	if not session.inventory_data.is_empty(): # sessao ja sincronizada antes do bind
@@ -184,10 +193,11 @@ func reset_view() -> void:
 	boss.refresh([])
 	vitals_box.visible = false
 	skill_bar.refresh("")
+	talents.reset()
 
 
 func _panels() -> Array[UiPanel]:
-	return [dialogue, quests, inventory_panel, craft, map_panel]
+	return [dialogue, quests, inventory_panel, craft, map_panel, talents]
 
 
 func is_playing() -> bool:
@@ -247,6 +257,8 @@ func toggle_panel(p: UiPanel) -> void:
 			quests.refresh(session.quest_log if session != null else null)
 		elif p == inventory_panel:
 			inventory_panel.refresh(inventory)
+		elif p == talents and session != null and not session.talents_state.is_empty():
+			talents.apply_state(session.class_id, session.talents_state)
 
 
 func close_top() -> bool:
@@ -282,6 +294,9 @@ func handle_input(ev: InputEvent) -> bool:
 		return true
 	if ev.is_action_pressed("map_toggle"):
 		toggle_panel(map_panel)
+		return true
+	if ev.is_action_pressed("talent_toggle"):
+		toggle_panel(talents)
 		return true
 	if UiStyle.key_pressed(ev, KEY_ESCAPE, false):
 		return close_top()
@@ -398,6 +413,24 @@ func _on_quest_error(_req: int, _op: int, qid: String, code: String) -> void:
 
 func _on_inventory_synced(data: Dictionary) -> void:
 	inventory.apply_full(data.get("slots", []), data.get("equipment", {}))
+
+
+func _talent_cmd(op: int, arg: String) -> void:
+	if session == null or session.talent_cmd(op, arg) < 0:
+		talents.show_error("Sem conexao com o servidor.")
+
+
+func _on_talents_changed(data: Dictionary) -> void:
+	if session != null:
+		talents.apply_state(session.class_id, data)
+		if talents.is_open():
+			talents.set_status("")
+
+
+func _on_talents_error(_req: int, _op: int, code: String) -> void:
+	var msg: String = UiText.talent_error(code)
+	talents.show_error(msg)
+	toast(msg, "bad")
 
 
 func _on_craft_requested(recipe_id: String) -> void:

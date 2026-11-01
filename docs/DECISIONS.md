@@ -154,3 +154,36 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Consequências:** o cliente **não** renderiza projéteis (não são entidades de snapshot): vê só o efeito (vida, números de dano) — apresentação de projétil/áreas fica para quando houver arte/eventos cosméticos. Limite de velocidade 40 m/s e alcance 40 m na validação. Acertos além de `pierce` no mesmo sub-passo são ignorados (ordem de sobreposição). Balanceamento dos números é provisório (sem medição de DPS/uso).
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
 
+---
+
+## DEC-0014 — Árvore de talentos como JSON validado por classe, catálogo derivado para o backend; modificadores de habilidade como dado (E6.2)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (modelo de dados e balanceamento)
+- **Contexto:** a especialização e a árvore precisam produzir builds com resultados diferentes sem tocar nos `.tres` compartilhados das habilidades e sem o cliente decidir nada.
+- **Opções consideradas:** (a) talentos em código; (b) mutar o `SkillData` carregado; (c) JSON por classe em `data/talents` + curva em `_progression.json`, agregado por jogador e resolvido em tempo de uso sobre uma cópia.
+- **Escolha provisória:** (c). 15 nós por classe (genéricos da classe + nós da especialização inicial; tiers `small`/`notable`, 1 `mastery` por árvore), grafo acíclico com `requires` e `min_points_spent`, `cost` e `max_rank`. Efeitos: `stat` (por rank) ou `skill_mod` (`damage`, `extra_projectiles`, `area`, `duration`, `cost`, `convert`, `condition`, `synergy`). `SkillMods.collect` agrega ao mudar a build; `SkillMods.resolve` roda no `try_use` e devolve uma cópia (`duplicate`) — o recurso compartilhado nunca muda. Bônus de dano somam-se entre si e multiplicam o multiplicador base; custo/cooldown têm piso de 25%, área 25%–300%, extras no máximo 6. `tools/gen_talents_catalog.mjs` valida tudo e gera `shared/content_schemas/talents.json` (`--check`) para o backend; testes comparam Godot x catálogo.
+- **Consequências:** `damage_type` (conversão elemental) é gravado no golpe/projétil mas ainda não há resistências por inimigo — o efeito atual da conversão é o bônus de dano. Números são provisórios (sem medição de DPS). Novas classes exigem um arquivo em `data/talents` (o gerador falha se faltar).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0015 — Talentos persistidos só pelo backend (coluna `characters.talents`, migração 0005), aplicação pessimista e custo de respec em itens (E6.2)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (economia, persistência e janela de duplicação)
+- **Contexto:** os talentos valem poder; o checkpoint do servidor de jogo não pode ser caminho para forjá-los, e não existe moeda no jogo.
+- **Opções consideradas:** (a) talentos dentro do `state` do checkpoint; (b) tabela própria; (c) coluna jsonb no personagem, alterada apenas por `POST /internal/characters/:id/talents`.
+- **Escolha provisória:** (c). Migração `0005_character_talents` (aditiva, idempotente, `DEFAULT '{}'` + CHECK de objeto; rollback documentado). O endpoint trava a linha (`FOR UPDATE`), exige `X-Session-Id` (fencing) e chave reservada `talent:<sessão>:<n>:<personagem>`, é idempotente via `reward_claims` (replay devolve o mesmo resultado; mesma chave com outro conteúdo = 409), valida pontos pelo NÍVEL do banco, pré-requisitos, `max_rank`, classe e especialização, aceita `expected_revision` opcional e grava com `revision + 1`. O checkpoint rejeita o campo `talents` (400/422) e nunca o apaga. O servidor de jogo aplica na memória só DEPOIS da confirmação (pessimista); recusa definitiva do banco não altera nada. **Respec:** custa `scrap_material` x3 (configurável em `_progression.json`) tirados do inventário na mesma transação e só vale em zona segura (hub `sticky`; sem mundo/arena de desenvolvimento vale sempre) — a zona é regra do servidor de sessão, o backend não conhece zona. O custo sai do inventário em memória ANTES de enfileirar (autosave não repõe) e é devolvido se o banco recusar de forma definitiva.
+- **Consequências:** janela residual: se o jogo cair entre o respec confirmado e o checkpoint seguinte, o inventário persistido já reflete o custo (o backend o cobrou), então não há duplicação; a janela oposta (itens removidos em memória e backend sem resposta) recarrega o personagem do banco. Nível em memória acima do do banco pode gerar `no_points` do backend (o banco é a verdade). Sem moeda, o custo em item é provisório.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0016 — Protocolo de talentos aditivo (`c_talent_cmd` / `s_talents`), um comando por vez com anti-replay por `req_id` (E6.2)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (contrato de rede)
+- **Contexto:** o cliente precisa pedir alocação/escolha/reset e ver o estado, sem decidir pontos nem stats.
+- **Opções consideradas:** (a) enviar o estado desejado; (b) um comando por mensagem com `req_id`; (c) piggyback no snapshot.
+- **Escolha provisória:** (b), `VERSION` continua 2. Detalhes e códigos em `shared/contracts/network_protocol.md`. Rate limit próprio (2/s, rajada 4), validação estrita, `busy` enquanto um comando está em voo, estado reenviado só ao dono quando muda (join, comando, nível, recarga).
+- **Consequências:** o bônus de vida/ataque chega ao cliente pelo caminho normal (snapshot/HUD), não pelo `s_talents`. Servidor e cliente precisam ser atualizados juntos.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+

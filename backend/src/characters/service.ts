@@ -10,6 +10,7 @@ import {
 } from "./model.ts";
 import { applyXp, xpToNext } from "./progression.ts";
 import { EMPTY_QUESTS, type QuestCatalog } from "../quests/catalog.ts";
+import { normalizeStoredTalents, type TalentsState } from "../talents/rules.ts";
 import { completeQuest, emptyQuests, mergeCheckpointQuests, normalizeStoredQuests } from "../quests/state.ts";
 
 export interface ServiceCtx {
@@ -31,14 +32,16 @@ export interface CharacterRecord {
   created_at: string;
   revision: number;
   state: CharacterState;
+  /** E6.2: especializacao + talentos alocados (coluna propria; NAO faz parte do `state` do checkpoint). */
+  talents: TalentsState;
 }
 
 interface CharRow {
   id: string; account_id: string; name: string; class_id: string; level: number; xp: string | number;
-  stats: Record<string, unknown>; quests?: unknown; schema_version: number; revision: string | number; created_at: Date | string;
+  stats: Record<string, unknown>; quests?: unknown; talents?: unknown; schema_version: number; revision: string | number; created_at: Date | string;
 }
 
-const COLS = "id, account_id, name, class_id, level, xp, stats, quests, schema_version, revision, created_at";
+const COLS = "id, account_id, name, class_id, level, xp, stats, quests, talents, schema_version, revision, created_at";
 
 /** Carrega personagem ativo (nao apagado) com inventario/equipamento. `forUpdate` trava a linha ate o fim da transacao. */
 export async function loadRecord(db: Db, id: string, opts: { accountId?: string; forUpdate?: boolean } = {}): Promise<CharacterRecord | null> {
@@ -66,6 +69,7 @@ export async function loadRecord(db: Db, id: string, opts: { accountId?: string;
     class_id: row.class_id,
     created_at: new Date(row.created_at).toISOString(),
     revision: Number(row.revision),
+    talents: normalizeStoredTalents(row.talents),
     state: {
       schema_version: row.schema_version,
       level: row.level,
@@ -261,6 +265,7 @@ export function publicView(r: CharacterRecord, limits: CharacterLimits) {
     stats: r.state.stats, schema_version: r.state.schema_version, revision: r.revision,
     inventory_capacity: limits.inventoryCapacity, inventory: r.state.inventory, equipment: r.state.equipment,
     quests: r.state.quests ?? emptyQuests(),
+    talents: r.talents,
   };
 }
 

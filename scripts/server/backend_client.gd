@@ -134,6 +134,15 @@ func craft(character_id: String, idempotency_key: String, recipe_id: String, cb:
 	_request("POST", "/internal/characters/%s/craft" % _id(character_id), {"idempotency_key": idempotency_key, "recipe_id": recipe_id}, true, cb)
 
 
+## E6.2: comando de talentos (allocate/respec/choose_spec), atomico e idempotente. Retry sempre com a MESMA chave
+## (`talent:<sessao>:<n>:<personagem>`). `arg`: node_id / spec_id / "" (respec).
+func talents(character_id: String, idempotency_key: String, op: String, arg: String, cb: Callable) -> void:
+	var body: Dictionary = {"idempotency_key": idempotency_key, "op": op}
+	if not arg.is_empty():
+		body["arg"] = arg
+	_request("POST", "/internal/characters/%s/talents" % _id(character_id), body, true, cb)
+
+
 func disconnect_character(character_id: String, session_id: String, cb: Callable) -> void:
 	_request("POST", "/internal/characters/%s/disconnect" % _id(character_id), {"session_id": session_id}, true, cb)
 
@@ -172,7 +181,7 @@ func _dispatch(ctx: Dictionary) -> void:
 		"Authorization: Bearer " + _secret, "Accept: application/json",
 	])
 	var path_s: String = String(ctx["path"])
-	if not fencing_session_id.is_empty() and (path_s.ends_with("/checkpoint") or path_s.ends_with("/rewards") or path_s.ends_with("/craft")):
+	if not fencing_session_id.is_empty() and (path_s.ends_with("/checkpoint") or path_s.ends_with("/rewards") or path_s.ends_with("/craft") or path_s.ends_with("/talents")):
 		headers.append("X-Session-Id: " + fencing_session_id)
 	var payload: String = ""
 	if ctx["body"] != null:

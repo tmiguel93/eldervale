@@ -64,6 +64,15 @@ var class_id: String = ""
 var class_updates: int = 0
 var class_rejected: int = 0
 
+## E6.2: talentos. send_talent_cmd(req_id:int, op:int, arg:String). `talents_state` = ultimo s_talents(STATE) valido (vazio ate chegar):
+## {spec, ranks, respecs, level, points_total, points_spent, points_available, req_id}. O cliente so PEDE; o servidor decide tudo.
+var send_talent_cmd: Callable
+signal talents_changed(state: Dictionary)
+signal talents_error(req_id: int, op: int, code: String)
+var talents_state: Dictionary = {}
+var talents_updates: int = 0
+var talents_rejected: int = 0
+
 ## E5.1: espelho do diario de quests e do dialogo atual (somente leitura; a UI escuta os sinais).
 signal dialogue_changed(view: Dictionary)   ## view vazio = dialogo encerrado
 signal dialogue_error(req_id: int, op: int, code: String)
@@ -315,6 +324,45 @@ func on_class_update(data: Dictionary) -> void:
 	class_updates += 1
 	result.on_class(class_id)
 	class_synced.emit(class_id)
+
+
+## s_talents do servidor (so aceito em PLAYING; malformado e descartado e contado).
+func on_talents_update(kind: int, data: Dictionary) -> void:
+	if state != State.PLAYING:
+		return
+	if not Protocol.validate_talents_update(kind, data):
+		talents_rejected += 1
+		return
+	if kind == Protocol.TALENTS_ERROR:
+		result.on_talents_error(data)
+		talents_error.emit(int(data["req_id"]), int(data["op"]), String(data["code"]))
+		return
+	talents_state = data
+	talents_updates += 1
+	result.on_talents(data)
+	talents_changed.emit(data)
+
+
+## Pede uma operacao de talentos (alocar no / respec / escolher especializacao). O servidor valida tudo e responde por
+## `talents_changed`/`talents_error`. Devolve o req_id (-1 se nao enviou).
+func talent_cmd(op: int, arg: String = "") -> int:
+	if state != State.PLAYING or not send_talent_cmd.is_valid():
+		return -1
+	var r: int = _next_req()
+	send_talent_cmd.call(r, op, arg)
+	return r
+
+
+func talent_allocate(node_id: String) -> int:
+	return talent_cmd(Protocol.TALENT_OP_ALLOCATE, node_id)
+
+
+func talent_respec() -> int:
+	return talent_cmd(Protocol.TALENT_OP_RESPEC, "")
+
+
+func talent_choose_spec(spec_id: String) -> int:
+	return talent_cmd(Protocol.TALENT_OP_CHOOSE_SPEC, spec_id)
 
 
 ## Pede para fabricar `recipe_id` (precisa estar perto da estacao; o servidor valida). Devolve o req_id (-1 se nao enviou).

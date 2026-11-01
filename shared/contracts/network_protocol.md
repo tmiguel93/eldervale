@@ -133,3 +133,15 @@ Motivo: o `s_snapshot` legado (array de `Dictionary` com chaves string, ~240 B/e
 - **Persistência**: `class_id` **não** entra em `CharacterState`/checkpoint (o backend rejeita campos desconhecidos no estado): vem em `GET /internal/characters/:id` (`class_id`, já existente) e é imutável após `POST /v1/characters`. Ver `docs/E6_CLASSES.md`.
 - **Compatibilidade**: nenhum RPC existente mudou. Como em `s_inventory`/`s_snapshot_c`, o RPC de alto nível do Godot exige o mesmo conjunto de métodos nos dois lados: servidor e cliente (e bots) devem ser atualizados juntos; compatibilidade com build anterior **não foi verificada**. Testes/bots existentes (classe padrão `warrior`) passam sem alteração.
 - Testes: `tests/e6_classes/test_class_authority.gd` (payloads válidos/inválidos, `s_class` só ao dono, `class_id` desconhecido do backend recusa a entrada, bits de ação). Integração real: `python3 tools/e4_integration.py mage|ranger`.
+
+## Extensão E6.2 — Talentos (aditiva; `VERSION` continua 2)
+Dois RPCs novos (reliable); o cliente só PEDE, o servidor decide e o banco persiste. Nenhum campo existente muda; um cliente/servidor antigo simplesmente não conhece os RPCs (mesma ressalva de `s_inventory`: atualizar os dois lados juntos).
+
+| RPC | Direção | Payload |
+|---|---|---|
+| `c_talent_cmd(req_id, op, arg)` | cliente -> servidor | `req_id` int >= 0 estritamente crescente por conexão; `op` int: `TALENT_OP_ALLOCATE=1` (`arg` = id do nó, +1 rank), `TALENT_OP_RESPEC=2` (`arg` = `""`), `TALENT_OP_CHOOSE_SPEC=3` (`arg` = id da especialização) |
+| `s_talents(kind, data)` | servidor -> SÓ o dono | `TALENTS_STATE=1`: `{spec, ranks{node_id:int}, respecs, level, points_total, points_spent, points_available, req_id}` (estado completo e autoritativo; `req_id=-1` quando não responde a um pedido); `TALENTS_ERROR=2`: `{req_id, op, code}` |
+
+Validação (`Protocol.validate_talent_cmd` / `validate_talents_update`): tipos estritos (int/string), `arg` = id de conteúdo (`[a-z][a-z0-9_]{0,47}`) em allocate/choose_spec e vazio em respec, `op` desconhecida recusada, no máximo `MAX_TALENT_NODES=40` nós e `MAX_TALENT_RANK=5` por nó no estado. Payload inválido e rate limit (`talent_rate_per_sec=2`, `talent_burst=4`, configurável) contam como abuso (`_count_invalid`/`dropped_rate`); comando antes do welcome fecha o peer. Violação de REGRA (sem pontos, pré-requisito, fora de zona segura…) não pune o peer: volta `TALENTS_ERROR` com um código estável (`unknown_node`, `spec_not_chosen`, `wrong_spec`, `max_rank`, `level_too_low`, `prerequisite`, `no_points`, `unknown_spec`, `spec_already_chosen`, `nothing_to_reset`, `not_safe_zone`, `insufficient_items`, `duplicate_request`, `busy`, `not_available`, `not_ready`, `revision_conflict`, `session_fenced`, `backend_error`).
+Anti-replay: `req_id <= último` => `duplicate_request`; um comando por vez (`busy`). O estado é reenviado ao entrar, após cada comando, ao subir de nível e após recarga do banco (só quando muda). Backend: `POST /internal/characters/:id/talents` (ver `docs/E6_TALENTS.md`).
+

@@ -1,0 +1,367 @@
+{
+  "schema_version": 1,
+  "class_id": "warrior",
+  "nodes": [
+    {
+      "id": "w_vigor",
+      "name": "Vigor",
+      "description": "+10 vida maxima por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "max_health",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "id": "w_might",
+      "name": "Poder bruto",
+      "description": "+1.5 poder de ataque por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 1.5
+        }
+      ]
+    },
+    {
+      "id": "w_stamina",
+      "name": "Folego",
+      "description": "+8 stamina maxima por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "max_resource",
+          "amount": 8
+        }
+      ]
+    },
+    {
+      "id": "w_iron_skin",
+      "name": "Pele de ferro",
+      "description": "+1 defesa por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [
+        "w_vigor"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "defense",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "w_heavy_focus",
+      "name": "Golpe economico",
+      "description": "Golpe Pesado custa 15% menos stamina por nivel.",
+      "tier": "notable",
+      "spec": "",
+      "requires": [
+        "w_might"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "heavy_strike",
+          "mod": "cost",
+          "cost_pct": -0.15
+        }
+      ]
+    },
+    {
+      "id": "w_wide_swing",
+      "name": "Giro amplo",
+      "description": "Redemoinho tem 15% mais area por nivel.",
+      "tier": "notable",
+      "spec": "",
+      "requires": [
+        "w_stamina"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "whirlwind",
+          "mod": "area",
+          "radius_pct": 0.15
+        }
+      ]
+    },
+    {
+      "id": "w_quick_roll",
+      "name": "Esquiva longa",
+      "description": "A esquiva dura 0.08 s a mais de invulnerabilidade por nivel.",
+      "tier": "notable",
+      "spec": "",
+      "requires": [
+        "w_iron_skin"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "dodge",
+          "mod": "duration",
+          "i_frames_add": 0.08
+        }
+      ]
+    },
+    {
+      "id": "b_frenzy",
+      "name": "Frenesi",
+      "description": "+2 poder de ataque por nivel do talento.",
+      "tier": "small",
+      "spec": "berserker",
+      "requires": [
+        "w_might"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 2
+        }
+      ]
+    },
+    {
+      "id": "b_bloodlust",
+      "name": "Sede de sangue",
+      "description": "+0.25 velocidade de movimento por nivel do talento.",
+      "tier": "small",
+      "spec": "berserker",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "move_speed",
+          "amount": 0.25
+        }
+      ]
+    },
+    {
+      "id": "b_rage",
+      "name": "Furia",
+      "description": "Com vida abaixo de 50%, Golpe Pesado e Redemoinho causam 25% mais dano por nivel.",
+      "tier": "notable",
+      "spec": "berserker",
+      "requires": [
+        "b_frenzy"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "heavy_strike",
+          "mod": "condition",
+          "when": "self_hp_below",
+          "threshold": 0.5,
+          "damage_pct": 0.25
+        },
+        {
+          "type": "skill_mod",
+          "skill": "whirlwind",
+          "mod": "condition",
+          "when": "self_hp_below",
+          "threshold": 0.5,
+          "damage_pct": 0.25
+        }
+      ]
+    },
+    {
+      "id": "b_reckless",
+      "name": "Investida temeraria",
+      "description": "Golpe Pesado causa 35% mais dano por nivel ate 3 s depois de uma esquiva.",
+      "tier": "notable",
+      "spec": "berserker",
+      "requires": [
+        "b_bloodlust"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "heavy_strike",
+          "mod": "synergy",
+          "after_skill": "dodge",
+          "window": 3.0,
+          "damage_pct": 0.35
+        }
+      ]
+    },
+    {
+      "id": "b_searing",
+      "name": "Lamina em brasa",
+      "description": "Golpe Pesado passa a causar dano de fogo (+10% de dano).",
+      "tier": "notable",
+      "spec": "berserker",
+      "requires": [
+        "b_frenzy"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 1,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "heavy_strike",
+          "mod": "convert",
+          "to": "fire",
+          "damage_pct": 0.1
+        }
+      ]
+    },
+    {
+      "id": "b_cyclone",
+      "name": "Ciclone",
+      "description": "Redemoinho custa 15% menos stamina e recarrega 10% mais rapido por nivel.",
+      "tier": "notable",
+      "spec": "berserker",
+      "requires": [
+        "w_wide_swing",
+        "b_bloodlust"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "whirlwind",
+          "mod": "cost",
+          "cost_pct": -0.15,
+          "cooldown_pct": -0.1
+        }
+      ]
+    },
+    {
+      "id": "b_carnage",
+      "name": "Carnificina",
+      "description": "Todos os golpes causam 10% mais dano por nivel.",
+      "tier": "notable",
+      "spec": "berserker",
+      "requires": [
+        "b_rage"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "basic_attack",
+          "mod": "damage",
+          "damage_pct": 0.1
+        },
+        {
+          "type": "skill_mod",
+          "skill": "heavy_strike",
+          "mod": "damage",
+          "damage_pct": 0.1
+        },
+        {
+          "type": "skill_mod",
+          "skill": "whirlwind",
+          "mod": "damage",
+          "damage_pct": 0.1
+        }
+      ]
+    },
+    {
+      "id": "b_warlord",
+      "name": "Senhor da guerra",
+      "description": "Maestria: Redemoinho +30% de area e +25% de dano, Golpe Pesado recarrega 20% mais rapido, +4 poder de ataque.",
+      "tier": "mastery",
+      "spec": "berserker",
+      "requires": [
+        "b_rage",
+        "b_cyclone"
+      ],
+      "min_points_spent": 12,
+      "min_level": 1,
+      "cost": 5,
+      "max_rank": 1,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "whirlwind",
+          "mod": "area",
+          "radius_pct": 0.3
+        },
+        {
+          "type": "skill_mod",
+          "skill": "whirlwind",
+          "mod": "damage",
+          "damage_pct": 0.25
+        },
+        {
+          "type": "skill_mod",
+          "skill": "heavy_strike",
+          "mod": "cost",
+          "cooldown_pct": -0.2
+        },
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 4
+        }
+      ]
+    }
+  ]
+}

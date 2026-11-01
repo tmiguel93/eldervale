@@ -37,6 +37,13 @@ var tour_done: bool = false          # world_tour: chegou ao salao do chefe
 var class_id: String = ""            # ultima classe valida recebida
 var class_updates: int = 0           # s_class validos recebidos
 
+# --- E6.2 (talentos informados pelo servidor via s_talents) ---
+var talents_updates: int = 0         # s_talents(STATE) validos recebidos
+var talents_last: Dictionary = {}    # ultimo estado: {spec, ranks, respecs, level, points_*}
+var talents_errors: Array = []       # s_talents(ERROR) recebidos: [{req_id, op, code}]
+var talent_bot: Dictionary = {}      # medicoes do bot `talents` (TalentBot)
+var max_hp_last: float = -1.0        # vida maxima da propria entidade no ultimo snapshot (efeito dos talentos)
+
 # --- E5.6 (aventura / inventario sincronizado) ---
 var inventory_updates: int = 0       # s_inventory validos recebidos
 var inventory: Dictionary = {}       # ultimo inventario sincronizado: item_id -> qty
@@ -109,6 +116,16 @@ func on_world_event(kind: int, data: Dictionary, my_id: int) -> void:
 func on_class(p_class_id: String) -> void:
 	class_id = p_class_id
 	class_updates += 1
+
+
+## E6.2: estado/erro de talentos (payloads ja validados).
+func on_talents(data: Dictionary) -> void:
+	talents_updates += 1
+	talents_last = data.duplicate(true)
+
+
+func on_talents_error(data: Dictionary) -> void:
+	talents_errors.append(data.duplicate())
 
 
 ## E5.6: inventario completo sincronizado pelo servidor (payload ja validado).
@@ -189,6 +206,8 @@ func to_dict() -> Dictionary:
 		"character_final": character_final,
 		"class_id": class_id,
 		"class_updates": class_updates,
+		"talents": {"updates": talents_updates, "last": talents_last, "errors": talents_errors, "bot": talent_bot},
+		"max_hp": max_hp_last,
 		"xp": int(character_final.get("xp", -1)),
 		"level": int(character_final.get("level", -1)),
 		"elapsed_s": elapsed_s,

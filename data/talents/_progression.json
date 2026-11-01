@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "points": {
+    "first_point_level": 2,
+    "points_per_level": 1,
+    "max_points": 60
+  },
+  "respec": {
+    "cost_items": [
+      {
+        "item_id": "scrap_material",
+        "qty": 3
+      }
+    ],
+    "require_safe_zone": true
+  }
+}

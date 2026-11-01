@@ -78,6 +78,17 @@ const INVENTORY_EQUIP_SLOTS: Array[String] = ["weapon", "armor", "trinket"]
 ## so usa o id para o HUD (nomes/custos vem do catalogo local data/classes). NAO existe comando do cliente para trocar de classe.
 const MAX_CLASS_ID_LEN: int = 48
 
+## E6.2 (aditivo, VERSION continua 2): TALENTOS. `c_talent_cmd(req_id, op, arg)` (cliente -> servidor, reliable) so PEDE: o servidor decide
+## tudo (pontos pelo nivel, pre-requisitos, max_rank, especializacao, respec em zona segura, custo) e o backend revalida e persiste.
+## `s_talents(kind, data)` (servidor -> SO o dono, reliable): TALENTS_STATE = estado completo e autoritativo; TALENTS_ERROR = pedido recusado.
+const TALENT_OP_ALLOCATE: int = 1     ## arg = node_id (+1 rank)
+const TALENT_OP_RESPEC: int = 2       ## arg = "" (reset total; custo e zona segura decididos pelo servidor)
+const TALENT_OP_CHOOSE_SPEC: int = 3  ## arg = spec_id
+const TALENTS_STATE: int = 1  ## {spec:String, ranks:{node_id:int}, respecs:int, level:int, points_total:int, points_spent:int, points_available:int, req_id:int}
+const TALENTS_ERROR: int = 2  ## {req_id:int, op:int, code:String}
+const MAX_TALENT_NODES: int = 40
+const MAX_TALENT_RANK: int = 5
+
 ## E5.7 (aditivo, VERSION continua 2): SNAPSHOT COMPACTO. O cliente anuncia capacidades com `c_caps(caps)` (reliable, apos o
 ## welcome); se `CAP_SNAPSHOT_COMPACT` estiver ligada o servidor envia `s_snapshot_c(tick, last_input_seq, part, parts, blob)`
 ## (unreliable_ordered) em vez de `s_snapshot`. Codificacao em `SnapshotCodec`, mescla em `SnapshotAssembler`.
@@ -443,6 +454,52 @@ static func validate_class_update(d: Variant) -> bool:
 	if e.size() != 1 or not is_content_id(e.get("class_id", null)):
 		return false
 	return String(e["class_id"]).length() <= MAX_CLASS_ID_LEN
+
+
+## E6.2: c_talent_cmd(req_id, op, arg). Retorna {ok, code, message, req_id, op, arg}. Invalido = abuso. allocate/choose_spec exigem id de
+## conteudo em `arg`; respec exige `arg` vazio.
+static func validate_talent_cmd(req_id: Variant, op: Variant, arg: Variant) -> Dictionary:
+	if not _valid_req_id(req_id) or typeof(op) != TYPE_INT or typeof(arg) != TYPE_STRING:
+		return _fail(REJECT_INVALID_PAYLOAD, "tipos invalidos no comando de talentos")
+	match int(op):
+		TALENT_OP_ALLOCATE, TALENT_OP_CHOOSE_SPEC:
+			if not is_content_id(arg):
+				return _fail(REJECT_INVALID_PAYLOAD, "id invalido no comando de talentos")
+		TALENT_OP_RESPEC:
+			if not (arg as String).is_empty():
+				return _fail(REJECT_INVALID_PAYLOAD, "respec nao leva argumento")
+		_:
+			return _fail(REJECT_INVALID_PAYLOAD, "op de talentos desconhecida")
+	return _ok({"req_id": int(req_id), "op": int(op), "arg": String(arg)})
+
+
+## E6.2: s_talents(kind, data) vindo do fio (o cliente descarta o que falhar).
+static func validate_talents_update(kind: Variant, d: Variant) -> bool:
+	if typeof(kind) != TYPE_INT or typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	if int(kind) == TALENTS_ERROR:
+		return e.size() == 3 and typeof(e.get("req_id", null)) == TYPE_INT and typeof(e.get("op", null)) == TYPE_INT \
+			and typeof(e.get("code", null)) == TYPE_STRING and (e["code"] as String).length() <= MAX_TYPE_LEN
+	if int(kind) != TALENTS_STATE:
+		return false
+	if e.size() != 8:
+		return false
+	var spec: Variant = e.get("spec", null)
+	if typeof(spec) != TYPE_STRING or (String(spec) != "" and not is_content_id(spec)):
+		return false
+	for k: String in ["respecs", "level", "points_total", "points_spent", "points_available", "req_id"]:
+		var v: Variant = e.get(k, null)
+		if typeof(v) != TYPE_INT or int(v) < (-1 if k == "req_id" else 0) or int(v) > 1000000:
+			return false
+	var ranks: Variant = e.get("ranks", null)
+	if typeof(ranks) != TYPE_DICTIONARY or (ranks as Dictionary).size() > MAX_TALENT_NODES:
+		return false
+	for id: Variant in (ranks as Dictionary):
+		var rv: Variant = (ranks as Dictionary)[id]
+		if not is_content_id(id) or typeof(rv) != TYPE_INT or int(rv) < 1 or int(rv) > MAX_TALENT_RANK:
+			return false
+	return true
 
 
 ## E5.7: c_caps(caps) vindo do cliente. Retorna {ok, code, message, caps}; bits desconhecidos sao IGNORADOS (mascarados) para

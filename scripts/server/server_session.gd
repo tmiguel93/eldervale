@@ -34,6 +34,7 @@ class PeerState extends RefCounted:
 	var ping_limiter: RateLimiter
 	var quest_limiter: RateLimiter
 	var craft_limiter: RateLimiter
+	var talent_limiter: RateLimiter ## E6.2
 	## E5.6: assinatura do ultimo inventario enviado (so reenvia quando muda) e contagem de envios.
 	var inv_sig: String = ""
 	var inv_sent: int = 0
@@ -59,6 +60,8 @@ var _registry: ContentRegistry
 var quests: QuestService
 ## E5.4: crafting (criado em setup).
 var crafting: CraftingService
+## E6.2: talentos (criado em setup).
+var talents: TalentService
 ## E5.6: medicao de snapshots (so com settings.measure_snapshots): maior payload aproximado (var_to_bytes) e contagens.
 ## E5.7: `samples`/`max_bytes`/`over_mtu`/`sum_bytes` contam MENSAGENS (uma parte do compacto = uma mensagem; o legado = 1 por snapshot).
 var snapshot_stats: Dictionary = {"samples": 0, "max_bytes": 0, "max_entities": 0, "over_mtu": 0, "sum_bytes": 0,
@@ -82,6 +85,10 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	crafting.loadout_of = _loadout_of_entity
 	crafting.peer_of = _peer_id_of_entity
 	crafting.character_of = _character_id_of_entity
+	talents = TalentService.new(world, transport)
+	talents.loadout_of = _loadout_of_entity
+	talents.peer_of = _peer_id_of_entity
+	talents.character_of = _character_id_of_entity
 	process_physics_priority = 20 # depois de jogadores/inimigos
 
 
@@ -93,6 +100,7 @@ func attach_backend(p_sync: BackendSync) -> void:
 	sync.conflict_handler = _on_state_conflict
 	quests.sync = p_sync
 	crafting.sync = p_sync
+	talents.sync_backend = p_sync
 
 
 func now_msec() -> int:
@@ -150,6 +158,7 @@ func on_peer_connected(peer_id: int) -> void:
 	p.ping_limiter = RateLimiter.new(settings.ping_rate_per_sec, settings.ping_burst)
 	p.quest_limiter = RateLimiter.new(settings.quest_rate_per_sec, settings.quest_burst)
 	p.craft_limiter = RateLimiter.new(settings.craft_rate_per_sec, settings.craft_burst)
+	p.talent_limiter = RateLimiter.new(settings.talent_rate_per_sec, settings.talent_burst)
 	p.caps_limiter = RateLimiter.new(1.0, 3)
 	_peers[peer_id] = p
 	print("[server] peer %d conectou (%d conexoes)" % [peer_id, _peers.size()])
@@ -311,9 +320,11 @@ func _complete_join(p: PeerState, entity_id: int) -> void:
 	if join_loadout != null:
 		quests.attach(entity_id, peer_id, p.character_id, join_loadout)
 	crafting.attach(entity_id)
+	talents.attach(entity_id)
 	send_inventory(p, true) # E5.6: estado completo logo apos o welcome (depois, so quando mudar)
 	if join_loadout != null and join_loadout.class_def != null: # E6.1: classe (autoridade do servidor) so para o dono
 		transport.send_class(peer_id, {"class_id": join_loadout.class_def.id})
+		talents.send_state(entity_id, -1, true) # E6.2: talentos/pontos (autoridade do servidor) so para o dono
 	player_joined.emit(peer_id, entity_id)
 
 
@@ -325,6 +336,7 @@ func sync_inventories() -> void:
 	for p: PeerState in _peers.values():
 		if p.welcomed and not p.closing:
 			send_inventory(p, false)
+	talents.sync_all() # E6.2: nivel/estado de talentos mudou? (mesma cadencia, so envia se mudou)
 
 
 ## Envia o inventario completo do jogador. `force` ignora a comparacao (entrada). Devolve true se enviou.
@@ -361,7 +373,7 @@ func snapshot_character(character_id: String) -> Dictionary:
 	var loadout: PlayerLoadout = _loadout_of(p)
 	if p == null or not p.welcomed or p.closing or loadout == null:
 		return {}
-	if crafting.is_pending(p.entity_id):
+	if crafting.is_pending(p.entity_id) or talents.is_pending(p.entity_id):
 		return {} # E5.4: craft em voo no backend -> sem autosave (nao persistir estado a desfazer); o proximo ciclo salva
 	return CharacterCodec.capture(loadout)
 
@@ -381,6 +393,7 @@ func _on_state_conflict(character_id: String, ch: Dictionary) -> void:
 		return
 	CharacterCodec.apply(loadout, ch)
 	quests.resync(p.entity_id)
+	talents.send_state(p.entity_id) # E6.2: o banco manda (so reenvia se mudou)
 	ServerLog.warn("[server] estado do personagem %s reaplicado a partir do backend (conflito de revision)" % character_id)
 
 
@@ -539,6 +552,26 @@ func on_craft_cmd(peer_id: int, req_id: Variant, recipe_id: Variant) -> void:
 		_count_invalid(p, String(v["message"]))
 		return
 	crafting.cmd_craft(p.entity_id, int(v["req_id"]), String(v["recipe_id"]))
+
+
+## E6.2: c_talent_cmd. Payload invalido/rate limit contam como abuso; regra de jogo violada vira s_talents(TALENTS_ERROR) sem punir o peer.
+func on_talent_cmd(peer_id: int, req_id: Variant, op: Variant, arg: Variant) -> void:
+	var p: PeerState = _peers.get(peer_id) as PeerState
+	if p == null or p.closing:
+		return
+	if not p.welcomed:
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "comando antes do welcome")
+		return
+	if not p.talent_limiter.allow(now_msec()):
+		p.dropped_rate += 1
+		_count_invalid(p, "rate limit de talentos")
+		return
+	var v: Dictionary = Protocol.validate_talent_cmd(req_id, op, arg)
+	if not bool(v["ok"]):
+		p.dropped_invalid += 1
+		_count_invalid(p, String(v["message"]))
+		return
+	talents.cmd_talent(p.entity_id, int(v["req_id"]), int(v["op"]), String(v["arg"]))
 
 
 ## E5.7: c_caps(caps) — o cliente declara o que entende (hoje: snapshot compacto). Valido so apos o welcome.
@@ -705,6 +738,7 @@ func _drop_peer(peer_id: int, reason: String) -> void:
 	if p.entity_id != 0:
 		quests.detach(p.entity_id)
 		crafting.detach(p.entity_id)
+		talents.detach(p.entity_id)
 		world.remove_player(p.entity_id) # emite player_left para os demais
 		player_left.emit(peer_id, p.entity_id)
 

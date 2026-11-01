@@ -91,6 +91,7 @@ func _start() -> void:
 	rpc.quest_cmd_received.connect(session.on_quest_cmd)
 	rpc.dialogue_cmd_received.connect(session.on_dialogue_cmd)
 	rpc.craft_cmd_received.connect(session.on_craft_cmd)
+	rpc.talent_cmd_received.connect(session.on_talent_cmd)
 	rpc.caps_received.connect(session.on_caps)
 	multiplayer.peer_connected.connect(session.on_peer_connected)
 	multiplayer.peer_disconnected.connect(session.on_peer_disconnected)

@@ -36,6 +36,7 @@ func add_character(cid: String, level: int = 1, xp: int = 0, inventory: Array = 
 		"stats": {"max_health": 100, "max_resource": 50, "resource_regen": 5, "attack_power": 10, "defense": 0, "resistance": 0, "move_speed": 5},
 		"schema_version": 1, "revision": revision, "inventory_capacity": 24, "inventory": inventory.duplicate(true), "equipment": equipment.duplicate(true),
 		"quests": {"active": {}, "completed": []},
+		"talents": {"spec": "", "ranks": {}, "respecs": 0},
 	}
 
 
@@ -155,6 +156,8 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 			return ok({"character": ch})
 		if path.ends_with("/craft"):
 			return _craft(cid, ch, body)
+		if path.ends_with("/talents"):
+			return _talents(cid, ch, body)
 		if path.ends_with("/rewards"):
 			var key: String = String(body.get("idempotency_key", ""))
 			var replay: bool = claims.has(key)
@@ -238,3 +241,72 @@ func _craft(cid: String, ch: Dictionary, body: Dictionary) -> Dictionary:
 	claims[key] = rid
 	ch["revision"] = int(ch["revision"]) + 1
 	return ok({"replayed": false, "result": {"recipe_id": rid}, "character": ch})
+
+
+## E6.2: POST /internal/characters/:id/talents do backend FALSO (mesmas regras do real: chave talent:<sessao>:<n>:<char>, fencing,
+## replay pela chave, regras de TalentState, respec consome o custo do INVENTARIO, 409 sem gravar nem consumir a chave).
+## `talent_commands` conta os comandos efetivamente aplicados (replay nao conta).
+var talent_commands: int = 0
+
+
+func _talents(cid: String, ch: Dictionary, body: Dictionary) -> Dictionary:
+	if last_session_header != SESSION_ID:
+		return err(409, "session_fenced")
+	var key: String = String(body.get("idempotency_key", ""))
+	var parts: PackedStringArray = key.split(":")
+	if parts.size() != 4 or parts[0] != "talent" or parts[1] != SESSION_ID or parts[3] != cid:
+		return err(400, "invalid_idempotency_key")
+	var op: String = String(body.get("op", ""))
+	var arg: String = String(body.get("arg", ""))
+	var canonical: String = "%s|%s" % [op, arg]
+	if claims.has(key):
+		if claims[key] != canonical:
+			return err(409, "idempotency_key_reuse")
+		return ok({"replayed": true, "result": {"op": op}, "character": ch})
+	var cat: TalentCatalog = TalentCatalog.shared()
+	var tree: TalentTree = cat.get_tree(String(ch["class_id"]))
+	if tree == null:
+		return err(409, "no_talent_tree")
+	var st: TalentState = TalentState.new()
+	st.restore(ch.get("talents", {}), tree)
+	var level: int = int(ch["level"])
+	var code: String = ""
+	match op:
+		"allocate":
+			code = TalentState.check_allocate(tree, st, level, arg, cat)
+		"choose_spec":
+			code = TalentState.check_choose_spec(tree, st, arg)
+		"respec":
+			code = TalentState.check_respec(st)
+			if code.is_empty():
+				var work: Array = (ch["inventory"] as Array).duplicate(true)
+				for c: Dictionary in cat.respec_cost_items:
+					var left: int = int(c["qty"])
+					var i: int = work.size() - 1
+					while i >= 0 and left > 0:
+						if work[i]["item_id"] == c["item_id"]:
+							var take: int = mini(int(work[i]["qty"]), left)
+							work[i]["qty"] = int(work[i]["qty"]) - take
+							left -= take
+							if int(work[i]["qty"]) == 0:
+								work.remove_at(i)
+						i -= 1
+					if left > 0:
+						code = "insufficient_items"
+				if code.is_empty():
+					for k: int in work.size():
+						work[k]["slot"] = k
+					ch["inventory"] = work
+		_:
+			return err(400, "invalid_op")
+	if not code.is_empty():
+		return err(409, code)
+	match op:
+		"allocate": st.apply_allocate(arg)
+		"choose_spec": st.apply_choose_spec(arg)
+		"respec": st.apply_respec()
+	ch["talents"] = st.to_dict()
+	claims[key] = canonical
+	talent_commands += 1
+	ch["revision"] = int(ch["revision"]) + 1
+	return ok({"replayed": false, "result": {"op": op}, "character": ch})

@@ -124,7 +124,7 @@ describe("migracao 0004 (class_id)", () => {
   it("do zero: default warrior, CHECK de formato, sem tocar linhas validas", async () => {
     const d = await createPgliteDb();
     const r = await migrate(d);
-    expect(r.applied).toEqual([1, 2, 3, 4]);
+    expect(r.applied).toEqual([1, 2, 3, 4, 5]);
     const acc = await mkAccount(d, "m0@example.com");
     const ins = await d.query<{ class_id: string }>("INSERT INTO characters (account_id, name) VALUES ($1, 'SemClasse') RETURNING class_id", [acc]);
     expect(ins.rows[0]!.class_id).toBe("warrior");
@@ -142,7 +142,7 @@ describe("migracao 0004 (class_id)", () => {
   it("a partir da versao anterior (0001-0003): preserva dados, normaliza so o malformado", async () => {
     const d = await createPgliteDb();
     const all = loadMigrations();
-    expect(all).toHaveLength(4);
+    expect(all).toHaveLength(5);
     const upto3 = await migrate(d, { migrations: all.slice(0, 3) });
     expect(upto3.applied).toEqual([1, 2, 3]);
     const acc = await mkAccount(d, "m3@example.com");
@@ -153,7 +153,7 @@ describe("migracao 0004 (class_id)", () => {
     }
     const before = await d.query("SELECT id, level, xp, stats, revision, quests FROM characters ORDER BY name");
     const up = await migrate(d);
-    expect(up.applied).toEqual([4]);
+    expect(up.applied).toEqual([4, 5]);
     const cls = async (n: string) => (await d.query<{ class_id: string }>("SELECT class_id FROM characters WHERE id = $1", [ids[n]!])).rows[0]!.class_id;
     expect(await cls("Velho")).toBe("warrior");
     expect(await cls("Curto")).toBe("w");

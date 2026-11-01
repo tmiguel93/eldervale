@@ -92,6 +92,31 @@ static func rewards_text(xp: int, items: Array) -> String:
 	return ", ".join(parts) if not parts.is_empty() else "-"
 
 
+## E6.2: texto de erro de talentos (codigos do servidor).
+static func talent_error(code: String) -> String:
+	match code:
+		"no_points": return "Sem pontos de talento disponiveis."
+		"max_rank": return "Este talento ja esta no maximo."
+		"prerequisite": return "Requisitos do talento nao cumpridos."
+		"level_too_low": return "Nivel insuficiente para este talento."
+		"spec_not_chosen": return "Escolha uma especializacao antes."
+		"wrong_spec": return "Talento de outra especializacao."
+		"unknown_node": return "Talento desconhecido."
+		"unknown_spec": return "Especializacao desconhecida."
+		"spec_already_chosen": return "Especializacao ja escolhida (reset para trocar)."
+		"nothing_to_reset": return "Nao ha talentos para resetar."
+		"not_safe_zone": return "O reset so e permitido em zona segura (vila)."
+		"insufficient_items": return "Itens insuficientes para o reset."
+		"busy": return "Aguarde o pedido anterior terminar."
+		"not_available": return "Indisponivel agora."
+		"not_ready": return "Personagem ainda nao esta pronto."
+		"duplicate_request": return "Pedido repetido ignorado."
+		"backend_error": return "Falha ao salvar os talentos. Tente de novo."
+		"session_fenced": return "Sessao invalida. Reconecte."
+		"revision_conflict": return "Personagem mudou; tente de novo."
+	return "Nao foi possivel (%s)." % clamp_text(code, 32)
+
+
 static func craft_error(code: String) -> String:
 	match code:
 		"insufficient_ingredients": return "Ingredientes insuficientes."

@@ -124,6 +124,18 @@ func pickup_entities_for(entity_id: int) -> Array:
 	return loot.entities_for(entity_id, zone_of_player(entity_id), center, settings.aoi_radius)
 
 
+## E6.2: zona segura para o respec de talentos. Modo mundo: so a zona `sticky` (o hub, sem inimigos). Sem mundo (arena/dev) nao ha hub:
+## vale sempre (regra simples documentada em docs/E6_TALENTS.md).
+func is_safe_zone(entity_id: int) -> bool:
+	if director == null:
+		return true
+	var slot: PlayerSlot = _players.get(entity_id) as PlayerSlot
+	if slot == null:
+		return false
+	var zone: ZoneDef = director.world_def.get_zone(slot.zone_id)
+	return zone != null and zone.sticky
+
+
 ## E5.4 (crafting): "" = o jogador esta ao alcance da estacao `station_id` na zona em que esta;
 ## "no_station" = a zona dele nao tem essa estacao (ou nao ha mundo); "too_far" = tem, mas fora do raio.
 func station_status(entity_id: int, station_id: String) -> String:

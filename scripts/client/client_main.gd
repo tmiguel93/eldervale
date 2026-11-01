@@ -51,6 +51,8 @@ var _tour_memo: Dictionary = {}         # world_tour: estagio do puzzle
 var _tour_done_at: float = -1.0
 var _adv: AdventureBot = null           ## E5.6: bot de aventura (adv_*)
 var _adv_done_at: float = -1.0
+var _talent_bot: TalentBot = null       ## E6.2: bot `talents`
+var _talent_done_at: float = -1.0
 var _signals_wired: bool = false
 var _return_to_login: bool = false
 
@@ -103,6 +105,7 @@ func _wire_session(ss: ClientSession) -> void:
 	ss.send_quest_cmd = Callable(_rpc, "send_quest_cmd")
 	ss.send_dialogue_cmd = Callable(_rpc, "send_dialogue_cmd")
 	ss.send_craft_cmd = Callable(_rpc, "send_craft_cmd")
+	ss.send_talent_cmd = Callable(_rpc, "send_talent_cmd")
 	ss.send_caps = Callable(_rpc, "send_caps")
 
 
@@ -138,6 +141,7 @@ func _start() -> void:
 		_rpc.craft_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_craft_update(kind, data))
 		_rpc.inventory_update_received.connect(func(data: Dictionary) -> void: session.on_inventory_update(data))
 		_rpc.class_update_received.connect(func(data: Dictionary) -> void: session.on_class_update(data))
+		_rpc.talents_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_talents_update(kind, data))
 		multiplayer.connected_to_server.connect(_on_connected)
 		multiplayer.connection_failed.connect(_on_connection_failed)
 		multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -421,6 +425,11 @@ func _tick_playing(delta: float) -> void:
 		if is_bot:
 			if cfg.bot_script == "kill_enemy":
 				_kill_enemy_tick()
+			elif cfg.bot_script == "talents":
+				# E6.2: abate inimigos ate ter ponto de talento, entao PARA e aloca (TalentBot)
+				if _talent_bot == null or not _talent_bot.holding:
+					_kill_enemy_tick()
+				_talents_tick()
 			elif cfg.bot_script == "world_tour":
 				_world_tour_tick()
 			elif AdventureBot.is_adventure(cfg.bot_script):
@@ -437,10 +446,13 @@ func _tick_playing(delta: float) -> void:
 		_bot_drain_events()
 		if not session.local_entity.is_empty():
 			session.result.sample_position(_play_elapsed, session.local_entity["pos"])
+			session.result.max_hp_last = float(session.local_entity.get("max_hp", -1.0))
 		var grace: float = args.kill_grace_s if args.kill_grace_s >= 0.0 else KILL_GRACE_S
 		if _kill_done_at >= 0.0 and _play_elapsed - _kill_done_at >= grace:
 			_finish(0)
 		elif _tour_done_at >= 0.0 and _play_elapsed - _tour_done_at >= 1.0:
+			_finish(0)
+		elif _talent_done_at >= 0.0 and _play_elapsed - _talent_done_at >= TalentBot.FINAL_HOLD_S:
 			_finish(0)
 		elif _adv != null and (_adv.drop_requested or (_adv_done_at >= 0.0 and _play_elapsed - _adv_done_at >= AdventureBot.FINAL_HOLD_S)):
 			_finish(0)
@@ -454,6 +466,14 @@ func _kill_enemy_tick() -> void:
 	var r: Dictionary = BotScript.kill_enemy_step(session.local_entity["pos"], session.last_entities, _kill_target)
 	_kill_target = int(r["target_id"])
 	session.send_bot_items(r["items"])
+
+
+func _talents_tick() -> void:
+	if _talent_bot == null:
+		_talent_bot = TalentBot.new(session)
+	_talent_bot.tick(_play_elapsed)
+	if _talent_bot.done and _talent_done_at < 0.0:
+		_talent_done_at = _play_elapsed
 
 
 func _world_tour_tick() -> void:

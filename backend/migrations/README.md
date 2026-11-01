@@ -67,6 +67,20 @@ Impacto: sem a migracao o codigo E6.1 continua funcionando (a coluna e o catalog
 Reverter o CODIGO E6.1 sem reverter a migracao e seguro: personagens `mage`/`ranger` ja criados passam a falhar na validacao do codigo antigo
 (`class_id` fora de `["warrior"]`) ate o deploy ser refeito; os dados nao sao perdidos.
 
+### 0005_character_talents
+Aditiva e idempotente (E6.2). Adiciona `characters.talents jsonb NOT NULL DEFAULT '{}'` (formato `{"spec": "", "ranks": {}, "respecs": 0}`, normalizado na leitura)
+e o CHECK `characters_talents_is_object` (somente se ausente). Personagens existentes ficam com `{}` (= sem especializacao, sem pontos gastos): nenhum backfill.
+A coluna so e escrita por `POST /internal/characters/:id/talents`; o checkpoint nao a toca. Desfazer (apos backup; DESTRUTIVO: apaga as builds dos jogadores):
+```sql
+BEGIN;
+ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_talents_is_object;
+ALTER TABLE characters DROP COLUMN IF EXISTS talents;
+DELETE FROM schema_migrations WHERE version = 5;
+COMMIT;
+```
+Impacto: sem a coluna o codigo E6.2 falha ao ler personagens (`COLS` inclui `talents`); reverter so o CODIGO e seguro (a coluna extra e ignorada pelo codigo antigo).
+Chaves de idempotencia `talent:...` ficam em `reward_claims` (sem migracao propria); apos o rollback elas sao inofensivas.
+
 ### Modelo para novas migracoes
 Toda migracao nova deve acrescentar aqui sua secao: SQL de desfazer (preferir mudancas
 aditivas/expand-contract: adicionar coluna nullable -> backfill -> restringir), impacto em dados,

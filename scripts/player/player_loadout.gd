@@ -27,6 +27,10 @@ var quest_state: QuestState = QuestState.new()
 var final_stats: StatBlock
 ## E6.1: classe aplicada pelo servidor (`apply_class`); null = jogador legado/offline (crescimento e habilidades padrao da cena).
 var class_def: ClassDef
+## E6.2: talentos do personagem (estado persistido pelo backend; so o servidor altera, via TalentService/CharacterCodec). O bonus de
+## stats e os modificadores de habilidade derivam dele em `apply_talents`.
+var talents: TalentState = TalentState.new()
+var _talent_bonus: StatBlock = null
 
 var combat: PlayerCombat
 var health: HealthComponent
@@ -64,8 +68,31 @@ func apply_class(def: ClassDef) -> bool:
 		return false
 	class_def = def
 	progress.bonus_per_level = def.growth.copy()
-	recalculate()
+	talents = TalentState.new() # a arvore e da classe: estado anterior (outra classe) nao vale
+	apply_talents()
 	return true
+
+
+## E6.2: arvore de talentos da classe aplicada (null = sem classe/arvore).
+func talent_tree() -> TalentTree:
+	return TalentCatalog.shared().get_tree(class_def.id) if class_def != null else null
+
+
+## E6.2: pontos de talento disponiveis agora (nivel atual - gastos).
+func talent_points_available() -> int:
+	var tree: TalentTree = talent_tree()
+	return talents.points_available(tree, progress.level, TalentCatalog.shared()) if tree != null else 0
+
+
+## E6.2: (re)deriva bonus de stats e modificadores de habilidade a partir de `talents` e recalcula os stats finais. Chame apos qualquer
+## mudanca do estado de talentos (alocar/respec/escolher/carregar). Subir de nivel NAO precisa: os bonus dependem so dos ranks.
+func apply_talents() -> void:
+	var tree: TalentTree = talent_tree()
+	var col: Dictionary = SkillMods.collect(tree, talents)
+	_talent_bonus = col["stats"]
+	if combat != null:
+		combat.set_skill_mods(col["skills"])
+	recalculate()
 
 
 func class_id() -> String:
@@ -81,7 +108,7 @@ func recalculate() -> void:
 	var old_res_max: float = pool.max_value()
 	var hp_ratio: float = health.current_health / old_hp_max if old_hp_max > 0.0 else 1.0
 	var res_ratio: float = pool.current / old_res_max if old_res_max > 0.0 else 1.0
-	final_stats = StatCalculator.compute(base_stats, equipment, progress)
+	final_stats = StatCalculator.compute(base_stats, equipment, progress, _talent_bonus)
 	health.stats = final_stats
 	if not health.is_dead:
 		health.current_health = clampf(hp_ratio * final_stats.max_health, 0.0, final_stats.max_health)

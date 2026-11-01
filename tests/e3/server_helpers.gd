@@ -27,6 +27,19 @@ class RecordingTransport extends ServerTransport:
 	func send_inventory(peer_id: int, data: Dictionary) -> void:
 		inventories.append({"peer": peer_id, "data": data})
 
+	## E6.2: estado/erro de talentos enviados ({peer, kind, data}).
+	var talent_updates: Array[Dictionary] = []
+
+	func send_talents(peer_id: int, kind: int, data: Dictionary) -> void:
+		talent_updates.append({"peer": peer_id, "kind": kind, "data": data})
+
+	func talent_msgs(peer_id: int, kind: int) -> Array[Dictionary]:
+		var out: Array[Dictionary] = []
+		for u: Dictionary in talent_updates:
+			if int(u["peer"]) == peer_id and int(u["kind"]) == kind:
+				out.append(u["data"])
+		return out
+
 	## E6.1: classe enviada ao dono ({peer, data}).
 	var classes: Array[Dictionary] = []
 

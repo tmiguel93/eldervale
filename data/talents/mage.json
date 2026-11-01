@@ -1,0 +1,340 @@
+{
+  "schema_version": 1,
+  "class_id": "mage",
+  "nodes": [
+    {
+      "id": "m_intellect",
+      "name": "Intelecto",
+      "description": "+1.2 poder de ataque por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 1.2
+        }
+      ]
+    },
+    {
+      "id": "m_reservoir",
+      "name": "Reservatorio",
+      "description": "+10 mana maxima por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "max_resource",
+          "amount": 10
+        }
+      ]
+    },
+    {
+      "id": "m_focus",
+      "name": "Foco",
+      "description": "+1 regeneracao de mana por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "resource_regen",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "m_warding",
+      "name": "Protecao",
+      "description": "+8 vida maxima por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "max_health",
+          "amount": 8
+        }
+      ]
+    },
+    {
+      "id": "m_quick_cast",
+      "name": "Conjuracao rapida",
+      "description": "Raio Arcano recarrega 10% mais rapido por nivel.",
+      "tier": "notable",
+      "spec": "",
+      "requires": [
+        "m_intellect"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "arcane_bolt",
+          "mod": "cost",
+          "cooldown_pct": -0.1
+        }
+      ]
+    },
+    {
+      "id": "m_blink_ward",
+      "name": "Salto protegido",
+      "description": "O Salto concede 0.1 s a mais de invulnerabilidade por nivel.",
+      "tier": "notable",
+      "spec": "",
+      "requires": [
+        "m_warding"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "blink",
+          "mod": "duration",
+          "i_frames_add": 0.1
+        }
+      ]
+    },
+    {
+      "id": "e_ember",
+      "name": "Brasa",
+      "description": "+1.5 poder de ataque por nivel do talento.",
+      "tier": "small",
+      "spec": "elementalist",
+      "requires": [
+        "m_intellect"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 1.5
+        }
+      ]
+    },
+    {
+      "id": "e_chill",
+      "name": "Calafrio",
+      "description": "+0.02 resistencia por nivel do talento.",
+      "tier": "small",
+      "spec": "elementalist",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "resistance",
+          "amount": 0.02
+        }
+      ]
+    },
+    {
+      "id": "e_twin_fireball",
+      "name": "Bola de fogo gemea",
+      "description": "Bola de Fogo dispara 1 projetil extra por nivel (60% do dano cada).",
+      "tier": "notable",
+      "spec": "elementalist",
+      "requires": [
+        "e_ember"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "fireball",
+          "mod": "extra_projectiles",
+          "count": 1,
+          "spread_deg": 14.0,
+          "damage_scale": 0.6
+        }
+      ]
+    },
+    {
+      "id": "e_frozen_expanse",
+      "name": "Expansao glacial",
+      "description": "Nova de Gelo tem 20% mais area por nivel.",
+      "tier": "notable",
+      "spec": "elementalist",
+      "requires": [
+        "m_focus"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "frost_nova",
+          "mod": "area",
+          "radius_pct": 0.2
+        }
+      ]
+    },
+    {
+      "id": "e_storm_bolt",
+      "name": "Raio de tempestade",
+      "description": "Raio Arcano passa a causar dano de raio (+15% de dano).",
+      "tier": "notable",
+      "spec": "elementalist",
+      "requires": [
+        "m_quick_cast"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 1,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "arcane_bolt",
+          "mod": "convert",
+          "to": "lightning",
+          "damage_pct": 0.15
+        }
+      ]
+    },
+    {
+      "id": "e_conflagration",
+      "name": "Conflagracao",
+      "description": "Bola de Fogo explode em area 25% maior por nivel.",
+      "tier": "notable",
+      "spec": "elementalist",
+      "requires": [
+        "e_ember"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "fireball",
+          "mod": "area",
+          "radius_pct": 0.25
+        }
+      ]
+    },
+    {
+      "id": "e_shatter",
+      "name": "Estilhacar",
+      "description": "Bola de Fogo causa 40% mais dano por nivel ate 4 s depois da Nova de Gelo.",
+      "tier": "notable",
+      "spec": "elementalist",
+      "requires": [
+        "e_frozen_expanse"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "fireball",
+          "mod": "synergy",
+          "after_skill": "frost_nova",
+          "window": 4.0,
+          "damage_pct": 0.4
+        }
+      ]
+    },
+    {
+      "id": "e_arc_flow",
+      "name": "Fluxo arcano",
+      "description": "Bola de Fogo custa 15% menos mana por nivel.",
+      "tier": "notable",
+      "spec": "elementalist",
+      "requires": [
+        "e_ember",
+        "m_reservoir"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "fireball",
+          "mod": "cost",
+          "cost_pct": -0.15
+        }
+      ]
+    },
+    {
+      "id": "e_archmage",
+      "name": "Arquimago",
+      "description": "Maestria: Bola de Fogo +1 projetil, Nova de Gelo recarrega 25% mais rapido, +3 poder de ataque.",
+      "tier": "mastery",
+      "spec": "elementalist",
+      "requires": [
+        "e_twin_fireball",
+        "e_shatter"
+      ],
+      "min_points_spent": 12,
+      "min_level": 1,
+      "cost": 5,
+      "max_rank": 1,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "fireball",
+          "mod": "extra_projectiles",
+          "count": 1,
+          "spread_deg": 14.0,
+          "damage_scale": 0.6
+        },
+        {
+          "type": "skill_mod",
+          "skill": "frost_nova",
+          "mod": "cost",
+          "cooldown_pct": -0.25
+        },
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 3
+        }
+      ]
+    }
+  ]
+}

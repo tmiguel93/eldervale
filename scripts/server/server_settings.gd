@@ -53,6 +53,9 @@ var xp_for_participants: bool = true
 ## E5.4: c_craft_cmd: token bucket por peer.
 var craft_rate_per_sec: float = 2.0
 var craft_burst: int = 4
+## E6.2: c_talent_cmd: token bucket por peer.
+var talent_rate_per_sec: float = 2.0
+var talent_burst: int = 4
 ## E5.6: inventario sincronizado (s_inventory): a cada N ticks o servidor compara o inventario/equipamento de cada jogador
 ## com o ultimo enviado e so manda se mudou (coalesce: no maximo tick_rate/N mensagens por segundo por jogador). 0 desliga.
 var inventory_sync_ticks: int = 6

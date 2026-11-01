@@ -10,6 +10,8 @@ import { loadCharacterLimits, type CharacterLimits } from "./limits.ts";
 import { loadQuestCatalogFromDisk, type QuestCatalog } from "../quests/catalog.ts";
 import { loadRecipeCatalogFromDisk, type RecipeCatalog } from "../crafting/catalog.ts";
 import { craft } from "../crafting/service.ts";
+import { loadTalentCatalogFromDisk, type TalentCatalog } from "../talents/catalog.ts";
+import { applyTalentOp, TALENT_OPS, type TalentOp } from "../talents/service.ts";
 import { validateCharacterName, validateClassId, validateRewardRequest, validateState } from "./model.ts";
 import { checkpoint, createCharacter, deleteCharacter, getOwned, grantReward, internalView, listCharacters, loadRecord, publicView, type ServiceCtx } from "./service.ts";
 
@@ -37,6 +39,7 @@ async function assertSessionHoldsLock(db: Db, ctx: { req: Request }, characterId
 const SESSION_UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const LOOT_KEY_RE = new RegExp(`^loot:(${SESSION_UUID}):(\\d{1,12}):(${SESSION_UUID})$`, "i");
 const CRAFT_KEY_RE = new RegExp(`^craft:(${SESSION_UUID}):(\\d{1,12}):(${SESSION_UUID})$`, "i");
+const TALENT_KEY_RE = new RegExp(`^talent:(${SESSION_UUID}):(\\d{1,12}):(${SESSION_UUID})$`, "i");
 
 /**
  * Chaves reservadas (E5.4): `loot:<session>:<drop_id>:<character_id>` (pickup coletado) e
@@ -58,12 +61,13 @@ function objectBody(b: unknown): Record<string, unknown> {
 }
 
 /** `opts` existe para testes; em producao use os padroes (catalogo do disco, limites de env). */
-export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: { catalog?: Catalog; limits?: CharacterLimits; quests?: QuestCatalog; recipes?: RecipeCatalog; classes?: ClassCatalog } = {}): void {
+export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: { catalog?: Catalog; limits?: CharacterLimits; quests?: QuestCatalog; recipes?: RecipeCatalog; classes?: ClassCatalog; talents?: TalentCatalog } = {}): void {
   const catalog = opts.catalog ?? loadCatalogFromDisk();
   const limits = opts.limits ?? loadCharacterLimits();
   const quests = opts.quests ?? loadQuestCatalogFromDisk(catalog);
   const recipes = opts.recipes ?? loadRecipeCatalogFromDisk(catalog);
   const classes = opts.classes ?? loadClassCatalogFromDisk();
+  const talents = opts.talents ?? loadTalentCatalogFromDisk(catalog, classes);
   const { db, requireAuth, requireInternal } = deps;
   const svc = (log: ServiceCtx["log"]): ServiceCtx => ({ catalog, limits, now: deps.now, log, quests, classes });
 
@@ -114,6 +118,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
     await assertSessionHoldsLock(db, ctx, id);
     const req = validateRewardRequest(await ctx.json(), catalog, limits, quests, id);
     if (req.idempotency_key.startsWith("craft:")) throw Errors.badRequest("prefixo craft: e reservado ao endpoint /craft", "invalid_idempotency_key");
+    if (req.idempotency_key.startsWith("talent:")) throw Errors.badRequest("prefixo talent: e reservado ao endpoint /talents", "invalid_idempotency_key");
     if (req.idempotency_key.startsWith("loot:")) {
       assertReservedKey(LOOT_KEY_RE, req.idempotency_key, ctx, id);
       if (req.xp !== 0 || req.items.length !== 1 || req.quest_id) throw Errors.badRequest("recompensa loot: paga exatamente um item e nenhum xp", "invalid_reward");
@@ -135,6 +140,29 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
     const recipe = recipes.get(rid);
     if (!recipe) throw Errors.badRequest("receita desconhecida", "unknown_recipe");
     const out = await craft(db, svc(ctx.log), id, key, recipe);
+    return ok({ replayed: out.replayed, result: out.result, character: internalView(out.character, limits) });
+  }));
+
+  // E6.2: comandos de talentos (allocate / respec / choose_spec). Chave reservada talent:<sessao>:<n>:<personagem>.
+  router.post("/internal/characters/:id/talents", requireInternal(async (ctx) => {
+    const id = uuidParam(ctx.params.id);
+    await assertSessionHoldsLock(db, ctx, id);
+    const body = objectBody(await ctx.json());
+    for (const k of Object.keys(body)) if (!["idempotency_key", "op", "arg", "expected_revision"].includes(k)) throw Errors.badRequest(`campo desconhecido "${k.slice(0, 40)}"`, "invalid_body");
+    const key = body.idempotency_key;
+    if (typeof key !== "string" || key.length > 128) throw Errors.badRequest("idempotency_key invalida", "invalid_idempotency_key");
+    assertReservedKey(TALENT_KEY_RE, key, ctx, id);
+    const op = body.op;
+    if (typeof op !== "string" || !(TALENT_OPS as readonly string[]).includes(op)) throw Errors.badRequest("op invalida (allocate|respec|choose_spec)", "invalid_op");
+    const arg = body.arg;
+    if (op === "respec") {
+      if (arg !== undefined && arg !== "") throw Errors.badRequest("respec nao leva arg", "invalid_arg");
+    } else if (typeof arg !== "string" || !/^[a-z][a-z0-9_]{0,47}$/.test(arg)) {
+      throw Errors.badRequest("arg invalido (id de no/especializacao)", "invalid_arg");
+    }
+    const exp = body.expected_revision;
+    if (exp !== undefined && (typeof exp !== "number" || !Number.isSafeInteger(exp) || exp < 0)) throw Errors.badRequest("expected_revision deve ser inteiro >= 0", "invalid_body");
+    const out = await applyTalentOp(db, svc(ctx.log), talents, id, { idempotency_key: key, op: op as TalentOp, arg: typeof arg === "string" ? arg : undefined, expected_revision: exp as number | undefined });
     return ok({ replayed: out.replayed, result: out.result, character: internalView(out.character, limits) });
   }));
 }

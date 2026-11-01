@@ -282,6 +282,15 @@ func enqueue_craft(character_id: String, idempotency_key: String, recipe_id: Str
 	return true
 
 
+## E6.2: comando de talentos. cb({ok, status, code, replayed, character}) quando termina (mesma fila serializada de checkpoints/recompensas).
+func enqueue_talent(character_id: String, idempotency_key: String, op: String, arg: String, cb: Callable) -> bool:
+	var cs: CharSync = char_sync(character_id)
+	if cs == null:
+		return false
+	_enqueue(cs, {"kind": "talent", "key": idempotency_key, "talent_op": op, "arg": arg, "cb": cb})
+	return true
+
+
 ## E5.4: recarrega o personagem do banco (na ordem da fila) e reaplica na memoria via `conflict_handler`.
 func enqueue_reload(character_id: String) -> bool:
 	var cs: CharSync = char_sync(character_id)
@@ -353,6 +362,8 @@ func _run_op(cs: CharSync, op: Dictionary) -> void:
 			client.rewards(cid, String(op["key"]), int(op["xp"]), op["items"], _op_reward_done.bind(cs, op), String(op.get("quest_id", "")))
 		"craft":
 			client.craft(cid, String(op["key"]), String(op["recipe_id"]), _op_craft_done.bind(cs, op))
+		"talent":
+			client.talents(cid, String(op["key"]), String(op["talent_op"]), String(op["arg"]), _op_talent_done.bind(cs, op))
 		"reload":
 			client.get_character(cid, _op_conflict_reloaded.bind(cs))
 		"disconnect":
@@ -445,6 +456,22 @@ func _op_craft_done(r: Dictionary, cs: CharSync, op: Dictionary) -> void:
 	var cb: Callable = op["cb"]
 	if cb.is_valid():
 		cb.call({"ok": r["ok"], "status": r["status"], "code": r["code"], "replayed": bool(r["data"].get("replayed", false)) if r["ok"] else false})
+	_op_finish(cs)
+
+
+func _op_talent_done(r: Dictionary, cs: CharSync, op: Dictionary) -> void:
+	var ch: Dictionary = {}
+	if r["ok"]:
+		_adopt_revision(cs, r["data"])
+		if typeof(r["data"].get("character", null)) == TYPE_DICTIONARY:
+			ch = r["data"]["character"]
+		if bool(r["data"].get("replayed", false)):
+			ServerLog.info("[sync] talentos %s ja aplicado (replay)" % String(op["key"]))
+	else:
+		ServerLog.warn("[sync] talentos %s recusado/falhou (status %d, %s)" % [String(op["key"]), int(r["status"]), String(r["code"])])
+	var cb: Callable = op["cb"]
+	if cb.is_valid():
+		cb.call({"ok": r["ok"], "status": r["status"], "code": r["code"], "replayed": bool(r["data"].get("replayed", false)) if r["ok"] else false, "character": ch})
 	_op_finish(cs)
 
 

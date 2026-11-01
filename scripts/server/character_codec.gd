@@ -39,6 +39,9 @@ static func validate(ch: Dictionary, registry: ContentRegistry) -> String:
 	# a entrada em vez de inventar habilidades/stats para uma classe desconhecida).
 	if ch.has("class_id") and not ClassCatalog.shared().has_class(ch["class_id"]):
 		return "class_id desconhecido"
+	# E6.2: `talents` e opcional (backend antigo/personagem pre-E6.2 = sem talentos); se presente, a FORMA deve ser valida.
+	if ch.has("talents") and not TalentState.shape_error(ch["talents"]).is_empty():
+		return "talents invalido"
 	# E5.1: `quests` e opcional (backend antigo/personagem pre-E5.1 = sem quests); se presente, a FORMA deve ser valida.
 	if ch.has("quests") and not QuestState.shape_error(ch["quests"]).is_empty():
 		return "quests invalido"
@@ -80,6 +83,10 @@ static func apply(loadout: PlayerLoadout, ch: Dictionary) -> void:
 		ServerLog.warn("[state] classe indisponivel; mantendo a classe atual do jogador")
 	loadout.progress.level = int(ch["level"])
 	loadout.progress.total_xp = int(ch["xp"])
+	# E6.2: talentos (estado do BACKEND; restauracao leniente) -> bonus de stats + modificadores de habilidade.
+	for w: String in loadout.talents.restore(ch.get("talents", {}), loadout.talent_tree()):
+		ServerLog.warn("[state] " + w)
+	loadout.apply_talents()
 	var inv: Inventory = loadout.inventory
 	inv.capacity = int(ch.get("inventory_capacity", inv.capacity))
 	inv.restore([] as Array[ItemStack])
@@ -102,7 +109,8 @@ static func apply(loadout: PlayerLoadout, ch: Dictionary) -> void:
 		ServerLog.warn("[state] " + w)
 
 
-## Estado completo para checkpoint (so o servidor decide; nada vem do cliente).
+## Estado completo para checkpoint (so o servidor decide; nada vem do cliente). NAO inclui `talents` (nem `class_id`): os talentos
+## pertencem ao backend e so mudam por comandos validados (/talents); o backend rejeita campo desconhecido no estado.
 static func capture(loadout: PlayerLoadout) -> Dictionary:
 	var b: StatBlock = loadout.base_stats
 	var inventory: Array = []

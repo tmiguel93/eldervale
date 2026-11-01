@@ -25,6 +25,10 @@ signal craft_update_received(kind: int, data: Dictionary)
 signal inventory_update_received(data: Dictionary)
 ## Extensao aditiva E6.1 (classe do personagem, so servidor -> dono). NAO valida o conteudo (Protocol.validate_class_update).
 signal class_update_received(data: Dictionary)
+## Extensao aditiva E6.2 (talentos). `talent_cmd_received` NAO valida o conteudo (Protocol.validate_talent_cmd); `talents_update_received`
+## (so servidor -> dono) tambem nao (Protocol.validate_talents_update).
+signal talent_cmd_received(peer_id: int, req_id: int, op: int, arg: String)
+signal talents_update_received(kind: int, data: Dictionary)
 ## Extensao aditiva E5.7 (snapshot compacto). `caps_received` NAO valida o conteudo (Protocol.validate_caps);
 ## `snapshot_part_received` ja traz tipos basicos conferidos, mas o cabecalho/blob passam por Protocol.validate_snapshot_part.
 signal caps_received(peer_id: int, caps: int)
@@ -139,6 +143,19 @@ func c_craft_cmd(req_id: Variant, recipe_id: Variant) -> void:
 	if r.length() > MAX_STRING:
 		return
 	craft_cmd_received.emit(sender, int(req_id), r)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func c_talent_cmd(req_id: Variant, op: Variant, arg: Variant) -> void:
+	var sender: int = multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or sender == 0:
+		return
+	if typeof(req_id) != TYPE_INT or typeof(op) != TYPE_INT or typeof(arg) != TYPE_STRING:
+		return
+	var a: String = arg
+	if a.length() > MAX_STRING:
+		return
+	talent_cmd_received.emit(sender, int(req_id), int(op), a)
 
 
 @rpc("any_peer", "call_remote", "reliable")
@@ -260,6 +277,15 @@ func s_class(data: Variant) -> void:
 	class_update_received.emit(data as Dictionary)
 
 
+@rpc("authority", "call_remote", "reliable")
+func s_talents(kind: Variant, data: Variant) -> void:
+	if not _from_server():
+		return
+	if typeof(kind) != TYPE_INT or typeof(data) != TYPE_DICTIONARY:
+		return
+	talents_update_received.emit(int(kind), data as Dictionary)
+
+
 # ---------------------------------------------------------------- envio
 
 func _can_send() -> bool:
@@ -334,7 +360,15 @@ func send_craft_cmd(req_id: int, recipe_id: String) -> void:
 	_send(SERVER_PEER_ID, &"c_craft_cmd", [req_id, recipe_id], true)
 
 
+func send_talent_cmd(req_id: int, op: int, arg: String) -> void:
+	_send(SERVER_PEER_ID, &"c_talent_cmd", [req_id, op, arg], true)
+
+
 # Servidor -> cliente
+func send_talents(peer: int, kind: int, data: Dictionary) -> void:
+	_send(peer, &"s_talents", [kind, data], true)
+
+
 func send_craft_update(peer: int, kind: int, data: Dictionary) -> void:
 	_send(peer, &"s_craft", [kind, data], true)
 

@@ -1,0 +1,345 @@
+{
+  "schema_version": 1,
+  "class_id": "ranger",
+  "nodes": [
+    {
+      "id": "r_precision",
+      "name": "Precisao",
+      "description": "+1.2 poder de ataque por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 1.2
+        }
+      ]
+    },
+    {
+      "id": "r_stamina",
+      "name": "Resistencia",
+      "description": "+8 stamina maxima por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "max_resource",
+          "amount": 8
+        }
+      ]
+    },
+    {
+      "id": "r_swift",
+      "name": "Passo leve",
+      "description": "+0.2 velocidade de movimento por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "move_speed",
+          "amount": 0.2
+        }
+      ]
+    },
+    {
+      "id": "r_hide",
+      "name": "Couro curtido",
+      "description": "+8 vida maxima por nivel do talento.",
+      "tier": "small",
+      "spec": "",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "max_health",
+          "amount": 8
+        }
+      ]
+    },
+    {
+      "id": "r_deep_quiver",
+      "name": "Aljava cheia",
+      "description": "Tiro Rapido dispara 1 flecha extra por nivel (50% do dano cada).",
+      "tier": "notable",
+      "spec": "",
+      "requires": [
+        "r_precision"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "quick_shot",
+          "mod": "extra_projectiles",
+          "count": 1,
+          "spread_deg": 10.0,
+          "damage_scale": 0.5
+        }
+      ]
+    },
+    {
+      "id": "r_long_roll",
+      "name": "Rolamento longo",
+      "description": "O Rolamento concede 0.08 s a mais de invulnerabilidade por nivel.",
+      "tier": "notable",
+      "spec": "",
+      "requires": [
+        "r_swift"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "roll",
+          "mod": "duration",
+          "i_frames_add": 0.08
+        }
+      ]
+    },
+    {
+      "id": "h_marksman",
+      "name": "Atirador",
+      "description": "+1.5 poder de ataque por nivel do talento.",
+      "tier": "small",
+      "spec": "hunter",
+      "requires": [
+        "r_precision"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 1.5
+        }
+      ]
+    },
+    {
+      "id": "h_keen_eye",
+      "name": "Olho agil",
+      "description": "+1 regeneracao de stamina por nivel do talento.",
+      "tier": "small",
+      "spec": "hunter",
+      "requires": [],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 1,
+      "max_rank": 3,
+      "effects": [
+        {
+          "type": "stat",
+          "stat": "resource_regen",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "h_kill_shot",
+      "name": "Tiro certeiro",
+      "description": "Flecha Perfurante causa 20% mais dano por nivel com a vida acima de 70%.",
+      "tier": "notable",
+      "spec": "hunter",
+      "requires": [
+        "h_marksman"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "piercing_arrow",
+          "mod": "condition",
+          "when": "self_hp_above",
+          "threshold": 0.7,
+          "damage_pct": 0.2
+        }
+      ]
+    },
+    {
+      "id": "h_volley",
+      "name": "Salva",
+      "description": "Flecha Perfurante dispara 1 flecha extra por nivel (70% do dano cada).",
+      "tier": "notable",
+      "spec": "hunter",
+      "requires": [
+        "h_marksman"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "piercing_arrow",
+          "mod": "extra_projectiles",
+          "count": 1,
+          "spread_deg": 8.0,
+          "damage_scale": 0.7
+        }
+      ]
+    },
+    {
+      "id": "h_wide_rain",
+      "name": "Chuva ampla",
+      "description": "Chuva de Flechas tem 20% mais area por nivel.",
+      "tier": "notable",
+      "spec": "hunter",
+      "requires": [
+        "r_stamina"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "arrow_rain",
+          "mod": "area",
+          "radius_pct": 0.2
+        }
+      ]
+    },
+    {
+      "id": "h_ambush",
+      "name": "Emboscada",
+      "description": "Tiro Rapido causa 40% mais dano por nivel ate 2.5 s depois de um Rolamento.",
+      "tier": "notable",
+      "spec": "hunter",
+      "requires": [
+        "r_long_roll"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "quick_shot",
+          "mod": "synergy",
+          "after_skill": "roll",
+          "window": 2.5,
+          "damage_pct": 0.4
+        }
+      ]
+    },
+    {
+      "id": "h_fire_arrows",
+      "name": "Flechas incendiarias",
+      "description": "Flecha Perfurante passa a causar dano de fogo (+10% de dano).",
+      "tier": "notable",
+      "spec": "hunter",
+      "requires": [
+        "h_marksman"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 1,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "piercing_arrow",
+          "mod": "convert",
+          "to": "fire",
+          "damage_pct": 0.1
+        }
+      ]
+    },
+    {
+      "id": "h_efficient",
+      "name": "Chuva eficiente",
+      "description": "Chuva de Flechas custa 15% menos stamina e recarrega 10% mais rapido por nivel.",
+      "tier": "notable",
+      "spec": "hunter",
+      "requires": [
+        "h_wide_rain",
+        "h_keen_eye"
+      ],
+      "min_points_spent": 0,
+      "min_level": 1,
+      "cost": 2,
+      "max_rank": 2,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "arrow_rain",
+          "mod": "cost",
+          "cost_pct": -0.15,
+          "cooldown_pct": -0.1
+        }
+      ]
+    },
+    {
+      "id": "h_deadeye",
+      "name": "Olho de aguia",
+      "description": "Maestria: Flecha Perfurante +1 flecha e +20% de dano, +3 poder de ataque.",
+      "tier": "mastery",
+      "spec": "hunter",
+      "requires": [
+        "h_volley",
+        "h_ambush"
+      ],
+      "min_points_spent": 12,
+      "min_level": 1,
+      "cost": 5,
+      "max_rank": 1,
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "piercing_arrow",
+          "mod": "extra_projectiles",
+          "count": 1,
+          "spread_deg": 8.0,
+          "damage_scale": 0.7
+        },
+        {
+          "type": "skill_mod",
+          "skill": "piercing_arrow",
+          "mod": "damage",
+          "damage_pct": 0.2
+        },
+        {
+          "type": "stat",
+          "stat": "attack_power",
+          "amount": 3
+        }
+      ]
+    }
+  ]
+}
