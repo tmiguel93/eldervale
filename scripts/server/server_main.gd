@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -90,6 +90,7 @@ func _start() -> void:
 	rpc.ping_received.connect(session.on_ping)
 	rpc.quest_cmd_received.connect(session.on_quest_cmd)
 	rpc.dialogue_cmd_received.connect(session.on_dialogue_cmd)
+	rpc.craft_cmd_received.connect(session.on_craft_cmd)
 	multiplayer.peer_connected.connect(session.on_peer_connected)
 	multiplayer.peer_disconnected.connect(session.on_peer_disconnected)
 
@@ -177,6 +178,10 @@ func _apply_extras(extras: Dictionary) -> void:
 		var w: String = String(extras["world"]).strip_edges()
 		settings.world_id = "" if w == "arena" or w.is_empty() else w
 		print("[server] mundo: %s" % ("arena de teste" if settings.world_id.is_empty() else settings.world_id))
+		settings.individual_loot = not settings.world_id.is_empty() # E5.4: o mundo usa loot individual (arena: legado E3/E4)
+	if extras.has("individual-loot"): # E5.4: --individual-loot 0|1 forca o modo (padrao: ligado so com --world)
+		settings.individual_loot = String(extras["individual-loot"]).strip_edges() in ["1", "true", "on"]
+		print("[server] loot individual: %s" % ("ligado" if settings.individual_loot else "desligado"))
 	if extras.has("hello-timeout") and String(extras["hello-timeout"]).is_valid_float():
 		settings.hello_timeout_sec = clampf(float(extras["hello-timeout"]), 0.5, 600.0)
 

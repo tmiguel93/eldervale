@@ -119,6 +119,9 @@ func validate(npcs: NpcDirectory, areas: AreaSet, quest_area_ids: Array[String] 
 				errs.append("%s: NPC inexistente %s" % [id, n])
 			elif not z.contains((npcs.get_npc(n)["position"] as Vector3), -1.0):
 				errs.append("%s: NPC %s fora da zona" % [id, n])
+		for st: Dictionary in z.stations:
+			if not z.contains(st["pos"] as Vector3, -1.0):
+				errs.append("%s: estacao %s fora da zona" % [id, st["id"]])
 		if not z.puzzle.is_empty():
 			for pl: Dictionary in z.puzzle["plates"]:
 				if not z.contains(pl["pos"] as Vector3, -1.0):
@@ -176,3 +179,12 @@ func _reach(origin: String, reverse: bool) -> Dictionary:
 				elif reverse and String(p["to_zone"]) == cur:
 					stack.append(id)
 	return seen
+
+
+## E5.4: ids de todas as estacoes do mundo (para validar as receitas).
+func station_ids() -> Array[String]:
+	var out: Array[String] = []
+	for zid: String in zone_order:
+		for st: Dictionary in (zones[zid] as ZoneDef).stations:
+			out.append(String(st["id"]))
+	return out

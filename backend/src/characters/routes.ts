@@ -7,6 +7,8 @@ import type { Catalog } from "./catalog.ts";
 import { loadCatalogFromDisk } from "./catalog.ts";
 import { loadCharacterLimits, type CharacterLimits } from "./limits.ts";
 import { loadQuestCatalogFromDisk, type QuestCatalog } from "../quests/catalog.ts";
+import { loadRecipeCatalogFromDisk, type RecipeCatalog } from "../crafting/catalog.ts";
+import { craft } from "../crafting/service.ts";
 import { validateCharacterName, validateClassId, validateRewardRequest, validateState } from "./model.ts";
 import { checkpoint, createCharacter, deleteCharacter, getOwned, grantReward, internalView, listCharacters, loadRecord, publicView, type ServiceCtx } from "./service.ts";
 
@@ -31,16 +33,35 @@ async function assertSessionHoldsLock(db: Db, ctx: { req: Request }, characterId
   if (r.rows.length === 0) throw Errors.conflict("sessao nao detem o lock do personagem", "session_fenced");
 }
 
+const SESSION_UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
+const LOOT_KEY_RE = new RegExp(`^loot:(${SESSION_UUID}):(\\d{1,12}):(${SESSION_UUID})$`, "i");
+const CRAFT_KEY_RE = new RegExp(`^craft:(${SESSION_UUID}):(\\d{1,12}):(${SESSION_UUID})$`, "i");
+
+/**
+ * Chaves reservadas (E5.4): `loot:<session>:<drop_id>:<character_id>` (pickup coletado) e
+ * `craft:<session>:<n>:<character_id>`. A sessao e o personagem da chave TEM de ser os do cabecalho X-Session-Id e
+ * da URL: uma sessao nao consegue "gastar" a chave de outra nem de outro personagem. `loot:` paga exatamente UM
+ * item e nenhum xp; `craft:` so e aceita em /craft.
+ */
+function assertReservedKey(re: RegExp, key: string, ctx: { req: Request }, characterId: string): void {
+  const m = re.exec(key);
+  const sid = (ctx.req.headers.get("x-session-id") ?? "").toLowerCase();
+  if (!m || m[1]!.toLowerCase() !== sid || m[3]!.toLowerCase() !== characterId) {
+    throw Errors.badRequest("idempotency_key reservada nao confere com a sessao/personagem", "invalid_idempotency_key");
+  }
+}
+
 function objectBody(b: unknown): Record<string, unknown> {
   if (typeof b !== "object" || b === null || Array.isArray(b)) throw Errors.badRequest("corpo deve ser um objeto", "invalid_body");
   return b as Record<string, unknown>;
 }
 
 /** `opts` existe para testes; em producao use os padroes (catalogo do disco, limites de env). */
-export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: { catalog?: Catalog; limits?: CharacterLimits; quests?: QuestCatalog } = {}): void {
+export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: { catalog?: Catalog; limits?: CharacterLimits; quests?: QuestCatalog; recipes?: RecipeCatalog } = {}): void {
   const catalog = opts.catalog ?? loadCatalogFromDisk();
   const limits = opts.limits ?? loadCharacterLimits();
   const quests = opts.quests ?? loadQuestCatalogFromDisk(catalog);
+  const recipes = opts.recipes ?? loadRecipeCatalogFromDisk(catalog);
   const { db, requireAuth, requireInternal } = deps;
   const svc = (log: ServiceCtx["log"]): ServiceCtx => ({ catalog, limits, now: deps.now, log, quests });
 
@@ -90,7 +111,28 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
     const id = uuidParam(ctx.params.id);
     await assertSessionHoldsLock(db, ctx, id);
     const req = validateRewardRequest(await ctx.json(), catalog, limits, quests, id);
+    if (req.idempotency_key.startsWith("craft:")) throw Errors.badRequest("prefixo craft: e reservado ao endpoint /craft", "invalid_idempotency_key");
+    if (req.idempotency_key.startsWith("loot:")) {
+      assertReservedKey(LOOT_KEY_RE, req.idempotency_key, ctx, id);
+      if (req.xp !== 0 || req.items.length !== 1 || req.quest_id) throw Errors.badRequest("recompensa loot: paga exatamente um item e nenhum xp", "invalid_reward");
+    }
     const out = await grantReward(db, svc(ctx.log), id, req);
+    return ok({ replayed: out.replayed, result: out.result, character: internalView(out.character, limits) });
+  }));
+
+  router.post("/internal/characters/:id/craft", requireInternal(async (ctx) => {
+    const id = uuidParam(ctx.params.id);
+    await assertSessionHoldsLock(db, ctx, id);
+    const body = objectBody(await ctx.json());
+    for (const k of Object.keys(body)) if (k !== "idempotency_key" && k !== "recipe_id") throw Errors.badRequest(`campo desconhecido "${k.slice(0, 40)}"`, "invalid_body");
+    const key = body.idempotency_key;
+    if (typeof key !== "string" || key.length > 128) throw Errors.badRequest("idempotency_key invalida", "invalid_idempotency_key");
+    assertReservedKey(CRAFT_KEY_RE, key, ctx, id);
+    const rid = body.recipe_id;
+    if (typeof rid !== "string" || !/^[a-z][a-z0-9_]{0,47}$/.test(rid)) throw Errors.badRequest("recipe_id invalido", "invalid_recipe");
+    const recipe = recipes.get(rid);
+    if (!recipe) throw Errors.badRequest("receita desconhecida", "unknown_recipe");
+    const out = await craft(db, svc(ctx.log), id, key, recipe);
     return ok({ replayed: out.replayed, result: out.result, character: internalView(out.character, limits) });
   }));
 }

@@ -34,6 +34,25 @@ var world_id: String = ""
 ## E5.3: interesse por distancia dentro da zona: o snapshot de cada peer so leva inimigos a ate este raio (m)
 ## do jogador dele (jogadores da mesma zona sempre entram). 0 = sem limite (so filtro por zona).
 var aoi_radius: float = 50.0
+## E5.4: LOOT INDIVIDUAL. true = cada participante elegivel rola o proprio loot (pickups com dono, so visiveis e
+## coletaveis por ele) em vez do drop ir direto ao matador. false (padrao) = comportamento E3/E4. O servidor dedicado liga
+## com `--world greenwood` (ou `--individual-loot 1`). Ver docs/E5_LOOT_CRAFTING.md.
+var individual_loot: bool = false
+## Semente PRIVADA do loot (nunca enviada ao cliente; o `session_seed` do welcome e publico). -1 = aleatoria.
+var loot_seed: int = -1
+## Inimigo comum: so rola loot quem causou pelo menos esta fracao da vida maxima dele (o matador sempre rola).
+## Mini-chefe e chefe: qualquer dano > 0 basta.
+var loot_min_share: float = 0.05
+## Pickup nao coletado some depois disso (inclusive quando o inventario esta cheio) e e coletado ao chegar a este raio (m).
+var pickup_ttl_sec: float = 90.0
+var pickup_radius: float = 1.8
+## Maximo de pickups simultaneos por dono (o mais antigo e descartado quando passa).
+var max_pickups_per_player: int = 24
+## E5.4: XP tambem para os demais participantes elegiveis (so no modo individual; adds invocados nao repartem).
+var xp_for_participants: bool = true
+## E5.4: c_craft_cmd: token bucket por peer.
+var craft_rate_per_sec: float = 2.0
+var craft_burst: int = 4
 ## Testes podem desligar os inimigos da arena.
 var spawn_enemies: bool = true
 var spawn_points: Array[Vector3] = [

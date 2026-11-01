@@ -21,6 +21,9 @@
 				{"id": "hub_to_wild", "pos": [27, 0, 0], "radius": 2.5, "to_zone": "zone_wild", "to_spawn": "from_hub", "label": "Trilha da Floresta"}
 			],
 			"npcs": ["npc_elder_orla", "npc_hunter_brannoch", "npc_scholar_ilmar"],
+			"stations": [
+				{"id": "station_greenwood_workbench", "display_name": "Bancada de Greenwood", "pos": [6, 0, -4], "radius": 3.5}
+			],
 			"props": [
 				{"kind": "box", "name": "HutOrla", "pos": [14, 2, -14], "size": [7, 4, 6], "color": "#8a5a3c", "occluder": true},
 				{"kind": "box", "name": "HutBrannoch", "pos": [24, 1.75, 8], "size": [5, 3.5, 5], "color": "#7c5238", "occluder": true},
@@ -28,6 +31,7 @@
 				{"kind": "cylinder", "name": "Well", "pos": [0, 0.6, -6], "radius": 1.2, "height": 1.2, "color": "#8c8c8c"},
 				{"kind": "box", "name": "Plaza", "pos": [0, 0.02, 4], "size": [14, 0.04, 14], "color": "#a89c84", "collide": false},
 				{"kind": "box", "name": "Road", "pos": [14, 0.02, 0], "size": [28, 0.04, 5], "color": "#a89c84", "collide": false},
+				{"kind": "box", "name": "Workbench", "pos": [6, 0.5, -4], "size": [2.4, 1, 1.2], "color": "#7a5c3a"},
 				{"kind": "box", "name": "Crate1", "pos": [18, 0.5, -3.5], "size": [1.2, 1, 1.2], "color": "#9a7b4f"},
 				{"kind": "box", "name": "Crate2", "pos": [-8, 0.5, -2], "size": [1.4, 1, 1], "color": "#9a7b4f"},
 				{"kind": "tree", "name": "Tree1", "pos": [-24, 0, -24]},

@@ -29,9 +29,9 @@ class BRig extends RefCounted:
 
 
 ## Monta mundo + sessao + BackendClient + BackendSync com o backend falso. Registra a sessao.
-static func make(tree: SceneTree, hold: bool = false, max_players: int = 4) -> BRig:
+static func make(tree: SceneTree, hold: bool = false, max_players: int = 4, world_id: String = "") -> BRig:
 	var r: BRig = BRig.new()
-	r.base = H.make_rig(tree, false, max_players, false)
+	r.base = H.make_rig(tree, false, max_players, false, world_id)
 	r.world = r.base.world
 	r.session = r.base.session
 	r.transport = r.base.transport

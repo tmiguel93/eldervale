@@ -1,0 +1,94 @@
+{
+  "schema_version": 1,
+  "source": "data/recipes/*.json (gerado por tools/gen_recipes_catalog.mjs)",
+  "recipes": [
+    {
+      "id": "rcp_amulet_vigor",
+      "station": "station_greenwood_workbench",
+      "ingredients": [
+        {
+          "item_id": "potion_minor",
+          "qty": 2
+        },
+        {
+          "item_id": "scrap_material",
+          "qty": 10
+        }
+      ],
+      "results": [
+        {
+          "item_id": "amulet_vigor",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "id": "rcp_armor_heavy",
+      "station": "station_greenwood_workbench",
+      "ingredients": [
+        {
+          "item_id": "armor_leather",
+          "qty": 1
+        },
+        {
+          "item_id": "scrap_material",
+          "qty": 8
+        }
+      ],
+      "results": [
+        {
+          "item_id": "armor_heavy",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "id": "rcp_armor_leather",
+      "station": "station_greenwood_workbench",
+      "ingredients": [
+        {
+          "item_id": "scrap_material",
+          "qty": 6
+        }
+      ],
+      "results": [
+        {
+          "item_id": "armor_leather",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "id": "rcp_potion_minor",
+      "station": "station_greenwood_workbench",
+      "ingredients": [
+        {
+          "item_id": "scrap_material",
+          "qty": 3
+        }
+      ],
+      "results": [
+        {
+          "item_id": "potion_minor",
+          "qty": 1
+        }
+      ]
+    },
+    {
+      "id": "rcp_sword_basic",
+      "station": "station_greenwood_workbench",
+      "ingredients": [
+        {
+          "item_id": "scrap_material",
+          "qty": 5
+        }
+      ],
+      "results": [
+        {
+          "item_id": "sword_basic",
+          "qty": 1
+        }
+      ]
+    }
+  ]
+}

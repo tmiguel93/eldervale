@@ -33,6 +33,7 @@ class PeerState extends RefCounted:
 	var input_limiter: RateLimiter
 	var ping_limiter: RateLimiter
 	var quest_limiter: RateLimiter
+	var craft_limiter: RateLimiter
 
 
 var settings: ServerSettings
@@ -50,6 +51,8 @@ var _next_token: int = 1
 var _registry: ContentRegistry
 ## E5.1: quests + dialogo (criado em setup; usa o transporte da sessao).
 var quests: QuestService
+## E5.4: crafting (criado em setup).
+var crafting: CraftingService
 
 
 func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: ServerTransport) -> void:
@@ -60,8 +63,14 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	world.event_to_player.connect(_on_event_to_player)
 	world.enemy_killed.connect(_on_enemy_killed)
 	world.player_killed_enemy.connect(_on_player_killed_enemy)
+	world.pickup_collected.connect(_on_pickup_collected)
+	world.participant_rewarded.connect(_on_participant_rewarded)
 	quests = QuestService.new(transport)
 	quests.position_of = _player_position
+	crafting = CraftingService.new(world, transport)
+	crafting.loadout_of = _loadout_of_entity
+	crafting.peer_of = _peer_id_of_entity
+	crafting.character_of = _character_id_of_entity
 	process_physics_priority = 20 # depois de jogadores/inimigos
 
 
@@ -72,6 +81,7 @@ func attach_backend(p_sync: BackendSync) -> void:
 	sync.snapshot_provider = snapshot_character
 	sync.conflict_handler = _on_state_conflict
 	quests.sync = p_sync
+	crafting.sync = p_sync
 
 
 func now_msec() -> int:
@@ -126,6 +136,7 @@ func on_peer_connected(peer_id: int) -> void:
 	p.input_limiter = RateLimiter.new(settings.input_rate_per_sec, settings.input_burst)
 	p.ping_limiter = RateLimiter.new(settings.ping_rate_per_sec, settings.ping_burst)
 	p.quest_limiter = RateLimiter.new(settings.quest_rate_per_sec, settings.quest_burst)
+	p.craft_limiter = RateLimiter.new(settings.craft_rate_per_sec, settings.craft_burst)
 	_peers[peer_id] = p
 	print("[server] peer %d conectou (%d conexoes)" % [peer_id, _peers.size()])
 
@@ -285,6 +296,7 @@ func _complete_join(p: PeerState, entity_id: int) -> void:
 	var join_loadout: PlayerLoadout = _loadout_of(p)
 	if join_loadout != null:
 		quests.attach(entity_id, peer_id, p.character_id, join_loadout)
+	crafting.attach(entity_id)
 	player_joined.emit(peer_id, entity_id)
 
 
@@ -307,6 +319,8 @@ func snapshot_character(character_id: String) -> Dictionary:
 	var loadout: PlayerLoadout = _loadout_of(p)
 	if p == null or not p.welcomed or p.closing or loadout == null:
 		return {}
+	if crafting.is_pending(p.entity_id):
+		return {} # E5.4: craft em voo no backend -> sem autosave (nao persistir estado a desfazer); o proximo ciclo salva
 	return CharacterCodec.capture(loadout)
 
 
@@ -328,6 +342,27 @@ func _on_state_conflict(character_id: String, ch: Dictionary) -> void:
 	ServerLog.warn("[server] estado do personagem %s reaplicado a partir do backend (conflito de revision)" % character_id)
 
 
+func _peer_by_entity(entity_id: int) -> PeerState:
+	for p: PeerState in _peers.values():
+		if p.entity_id == entity_id and p.welcomed and not p.closing:
+			return p
+	return null
+
+
+func _loadout_of_entity(entity_id: int) -> PlayerLoadout:
+	return _loadout_of(_peer_by_entity(entity_id))
+
+
+func _peer_id_of_entity(entity_id: int) -> int:
+	var p: PeerState = _peer_by_entity(entity_id)
+	return p.peer_id if p != null else -1
+
+
+func _character_id_of_entity(entity_id: int) -> String:
+	var p: PeerState = _peer_by_entity(entity_id)
+	return p.character_id if p != null else ""
+
+
 func _player_position(entity_id: int) -> Variant:
 	var node: Player = world.get_player_node(entity_id)
 	return node.global_position if node != null else null
@@ -335,6 +370,27 @@ func _player_position(entity_id: int) -> Variant:
 
 func _on_player_killed_enemy(killer_id: int, _enemy_id: int, enemy_type: String) -> void:
 	quests.on_enemy_killed(killer_id, enemy_type)
+
+
+## E5.4: pickup individual coletado (item JA no inventario em memoria). Quest de coleta + pagamento no backend pelo
+## caminho idempotente de recompensas com chave ESTAVEL por drop: `loot:<sessao>:<pickup_id>:<personagem>`.
+func _on_pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: int) -> void:
+	quests.on_items_gained(owner_id, [{"item_id": item_id, "qty": qty}])
+	var p: PeerState = _peer_by_entity(owner_id)
+	if p == null:
+		return
+	_send_event_to(p, Protocol.EVENT_PICKUP, {"id": pickup_id, "item_id": item_id, "qty": qty})
+	if sync != null and not p.character_id.is_empty():
+		var key: String = "loot:%s:%d:%s" % [sync.session_id, pickup_id, p.character_id]
+		sync.enqueue_reward(p.character_id, key, 0, [{"item_id": item_id, "qty": qty}])
+
+
+## E5.4: XP de participante (nao matador) na morte de um inimigo; mesma chave estavel por evento e personagem.
+func _on_participant_rewarded(enemy_id: int, player_id: int, xp: int) -> void:
+	var p: PeerState = _peer_by_entity(player_id)
+	if sync == null or p == null or p.character_id.is_empty() or xp <= 0:
+		return
+	sync.enqueue_reward(p.character_id, "kill:%s:%d:%s" % [sync.session_id, enemy_id, p.character_id], xp, [])
 
 
 func _on_enemy_killed(enemy_id: int, killer_id: int, xp: int, items: Array) -> void:
@@ -422,6 +478,27 @@ func _quest_peer_ok(peer_id: int) -> PeerState:
 	return p
 
 
+## E5.4: c_craft_cmd. Payload invalido/rate limit contam como abuso; regra de jogo violada vira
+## s_craft(CRAFT_ERROR) sem punir o peer.
+func on_craft_cmd(peer_id: int, req_id: Variant, recipe_id: Variant) -> void:
+	var p: PeerState = _peers.get(peer_id) as PeerState
+	if p == null or p.closing:
+		return
+	if not p.welcomed:
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "comando antes do welcome")
+		return
+	if not p.craft_limiter.allow(now_msec()):
+		p.dropped_rate += 1
+		_count_invalid(p, "rate limit de craft")
+		return
+	var v: Dictionary = Protocol.validate_craft_cmd(req_id, recipe_id)
+	if not bool(v["ok"]):
+		p.dropped_invalid += 1
+		_count_invalid(p, String(v["message"]))
+		return
+	crafting.cmd_craft(p.entity_id, int(v["req_id"]), String(v["recipe_id"]))
+
+
 func on_ping(peer_id: int, client_time_ms: Variant) -> void:
 	var p: PeerState = _peers.get(peer_id) as PeerState
 	if p == null or p.closing or typeof(client_time_ms) != TYPE_INT:
@@ -455,7 +532,12 @@ func send_snapshots() -> void:
 				var node: Player = world.get_player_node(p.entity_id)
 				var center: Vector3 = node.global_position if node != null else Vector3.ZERO
 				entities = world.build_entities_for_zone(world.zone_of_player(p.entity_id), center, settings.aoi_radius)
-			transport.send_snapshot(p.peer_id, world.server_tick, p.last_seq, entities)
+			var mine: Array = entities
+			if settings.individual_loot:
+				# E5.4: SO os pickups do proprio dono entram no snapshot deste peer (nunca os de outro jogador).
+				mine = entities.duplicate()
+				mine.append_array(world.pickup_entities_for(p.entity_id))
+			transport.send_snapshot(p.peer_id, world.server_tick, p.last_seq, mine)
 
 
 func _broadcast_event(kind: int, data: Dictionary) -> void:
@@ -510,6 +592,7 @@ func _drop_peer(peer_id: int, reason: String) -> void:
 				sync.release_character(p.character_id, {}) # lock adquirido mas jogador nunca entrou
 	if p.entity_id != 0:
 		quests.detach(p.entity_id)
+		crafting.detach(p.entity_id)
 		world.remove_player(p.entity_id) # emite player_left para os demais
 		player_left.emit(peer_id, p.entity_id)
 

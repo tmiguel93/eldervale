@@ -35,6 +35,9 @@ static func build_zone(parent: Node, zone: ZoneDef, with_visuals: bool, npcs: Np
 			_add_portal_visual(root, portal)
 	if not zone.puzzle.is_empty():
 		_add_puzzle(root, with_visuals, zone.puzzle)
+	if with_visuals:
+		for st: Dictionary in zone.stations:
+			_add_station_marker(root, st)
 	if with_visuals and npcs != null:
 		for npc_id: String in zone.npcs:
 			if npcs.has_npc(npc_id):
@@ -153,6 +156,27 @@ static func _add_puzzle(root: Node3D, with_visuals: bool, puzzle: Dictionary) ->
 			root.add_child(m)
 	var gate: StaticBody3D = _box(root, with_visuals, "PuzzleGate", puzzle["gate_size"], puzzle["gate_pos"], GATE_COLOR, true)
 	gate.set_meta(GATE_META, gate.collision_layer)
+
+
+## E5.4: marcador visual do ponto de crafting (a bancada fisica e um prop do JSON). Sem colisao.
+static func _add_station_marker(root: Node3D, st: Dictionary) -> void:
+	var holder: Node3D = Node3D.new()
+	holder.name = "Station_%s" % String(st["id"])
+	holder.position = st["pos"]
+	root.add_child(holder)
+	var ring: MeshInstance3D = MeshInstance3D.new()
+	ring.name = "Ring"
+	ring.mesh = _cyl_mesh(float(st["radius"]), 0.05)
+	ring.position = Vector3(0.0, 0.03, 0.0)
+	ring.material_override = _plain(Color(0.85, 0.65, 0.25, 1.0))
+	holder.add_child(ring)
+	var label: Label3D = Label3D.new()
+	label.name = "Label"
+	label.text = String(st["display_name"])
+	label.position = Vector3(0.0, 2.0, 0.0)
+	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	label.pixel_size = 0.01
+	holder.add_child(label)
 
 
 static func _add_npc_marker(root: Node3D, npc: Dictionary) -> void:

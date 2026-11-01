@@ -14,6 +14,11 @@ signal enemy_killed(enemy_id: int, killer_id: int, xp: int, items: Array)
 signal player_killed_enemy(killer_id: int, enemy_id: int, enemy_type: String)
 ## E5.3: evento so para UM jogador (catch-up de zona/puzzle/chefe ao entrar ou trocar de zona).
 signal event_to_player(entity_id: int, kind: int, data: Dictionary)
+## E5.4 (loot individual): o pickup `pickup_id` do jogador `owner_id` foi coletado e o item JA esta no inventario dele
+## (memoria do servidor). A sessao paga o mesmo item no backend (chave `loot:<sessao>:<pickup_id>:<personagem>`).
+signal pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: int)
+## E5.4: `player_id` (nao matador) recebeu `xp` por participar da morte de `enemy_id` (ja somado na memoria do servidor).
+signal participant_rewarded(enemy_id: int, player_id: int, xp: int)
 
 const PLAYER_SCENE_PATH: String = "res://scenes/player/player.tscn"
 ## Nos puramente cosmeticos removidos das instancias do servidor.
@@ -56,6 +61,11 @@ var _difficulty: DifficultyScaling ## E5.2: escala por numero de jogadores (data
 var director: WorldDirector = null
 var _entity_zone: Dictionary = {}   ## entity_id (inimigo) -> zone_id
 var _zone_active: Dictionary = {}   ## zone_id -> havia jogador vivo na zona no ultimo tick
+## E5.4: loot individual. `_contrib`: inimigo -> {jogador: dano acumulado} (nao decai, ao contrario da ameaca);
+## `_add_ids`: inimigos invocados por outros (adds): nao rolam loot nem repartem XP (anti-farm).
+var loot: LootManager
+var _contrib: Dictionary = {}
+var _add_ids: Dictionary = {}
 
 
 func _ready() -> void:
@@ -63,6 +73,11 @@ func _ready() -> void:
 	if settings == null:
 		settings = ServerSettings.new()
 	_difficulty = DifficultyScaling.load_default()
+	loot = LootManager.new(self, settings)
+	loot.alloc_id = _alloc_id
+	var seed_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+	seed_rng.randomize()
+	loot.base_seed = settings.loot_seed if settings.loot_seed >= 0 else seed_rng.randi()
 	if not settings.world_id.is_empty():
 		var def: WorldDef = WorldDef.shared(settings.world_id)
 		var errs: Array[String] = def.validate(NpcDirectory.shared(), AreaSet.shared())
@@ -84,6 +99,52 @@ func _physics_process(delta: float) -> void:
 	apply_inputs()
 	if director != null:
 		director.tick(delta)
+	if settings.individual_loot:
+		step_loot(delta)
+
+
+func _alloc_id() -> int:
+	var id: int = _next_id
+	_next_id += 1
+	return id
+
+
+## E5.4: avanca TTL e auto-coleta dos pickups individuais (testes chamam direto, sem depender de frames).
+func step_loot(delta: float) -> void:
+	for p: LootManager.LootPickup in loot.step(delta):
+		pickup_collected.emit(p.id, p.owner_id, p.item_id, p.qty)
+
+
+## Entidades de snapshot (kind 3) dos pickups DO jogador (nunca os de outro dono).
+func pickup_entities_for(entity_id: int) -> Array:
+	if not settings.individual_loot or loot == null or not _players.has(entity_id):
+		return []
+	var node: Player = get_player_node(entity_id)
+	var center: Vector3 = node.global_position if node != null else Vector3.ZERO
+	return loot.entities_for(entity_id, zone_of_player(entity_id), center, settings.aoi_radius)
+
+
+## E5.4 (crafting): "" = o jogador esta ao alcance da estacao `station_id` na zona em que esta;
+## "no_station" = a zona dele nao tem essa estacao (ou nao ha mundo); "too_far" = tem, mas fora do raio.
+func station_status(entity_id: int, station_id: String) -> String:
+	if director == null:
+		return "no_station"
+	var slot: PlayerSlot = _players.get(entity_id) as PlayerSlot
+	if slot == null or not is_instance_valid(slot.node):
+		return "no_station"
+	var zone: ZoneDef = director.world_def.get_zone(slot.zone_id)
+	if zone == null:
+		return "no_station"
+	var found: bool = false
+	for st: Dictionary in zone.stations:
+		if String(st["id"]) != station_id:
+			continue
+		found = true
+		var sp: Vector3 = st["pos"]
+		var pp: Vector3 = slot.node.global_position
+		if Vector2(pp.x - sp.x, pp.z - sp.z).length() <= float(st["radius"]):
+			return ""
+	return "too_far" if found else "no_station"
 
 
 # ------------------------------------------------------------------ jogadores
@@ -169,6 +230,7 @@ func remove_player(entity_id: int) -> bool:
 		slot.node.queue_free()
 	for enemy: Enemy in _live_enemies():
 		enemy.threat.remove(entity_id)
+	loot.remove_owner(entity_id) # pickups individuais de quem saiu somem (o item nunca foi concedido)
 	event_emitted.emit(Protocol.EVENT_PLAYER_LEFT, {"id": entity_id})
 	refresh_difficulty()
 	return true
@@ -246,6 +308,8 @@ func despawn_enemy(entity_id: int) -> bool:
 	_enemies.erase(entity_id)
 	_entity_zone.erase(entity_id)
 	_last_hit_by.erase(entity_id)
+	_contrib.erase(entity_id)
+	_add_ids.erase(entity_id)
 	return true
 
 
@@ -415,6 +479,7 @@ func _summon_for_enemy(summoner: Enemy, type_id: StringName, count: int) -> Arra
 			continue
 		add.set_origin(pos)
 		add.target = summoner.target
+		_add_ids[eid] = true
 		made.append(add)
 	return made
 
@@ -597,6 +662,10 @@ func _on_damaged(info: DamageInfo, final_amount: float, target_id: int) -> void:
 		var hit_enemy: Enemy = _enemies[target_id] as Enemy
 		if is_instance_valid(hit_enemy):
 			hit_enemy.add_threat(source_id, final_amount)
+		if final_amount > 0.0:
+			var c: Dictionary = _contrib.get(target_id, {})
+			c[source_id] = float(c.get(source_id, 0.0)) + final_amount
+			_contrib[target_id] = c
 	event_emitted.emit(Protocol.EVENT_DAMAGE, {
 		"source_id": source_id, "target_id": target_id,
 		"amount": final_amount, "crit": info.is_critical,
@@ -617,6 +686,9 @@ func _on_enemy_defeated(enemy: Enemy, xp: int, drops: Array[LootDrop], entity_id
 	event_emitted.emit(Protocol.EVENT_DEATH, {"id": entity_id})
 	if director != null:
 		director.on_enemy_defeated(entity_id)
+	if settings.individual_loot:
+		_defeat_individual(enemy, xp, entity_id)
+		return
 	for drop: LootDrop in drops:
 		event_emitted.emit(Protocol.EVENT_DROP, {
 			"pos": enemy.global_position, "item_id": String(drop.item_id), "qty": drop.quantity,
@@ -635,3 +707,34 @@ func _on_enemy_defeated(enemy: Enemy, xp: int, drops: Array[LootDrop], entity_id
 		if qty > 0:
 			items.append({"item_id": String(drop.item_id), "qty": qty})
 	enemy_killed.emit(entity_id, killer_id, xp, items)
+
+
+## E5.4: morte com LOOT INDIVIDUAL. Cada participante elegivel (dano suficiente, vivo, na zona do inimigo) rola o proprio
+## loot com RNG proprio e recebe PICKUPS COM DONO (evento `drop` so para ele); o matador continua recebendo o XP do
+## `Enemy` e os demais participantes recebem o mesmo XP (`xp_for_participants`). Adds invocados nao rolam nem repartem XP.
+## O drop que o `Enemy` rolou sozinho (`defeated.drops`) e IGNORADO neste modo.
+func _defeat_individual(enemy: Enemy, xp: int, entity_id: int) -> void:
+	var killer_id: int = int(_last_hit_by.get(entity_id, 0))
+	_last_hit_by.erase(entity_id)
+	var contrib: Dictionary = _contrib.get(entity_id, {})
+	_contrib.erase(entity_id)
+	var is_add: bool = _add_ids.has(entity_id)
+	_add_ids.erase(entity_id)
+	var zone: String = String(_entity_zone.get(entity_id, ""))
+	var killer: PlayerSlot = _players.get(killer_id) as PlayerSlot
+	if killer != null:
+		player_killed_enemy.emit(killer_id, entity_id, String(enemy.data.id))
+	if not is_add:
+		var max_hp: float = enemy.health.max_health()
+		for pid: int in LootManager.eligible_ids(contrib, max_hp, String(enemy.data.tier), killer_id, settings.loot_min_share):
+			var slot: PlayerSlot = _players.get(pid) as PlayerSlot
+			if slot == null or slot.health.is_dead or slot.zone_id != zone:
+				continue
+			var rolled: Array[LootDrop] = loot.roll_for(enemy.data.loot_table, entity_id, pid)
+			for pk: LootManager.LootPickup in loot.spawn_for(pid, rolled, enemy.global_position, zone):
+				emit_to_player(pid, Protocol.EVENT_DROP, {"pos": pk.pos, "item_id": pk.item_id, "qty": pk.qty, "id": pk.id})
+			if pid != killer_id and settings.xp_for_participants and xp > 0 and slot.loadout != null:
+				slot.loadout.grant_xp(xp)
+				participant_rewarded.emit(entity_id, pid, xp)
+	if killer != null:
+		enemy_killed.emit(entity_id, killer_id, xp, [])

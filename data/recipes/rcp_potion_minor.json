@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "rcp_potion_minor",
+  "station": "station_greenwood_workbench",
+  "name": "Preparar pocao menor",
+  "name_key": "recipe.rcp_potion_minor.name",
+  "ingredients": [{ "item_id": "scrap_material", "qty": 3 }],
+  "results": [{ "item_id": "potion_minor", "qty": 1 }]
+}

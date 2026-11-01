@@ -18,6 +18,8 @@ var claims: Dictionary = {} ## idempotency_key -> true
 var last_session_header: String = ""
 var last_auth: String = ""
 var cancelled: int = 0
+## E5.4: capacidade (entradas) do inventario do backend falso para recompensas `loot:` e crafts.
+var inventory_capacity: int = 24
 
 
 static func err(status: int, code: String) -> Dictionary:
@@ -151,9 +153,20 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 				ch["quests"] = st["quests"].duplicate(true) # E5.1: quests persistem junto do checkpoint
 			ch["revision"] = int(ch["revision"]) + 1
 			return ok({"character": ch})
+		if path.ends_with("/craft"):
+			return _craft(cid, ch, body)
 		if path.ends_with("/rewards"):
 			var key: String = String(body.get("idempotency_key", ""))
 			var replay: bool = claims.has(key)
+			if key.begins_with("loot:"):
+				# E5.4: espelha o backend real: chave loot:<sessao>:<n>:<personagem>, 1 item, sem xp, cabe no inventario.
+				var parts: PackedStringArray = key.split(":")
+				var items_l: Array = body.get("items", [])
+				if parts.size() != 4 or parts[1] != SESSION_ID or parts[2] != str(int(parts[2])) or parts[3] != cid \
+						or int(body.get("xp", 0)) != 0 or items_l.size() != 1:
+					return err(400, "invalid_idempotency_key")
+				if not replay and (ch["inventory"] as Array).size() + 1 > inventory_capacity and not _can_stack(ch, items_l[0] as Dictionary):
+					return err(409, "inventory_full")
 			var quest_id: String = String(body.get("quest_id", ""))
 			if not quest_id.is_empty():
 				# E5.1: espelha o backend real: chave estavel obrigatoria; quest ja concluida (sem replay) = 409.
@@ -176,3 +189,52 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 		if path.ends_with("/release"):
 			return ok({"released": true})
 	return err(404, "not_found")
+
+
+func _can_stack(ch: Dictionary, it: Dictionary) -> bool:
+	for e: Variant in ch["inventory"]:
+		if (e as Dictionary)["item_id"] == it["item_id"] and it["item_id"] in ["potion_minor", "scrap_material"]:
+			return true
+	return false
+
+
+## E5.4: POST /internal/characters/:id/craft do backend FALSO (mesmas regras do real: chave craft:<sessao>:<n>:<char>,
+## replay pela chave, ingredientes so no inventario, inventory_full, 409 sem consumir a chave).
+func _craft(cid: String, ch: Dictionary, body: Dictionary) -> Dictionary:
+	var key: String = String(body.get("idempotency_key", ""))
+	var parts: PackedStringArray = key.split(":")
+	if parts.size() != 4 or parts[0] != "craft" or parts[1] != SESSION_ID or parts[3] != cid:
+		return err(400, "invalid_idempotency_key")
+	var rid: String = String(body.get("recipe_id", ""))
+	var def: RecipeDef = RecipeCatalog.shared().get_recipe(rid)
+	if def == null:
+		return err(400, "unknown_recipe")
+	if claims.has(key):
+		if claims[key] != rid:
+			return err(409, "idempotency_key_reuse")
+		return ok({"replayed": true, "result": {"recipe_id": rid}, "character": ch})
+	var inv: Array = ch["inventory"]
+	var work: Array = inv.duplicate(true)
+	for s: Dictionary in def.ingredients:
+		var left: int = int(s["qty"])
+		var i: int = work.size() - 1
+		while i >= 0 and left > 0:
+			if work[i]["item_id"] == s["item_id"]:
+				var take: int = mini(int(work[i]["qty"]), left)
+				work[i]["qty"] = int(work[i]["qty"]) - take
+				left -= take
+				if int(work[i]["qty"]) == 0:
+					work.remove_at(i)
+			i -= 1
+		if left > 0:
+			return err(409, "insufficient_ingredients")
+	for r: Dictionary in def.results:
+		work.append({"slot": work.size(), "item_id": r["item_id"], "qty": r["qty"]})
+	if work.size() > inventory_capacity:
+		return err(409, "inventory_full")
+	for k: int in work.size():
+		work[k]["slot"] = k
+	ch["inventory"] = work
+	claims[key] = rid
+	ch["revision"] = int(ch["revision"]) + 1
+	return ok({"replayed": false, "result": {"recipe_id": rid}, "character": ch})

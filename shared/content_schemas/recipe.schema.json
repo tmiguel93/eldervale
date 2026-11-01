@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "eldervale/recipe.schema.json",
+  "title": "Receita de crafting (data/recipes/<id>.json) - E5.4",
+  "description": "Receita data-driven do ponto de crafting. Usa SOMENTE ids do catalogo de itens (shared/content_schemas/items.json) e uma estacao declarada em data/areas/world/*_world.json (zones[].stations[].id). O catalogo derivado shared/content_schemas/recipes.json e gerado por tools/gen_recipes_catalog.mjs (que tambem confere as regras que o schema nao expressa: itens/estacao existentes, ingredientes distintos dos resultados, nome do arquivo = id).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "id", "station", "name", "name_key", "ingredients", "results"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
+    "station": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,47}$" },
+    "name": { "type": "string", "minLength": 1, "maxLength": 80 },
+    "name_key": { "type": "string", "minLength": 1, "maxLength": 96 },
+    "ingredients": { "type": "array", "minItems": 1, "maxItems": 4, "items": { "$ref": "#/$defs/stack" } },
+    "results": { "type": "array", "minItems": 1, "maxItems": 2, "items": { "$ref": "#/$defs/stack" } }
+  },
+  "$defs": {
+    "stack": {
+      "type": "object", "additionalProperties": false, "required": ["item_id", "qty"],
+      "properties": { "item_id": { "type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$" }, "qty": { "type": "integer", "minimum": 1, "maximum": 99 } }
+    }
+  }
+}

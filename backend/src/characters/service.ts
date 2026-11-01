@@ -99,7 +99,7 @@ async function replaceEquipment(db: Db, id: string, eq: Equipment): Promise<void
 }
 
 /** Persiste o estado e incrementa a revision (a linha deve estar travada/validada pelo chamador). */
-async function writeState(db: Db, ctx: ServiceCtx, id: string, expectedRevision: number, s: CharacterState): Promise<number> {
+export async function writeState(db: Db, ctx: ServiceCtx, id: string, expectedRevision: number, s: CharacterState): Promise<number> {
   const r = await db.query<{ revision: string | number }>(
     `UPDATE characters SET level = $3, xp = $4, stats = $5::jsonb, schema_version = $6, revision = revision + 1, updated_at = $7, quests = $8::jsonb
      WHERE id = $1 AND revision = $2 AND deleted_at IS NULL RETURNING revision`,

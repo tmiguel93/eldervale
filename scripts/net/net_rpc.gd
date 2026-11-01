@@ -18,6 +18,9 @@ signal quest_cmd_received(peer_id: int, req_id: int, op: int, quest_id: String)
 signal dialogue_cmd_received(peer_id: int, req_id: int, op: int, npc_id: String, choice: int)
 signal quest_update_received(kind: int, data: Dictionary)
 signal dialogue_received(kind: int, data: Dictionary)
+## Extensao aditiva E5.4 (crafting). `craft_cmd_received` NAO valida o conteudo (Protocol.validate_craft_cmd).
+signal craft_cmd_received(peer_id: int, req_id: int, recipe_id: String)
+signal craft_update_received(kind: int, data: Dictionary)
 
 const NODE_NAME: String = "NetRpc"
 const SERVER_PEER_ID: int = 1
@@ -117,6 +120,19 @@ func c_dialogue_cmd(req_id: Variant, op: Variant, npc_id: Variant, choice: Varia
 	dialogue_cmd_received.emit(sender, int(req_id), int(op), n, int(choice))
 
 
+@rpc("any_peer", "call_remote", "reliable")
+func c_craft_cmd(req_id: Variant, recipe_id: Variant) -> void:
+	var sender: int = multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or sender == 0:
+		return
+	if typeof(req_id) != TYPE_INT or typeof(recipe_id) != TYPE_STRING:
+		return
+	var r: String = recipe_id
+	if r.length() > MAX_STRING:
+		return
+	craft_cmd_received.emit(sender, int(req_id), r)
+
+
 # ---------------------------------------------------------------- recepcao (S -> C)
 
 func _from_server() -> bool:
@@ -190,6 +206,15 @@ func s_dialogue(kind: Variant, data: Variant) -> void:
 	dialogue_received.emit(int(kind), data as Dictionary)
 
 
+@rpc("authority", "call_remote", "reliable")
+func s_craft(kind: Variant, data: Variant) -> void:
+	if not _from_server():
+		return
+	if typeof(kind) != TYPE_INT or typeof(data) != TYPE_DICTIONARY:
+		return
+	craft_update_received.emit(int(kind), data as Dictionary)
+
+
 # ---------------------------------------------------------------- envio
 
 func _can_send() -> bool:
@@ -250,7 +275,15 @@ func send_dialogue_cmd(req_id: int, op: int, npc_id: String, choice: int) -> voi
 	_send(SERVER_PEER_ID, &"c_dialogue_cmd", [req_id, op, npc_id, choice], true)
 
 
+func send_craft_cmd(req_id: int, recipe_id: String) -> void:
+	_send(SERVER_PEER_ID, &"c_craft_cmd", [req_id, recipe_id], true)
+
+
 # Servidor -> cliente
+func send_craft_update(peer: int, kind: int, data: Dictionary) -> void:
+	_send(peer, &"s_craft", [kind, data], true)
+
+
 func send_quest_update(peer: int, kind: int, data: Dictionary) -> void:
 	_send(peer, &"s_quest", [kind, data], true)
 

@@ -41,6 +41,10 @@ var send_ping: Callable
 ## E5.1: send_quest_cmd(req_id:int, op:int, quest_id:String); send_dialogue_cmd(req_id:int, op:int, npc_id:String, choice:int).
 var send_quest_cmd: Callable
 var send_dialogue_cmd: Callable
+## E5.4: send_craft_cmd(req_id:int, recipe_id:String). O resultado chega em `craft_finished` (o servidor decide tudo).
+var send_craft_cmd: Callable
+signal craft_finished(ok: bool, data: Dictionary)
+var crafts_rejected: int = 0
 
 ## E5.1: espelho do diario de quests e do dialogo atual (somente leitura; a UI escuta os sinais).
 signal dialogue_changed(view: Dictionary)   ## view vazio = dialogo encerrado
@@ -241,6 +245,25 @@ func on_dialogue(kind: int, data: Dictionary) -> void:
 			dialogue_changed.emit(dialogue_view)
 		Protocol.DIALOGUE_ERROR:
 			dialogue_error.emit(int(data.get("req_id", 0)), int(data.get("op", 0)), String(data.get("code", "")).substr(0, 48))
+
+
+## s_craft do servidor (so aceito em PLAYING; malformado e descartado e contado).
+func on_craft_update(kind: int, data: Dictionary) -> void:
+	if state != State.PLAYING:
+		return
+	if not Protocol.validate_craft_update(kind, data):
+		crafts_rejected += 1
+		return
+	craft_finished.emit(kind == Protocol.CRAFT_OK, data)
+
+
+## Pede para fabricar `recipe_id` (precisa estar perto da estacao; o servidor valida). Devolve o req_id (-1 se nao enviou).
+func craft(recipe_id: String) -> int:
+	if state != State.PLAYING or not send_craft_cmd.is_valid() or not Protocol.is_content_id(recipe_id):
+		return -1
+	var r: int = _next_req()
+	send_craft_cmd.call(r, recipe_id)
+	return r
 
 
 func _next_req() -> int:

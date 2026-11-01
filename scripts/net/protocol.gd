@@ -53,6 +53,19 @@ const MAX_PLATES: int = 8
 
 const KIND_PLAYER: int = 1
 const KIND_ENEMY: int = 2
+## E5.4 (aditivo, VERSION continua 2): pickup de loot INDIVIDUAL. So existe no snapshot do DONO: o servidor nunca
+## envia pickups alheios. Campos: type = item_id, qty = quantidade (hp/max_hp/state/yaw sempre 0).
+const KIND_PICKUP: int = 3
+const MAX_PICKUP_QTY: int = 999
+
+## E5.4 (aditivo): 12 pickup `{id, item_id, qty}` (so para o dono): o pickup `id` foi coletado e o item entrou no inventario.
+## O evento 6 (drop) ganha o campo OPCIONAL `id` (id do pickup) e, no modo de loot individual, tambem so vai ao dono.
+const EVENT_PICKUP: int = 12
+
+## E5.4 (aditivo): crafting. c_craft_cmd(req_id, recipe_id) / s_craft(kind, data).
+const CRAFT_OK: int = 1      ## {req_id, recipe_id, results:[{item_id, qty}]}
+const CRAFT_ERROR: int = 2   ## {req_id, recipe_id, code}
+const MAX_CRAFT_RESULTS: int = 4
 
 ## Extensao aditiva E5.1 (quests + dialogo; VERSION continua 2, ver network_protocol.md "Revisao E5.1").
 ## c_quest_cmd: ops de quest. c_dialogue_cmd: ops de dialogo.
@@ -249,7 +262,7 @@ static func validate_entity_dict(d: Variant) -> bool:
 	if typeof(e["id"]) != TYPE_INT or typeof(e["kind"]) != TYPE_INT or typeof(e["state"]) != TYPE_INT:
 		return false
 	var kind: int = e["kind"]
-	if kind != KIND_PLAYER and kind != KIND_ENEMY:
+	if kind != KIND_PLAYER and kind != KIND_ENEMY and kind != KIND_PICKUP:
 		return false
 	if typeof(e["pos"]) != TYPE_VECTOR3 or not _vec3_finite(e["pos"]):
 		return false
@@ -264,6 +277,10 @@ static func validate_entity_dict(d: Variant) -> bool:
 		return false
 	if e.has("atk") and (typeof(e["atk"]) != TYPE_STRING or (e["atk"] as String).length() > MAX_TYPE_LEN):
 		return false
+	# E5.4: pickup individual: `type` e um id de item e `qty` (obrigatorio) esta em 1..MAX_PICKUP_QTY.
+	if kind == KIND_PICKUP:
+		if not is_content_id(e["type"]) or typeof(e.get("qty", null)) != TYPE_INT or int(e["qty"]) < 1 or int(e["qty"]) > MAX_PICKUP_QTY:
+			return false
 	return true
 
 
@@ -315,9 +332,66 @@ static func validate_boss_event(d: Variant) -> bool:
 		and typeof(state) == TYPE_INT and int(state) >= BOSS_ARMED and int(state) <= BOSS_DEFEATED
 
 
+## E5.4: evento 6 (drop) `{pos, item_id, qty, id?}`. `id` (opcional) e o id do pickup individual.
+static func validate_drop_event(d: Variant) -> bool:
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	if typeof(e.get("pos", null)) != TYPE_VECTOR3 or not _vec3_finite(e["pos"]) or not is_content_id(e.get("item_id", null)):
+		return false
+	var q: Variant = e.get("qty", null)
+	if typeof(q) != TYPE_INT or int(q) < 1 or int(q) > MAX_PICKUP_QTY:
+		return false
+	return not e.has("id") or typeof(e["id"]) == TYPE_INT
+
+
+## E5.4: evento 12 (pickup coletado) `{id, item_id, qty}`.
+static func validate_pickup_event(d: Variant) -> bool:
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	var q: Variant = e.get("qty", null)
+	return typeof(e.get("id", null)) == TYPE_INT and is_content_id(e.get("item_id", null)) \
+		and typeof(q) == TYPE_INT and int(q) >= 1 and int(q) <= MAX_PICKUP_QTY
+
+
+## E5.4: c_craft_cmd(req_id, recipe_id). Retorna {ok, code, message, req_id, recipe_id}. Invalido = abuso.
+static func validate_craft_cmd(req_id: Variant, recipe_id: Variant) -> Dictionary:
+	if not _valid_req_id(req_id):
+		return _fail(REJECT_INVALID_PAYLOAD, "req_id invalido no comando de crafting")
+	if not is_content_id(recipe_id):
+		return _fail(REJECT_INVALID_PAYLOAD, "recipe_id invalido")
+	return _ok({"req_id": int(req_id), "recipe_id": String(recipe_id)})
+
+
+## E5.4: s_craft(kind, data) vindo do fio (o cliente descarta o que falhar).
+static func validate_craft_update(kind: Variant, d: Variant) -> bool:
+	if typeof(kind) != TYPE_INT or typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	if typeof(e.get("req_id", null)) != TYPE_INT or not is_content_id(e.get("recipe_id", null)):
+		return false
+	if int(kind) == CRAFT_ERROR:
+		return typeof(e.get("code", null)) == TYPE_STRING and (e["code"] as String).length() <= MAX_TYPE_LEN
+	if int(kind) != CRAFT_OK:
+		return false
+	var res: Variant = e.get("results", null)
+	if typeof(res) != TYPE_ARRAY or (res as Array).is_empty() or (res as Array).size() > MAX_CRAFT_RESULTS:
+		return false
+	for r: Variant in res:
+		if typeof(r) != TYPE_DICTIONARY or not is_content_id((r as Dictionary).get("item_id", null)):
+			return false
+		var q: Variant = (r as Dictionary).get("qty", null)
+		if typeof(q) != TYPE_INT or int(q) < 1 or int(q) > MAX_PICKUP_QTY:
+			return false
+	return true
+
+
 ## Valida um evento pelo `kind` (kinds sem validador especifico passam: sao tratados como antes).
 static func validate_world_event(kind: int, d: Variant) -> bool:
 	match kind:
+		EVENT_DROP: return validate_drop_event(d)
+		EVENT_PICKUP: return validate_pickup_event(d)
 		EVENT_ZONE: return validate_zone_event(d)
 		EVENT_PUZZLE: return validate_puzzle_event(d)
 		EVENT_RESPAWN: return validate_respawn_event(d)

@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "rcp_armor_leather",
+  "station": "station_greenwood_workbench",
+  "name": "Costurar armadura de couro",
+  "name_key": "recipe.rcp_armor_leather.name",
+  "ingredients": [{ "item_id": "scrap_material", "qty": 6 }],
+  "results": [{ "item_id": "armor_leather", "qty": 1 }]
+}

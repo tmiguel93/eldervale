@@ -113,6 +113,19 @@ func _create_avatar(id: int, s: Dictionary) -> Node3D:
 			if edata.visual_color.a > 0.0:
 				mat.albedo_color = Color(edata.visual_color.r, edata.visual_color.g, edata.visual_color.b, 1.0)
 			vis.scale = Vector3.ONE * edata.visual_scale
+	elif int(s["kind"]) == Protocol.KIND_PICKUP:
+		# E5.4: pickup individual (so existe no snapshot do dono). Placeholder: caixinha dourada + nome do item.
+		var pm: BoxMesh = BoxMesh.new()
+		pm.size = Vector3(0.4, 0.4, 0.4)
+		body.mesh = pm
+		body.position.y = 0.3
+		mat.albedo_color = Color(1.0, 0.85, 0.2)
+		var tag: Label3D = Label3D.new()
+		tag.text = String(s["type"]) if int(s.get("qty", 1)) <= 1 else "%s x%d" % [String(s["type"]), int(s.get("qty", 1))]
+		tag.position = Vector3(0.0, 0.9, 0.0)
+		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+		tag.pixel_size = 0.008
+		root.add_child(tag)
 	else:
 		var cm: CapsuleMesh = CapsuleMesh.new()
 		cm.radius = 0.4

@@ -250,6 +250,24 @@ func enqueue_reward(character_id: String, idempotency_key: String, xp: int, item
 	return true
 
 
+## E5.4: crafting. cb({ok, status, code, replayed}) quando a operacao termina (a fila e a mesma dos checkpoints/recompensas).
+func enqueue_craft(character_id: String, idempotency_key: String, recipe_id: String, cb: Callable) -> bool:
+	var cs: CharSync = char_sync(character_id)
+	if cs == null:
+		return false
+	_enqueue(cs, {"kind": "craft", "key": idempotency_key, "recipe_id": recipe_id, "cb": cb})
+	return true
+
+
+## E5.4: recarrega o personagem do banco (na ordem da fila) e reaplica na memoria via `conflict_handler`.
+func enqueue_reload(character_id: String) -> bool:
+	var cs: CharSync = char_sync(character_id)
+	if cs == null:
+		return false
+	_enqueue(cs, {"kind": "reload"})
+	return true
+
+
 ## Desconexao do peer: checkpoint final + POST disconnect (lock mantido pela janela de reconexao).
 func disconnect_character(character_id: String, final_state: Dictionary) -> void:
 	var cs: CharSync = char_sync(character_id)
@@ -306,6 +324,10 @@ func _pump(cs: CharSync) -> void:
 			client.checkpoint(cid, cs.revision, op["state"], _op_checkpoint_done.bind(cs, op))
 		"reward":
 			client.rewards(cid, String(op["key"]), int(op["xp"]), op["items"], _op_reward_done.bind(cs, op), String(op.get("quest_id", "")))
+		"craft":
+			client.craft(cid, String(op["key"]), String(op["recipe_id"]), _op_craft_done.bind(cs, op))
+		"reload":
+			client.get_character(cid, _op_conflict_reloaded.bind(cs))
 		"disconnect":
 			if session_id.is_empty():
 				_op_finish(cs)
@@ -374,6 +396,19 @@ func _op_reward_done(r: Dictionary, cs: CharSync, op: Dictionary) -> void:
 			ServerLog.info("[sync] recompensa %s ja aplicada (replay)" % String(op["key"]))
 	else:
 		ServerLog.warn("[sync] recompensa %s falhou de forma permanente (status %d, %s); estado em memoria mantido" % [String(op["key"]), int(r["status"]), String(r["code"])])
+	_op_finish(cs)
+
+
+func _op_craft_done(r: Dictionary, cs: CharSync, op: Dictionary) -> void:
+	if r["ok"]:
+		_adopt_revision(cs, r["data"])
+		if bool(r["data"].get("replayed", false)):
+			ServerLog.info("[sync] craft %s ja aplicado (replay)" % String(op["key"]))
+	else:
+		ServerLog.warn("[sync] craft %s recusado/falhou (status %d, %s)" % [String(op["key"]), int(r["status"]), String(r["code"])])
+	var cb: Callable = op["cb"]
+	if cb.is_valid():
+		cb.call({"ok": r["ok"], "status": r["status"], "code": r["code"], "replayed": bool(r["data"].get("replayed", false)) if r["ok"] else false})
 	_op_finish(cs)
 
 

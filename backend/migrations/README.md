@@ -54,3 +54,9 @@ e a recompensa NAO duplicaria (a chave idempotente e a mesma), mas o jogador nao
 Toda migracao nova deve acrescentar aqui sua secao: SQL de desfazer (preferir mudancas
 aditivas/expand-contract: adicionar coluna nullable -> backfill -> restringir), impacto em dados,
 e se o rollback e destrutivo (exige backup).
+
+### E5.4 (loot individual + crafting): sem migracao
+Nao ha migracao 0004. Os itens coletados e os crafts reutilizam `reward_claims` (chaves `loot:...` e `craft:...`
+em `idempotency_key`, ja `UNIQUE` por personagem) e as tabelas `character_inventory`/`characters` existentes.
+Nada a desfazer em rollback de schema; para reverter o codigo basta o deploy anterior (chaves `craft:`/`loot:`
+ja gravadas em `reward_claims` ficam inertes).

@@ -15,6 +15,18 @@ class RecordingTransport extends ServerTransport:
 	## E5.1: mensagens de quest/dialogo gravadas ({peer, kind, data}).
 	var quest_updates: Array[Dictionary] = []
 	var dialogues: Array[Dictionary] = []
+	## E5.4: respostas de crafting gravadas ({peer, kind, data}).
+	var craft_updates: Array[Dictionary] = []
+
+	func send_craft_update(peer_id: int, kind: int, data: Dictionary) -> void:
+		craft_updates.append({"peer": peer_id, "kind": kind, "data": data})
+
+	func craft_msgs(peer_id: int, kind: int) -> Array[Dictionary]:
+		var out: Array[Dictionary] = []
+		for u: Dictionary in craft_updates:
+			if int(u["peer"]) == peer_id and int(u["kind"]) == kind:
+				out.append(u["data"])
+		return out
 
 	func send_quest_update(peer_id: int, kind: int, data: Dictionary) -> void:
 		quest_updates.append({"peer": peer_id, "kind": kind, "data": data})

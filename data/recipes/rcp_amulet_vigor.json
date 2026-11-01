@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "rcp_amulet_vigor",
+  "station": "station_greenwood_workbench",
+  "name": "Montar amuleto de vigor",
+  "name_key": "recipe.rcp_amulet_vigor.name",
+  "ingredients": [{ "item_id": "potion_minor", "qty": 2 }, { "item_id": "scrap_material", "qty": 10 }],
+  "results": [{ "item_id": "amulet_vigor", "qty": 1 }]
+}

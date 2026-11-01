@@ -129,6 +129,11 @@ func rewards(character_id: String, idempotency_key: String, xp: int, items: Arra
 	_request("POST", "/internal/characters/%s/rewards" % _id(character_id), body, true, cb)
 
 
+## E5.4: crafting atomico/idempotente. Retry sempre com a MESMA chave (`craft:<sessao>:<n>:<personagem>`).
+func craft(character_id: String, idempotency_key: String, recipe_id: String, cb: Callable) -> void:
+	_request("POST", "/internal/characters/%s/craft" % _id(character_id), {"idempotency_key": idempotency_key, "recipe_id": recipe_id}, true, cb)
+
+
 func disconnect_character(character_id: String, session_id: String, cb: Callable) -> void:
 	_request("POST", "/internal/characters/%s/disconnect" % _id(character_id), {"session_id": session_id}, true, cb)
 
@@ -167,7 +172,7 @@ func _dispatch(ctx: Dictionary) -> void:
 		"Authorization: Bearer " + _secret, "Accept: application/json",
 	])
 	var path_s: String = String(ctx["path"])
-	if not fencing_session_id.is_empty() and (path_s.ends_with("/checkpoint") or path_s.ends_with("/rewards")):
+	if not fencing_session_id.is_empty() and (path_s.ends_with("/checkpoint") or path_s.ends_with("/rewards") or path_s.ends_with("/craft")):
 		headers.append("X-Session-Id: " + fencing_session_id)
 	var payload: String = ""
 	if ctx["body"] != null:

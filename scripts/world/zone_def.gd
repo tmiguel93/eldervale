@@ -8,6 +8,7 @@ const MAX_SIZE: float = 400.0
 const MAX_PROPS: int = 200
 const MAX_ENEMIES: int = 60
 const MAX_PLATES: int = 4
+const MAX_STATIONS: int = 4
 
 var id: String = ""
 var display_name: String = ""
@@ -21,6 +22,8 @@ var spawns: Dictionary = {}          ## nome -> Array[Vector3]
 var checkpoint: String = ""          ## nome de `spawns` usado no respawn
 var portals: Array[Dictionary] = []  ## {id, pos:Vector3, radius, to_zone, to_spawn, label}
 var npcs: Array[String] = []
+## E5.4: pontos de crafting {id, display_name, pos:Vector3, radius}. O servidor so aceita crafting a ate `radius` m (plano XZ).
+var stations: Array[Dictionary] = []
 var props: Array[Dictionary] = []    ## {kind, name, pos, ... , color:Color, occluder, collide}
 var enemies: Array[Dictionary] = []  ## {type:StringName, pos:Vector3}
 ## {} = sem puzzle. {id, plates:[{pos:Vector3, radius}], latch_time, gate_pos:Vector3, gate_size:Vector3}
@@ -62,6 +65,8 @@ func parse(raw: Variant) -> String:
 		err = _parse_puzzle(d)
 	if err.is_empty():
 		err = _parse_encounter(d)
+	if err.is_empty():
+		err = _parse_stations(d)
 	if err.is_empty():
 		var ns: Variant = d.get("npcs", [])
 		if typeof(ns) != TYPE_ARRAY:
@@ -218,6 +223,25 @@ func _parse_puzzle(d: Dictionary) -> String:
 	if not Protocol.is_finite_number(latch) or float(latch) < 0.0 or float(latch) > 120.0 or gp == null or gs == null:
 		return "%s: puzzle invalido (latch_time/gate)" % id
 	puzzle = {"id": String(pd["id"]), "plates": plates, "latch_time": float(latch), "gate_pos": gp, "gate_size": gs}
+	return ""
+
+
+func _parse_stations(d: Dictionary) -> String:
+	var ss: Variant = d.get("stations", [])
+	if typeof(ss) != TYPE_ARRAY or (ss as Array).size() > MAX_STATIONS:
+		return "%s: stations invalido (max %d)" % [id, MAX_STATIONS]
+	for raw: Variant in ss:
+		if typeof(raw) != TYPE_DICTIONARY:
+			return "%s: estacao invalida" % id
+		var st: Dictionary = raw
+		var pos: Variant = _vec3(st.get("pos", null))
+		var radius: Variant = st.get("radius", null)
+		if not Protocol.is_content_id(st.get("id", null)) or pos == null or not Protocol.is_finite_number(radius) or float(radius) < 1.0 or float(radius) > 10.0:
+			return "%s: estacao invalida (id/pos/radius 1..10)" % id
+		for other: Dictionary in stations:
+			if String(other["id"]) == String(st["id"]):
+				return "%s: estacao duplicada %s" % [id, String(st["id"])]
+		stations.append({"id": String(st["id"]), "display_name": String(st.get("display_name", st["id"])), "pos": pos, "radius": float(radius)})
 	return ""
 
 

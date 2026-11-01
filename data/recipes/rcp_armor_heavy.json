@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "rcp_armor_heavy",
+  "station": "station_greenwood_workbench",
+  "name": "Reforcar armadura pesada",
+  "name_key": "recipe.rcp_armor_heavy.name",
+  "ingredients": [{ "item_id": "armor_leather", "qty": 1 }, { "item_id": "scrap_material", "qty": 8 }],
+  "results": [{ "item_id": "armor_heavy", "qty": 1 }]
+}

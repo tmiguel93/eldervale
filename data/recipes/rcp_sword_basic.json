@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "id": "rcp_sword_basic",
+  "station": "station_greenwood_workbench",
+  "name": "Forjar espada simples",
+  "name_key": "recipe.rcp_sword_basic.name",
+  "ingredients": [{ "item_id": "scrap_material", "qty": 5 }],
+  "results": [{ "item_id": "sword_basic", "qty": 1 }]
+}

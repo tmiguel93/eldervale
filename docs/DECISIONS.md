@@ -87,3 +87,14 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Escolha provisória:** (a) zonas ligadas por portais; (b) mesmo espaço físico com zonas a >= 20 m umas das outras (centros 0/200/400 m), pertencimento por jogador/inimigo; hub sempre carregado, demais sob demanda e descarregadas após 12 s vazias; (c) `--world greenwood` opt-in, padrão arena; (d) eventos 8..11 aditivos e snapshots filtrados por zona + raio de 50 m.
 - **Consequências:** nenhum RPC novo; arena e testes antigos intactos; puzzle/chefe reiniciam ao descarregar (sem softlock); jogadores de outras zonas não aparecem nos snapshots. Trocar o padrão para o mundo é uma linha em `server_main.gd`.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0008 — Loot individual opt-in e crafting com otimismo + desfazer, sem nova migracao (E5.4)
+- **Data:** 2026-10-31
+- **Status:** PROPOSTA — aguarda revisão humana (economia, contrato de rede e persistência)
+- **Contexto:** E5.4 exige loot por participante, visível só ao dono, coleta idempotente, e crafting server-side atômico.
+- **Opções consideradas:** (a) loot individual como padrão vs opt-in; (b) semente pública (`session_seed`) vs privada; (c) craft só após resposta do backend vs otimista com desfazer; (d) nova tabela vs reuso de `reward_claims`.
+- **Escolha provisória:** (a) opt-in (`individual_loot`, ligado em `--world` não-arena) para não alterar o comportamento do E2–E4; (b) semente-base privada por servidor (`loot_seed` ou aleatória), RNG por (inimigo, jogador) injetável; (c) o servidor aplica na memória, bloqueia o autosave daquele personagem e enfileira `POST /craft` na fila serializada; recusa definitiva desfaz, resultado desconhecido recarrega do banco; (d) reuso de `reward_claims` (sem migração 0004).
+- **Consequências:** sem novos RPCs de coleta; XP passa a ser dado a todo participante elegível no modo individual (antes era só do matador); adds invocados não dão loot/XP no modo individual. Risco residual: desconexão com craft em voo que depois falha deixa o checkpoint final com estado otimista (ver docs/E5_LOOT_CRAFTING.md).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
