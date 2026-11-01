@@ -21,6 +21,8 @@ signal dialogue_received(kind: int, data: Dictionary)
 ## Extensao aditiva E5.4 (crafting). `craft_cmd_received` NAO valida o conteudo (Protocol.validate_craft_cmd).
 signal craft_cmd_received(peer_id: int, req_id: int, recipe_id: String)
 signal craft_update_received(kind: int, data: Dictionary)
+## Extensao aditiva E5.6 (inventario sincronizado, so servidor -> dono). NAO valida o conteudo (Protocol.validate_inventory_update).
+signal inventory_update_received(data: Dictionary)
 
 const NODE_NAME: String = "NetRpc"
 const SERVER_PEER_ID: int = 1
@@ -215,6 +217,15 @@ func s_craft(kind: Variant, data: Variant) -> void:
 	craft_update_received.emit(int(kind), data as Dictionary)
 
 
+@rpc("authority", "call_remote", "reliable")
+func s_inventory(data: Variant) -> void:
+	if not _from_server():
+		return
+	if typeof(data) != TYPE_DICTIONARY:
+		return
+	inventory_update_received.emit(data as Dictionary)
+
+
 # ---------------------------------------------------------------- envio
 
 func _can_send() -> bool:
@@ -238,6 +249,12 @@ func _deliver(peer: int, method: StringName, args: Array) -> void:
 	# Peer pode ter desconectado durante o atraso simulado: descarta em vez de gerar erro.
 	if peer != 0 and multiplayer.is_server() and not multiplayer.get_peers().has(peer):
 		return
+	# E5.6: varios clientes saindo no mesmo instante — o ENet ja fechou o peer, mas o sinal de desconexao ainda nao foi
+	# processado (get_peers() o inclui). Enviar entao gera "Unable to send packet on channel 0" (ERROR do motor).
+	if peer != 0 and multiplayer.is_server() and multiplayer.multiplayer_peer is ENetMultiplayerPeer:
+		var ep: ENetPacketPeer = (multiplayer.multiplayer_peer as ENetMultiplayerPeer).get_peer(peer)
+		if ep != null and ep.get_state() != ENetPacketPeer.STATE_CONNECTED:
+			return
 	var full: Array = [peer, method]
 	full.append_array(args)
 	callv_rpc_id(full)
@@ -282,6 +299,10 @@ func send_craft_cmd(req_id: int, recipe_id: String) -> void:
 # Servidor -> cliente
 func send_craft_update(peer: int, kind: int, data: Dictionary) -> void:
 	_send(peer, &"s_craft", [kind, data], true)
+
+
+func send_inventory(peer: int, data: Dictionary) -> void:
+	_send(peer, &"s_inventory", [data], true)
 
 
 func send_quest_update(peer: int, kind: int, data: Dictionary) -> void:

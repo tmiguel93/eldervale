@@ -33,6 +33,17 @@ var respawns: int = 0                # eventos respawn do proprio jogador
 var boss_states: Array[int] = []     # estados de chefe recebidos (0 armado, 1 ativo, 2 derrotado)
 var tour_done: bool = false          # world_tour: chegou ao salao do chefe
 
+# --- E5.6 (aventura / inventario sincronizado) ---
+var inventory_updates: int = 0       # s_inventory validos recebidos
+var inventory: Dictionary = {}       # ultimo inventario sincronizado: item_id -> qty
+var equipment: Dictionary = {}       # slot -> item_id
+var pickups: Dictionary = {}         # item_id -> qty coletada (eventos pickup do servidor)
+var drops_seen: int = 0              # eventos drop recebidos (so os proprios, loot individual)
+var quests: Dictionary = {}          # resumo final do diario: {active:{id:{obj:v}}, completed:[ids], errors:[codes]}
+var steps: Array = []                # aventura: marcos cumpridos, em ordem ({step, t})
+var deaths: int = 0                  # eventos death do proprio jogador
+var snapshot_entities_max: int = 0   # maior numero de entidades em um snapshot recebido
+
 var _last_snapshot_ms: float = -1.0
 var _last_pos_sample_s: float = -1.0e9
 
@@ -52,6 +63,7 @@ func on_snapshot(now_ms: float, server_tick: int, entities: Array) -> void:
 	if _last_snapshot_ms >= 0.0:
 		max_snapshot_gap_ms = maxf(max_snapshot_gap_ms, now_ms - _last_snapshot_ms)
 	_last_snapshot_ms = now_ms
+	snapshot_entities_max = maxi(snapshot_entities_max, entities.size())
 	for e: Variant in entities:
 		if e is Dictionary and (e as Dictionary).has("id"):
 			var d: Dictionary = e
@@ -79,6 +91,26 @@ func on_world_event(kind: int, data: Dictionary, my_id: int) -> void:
 				respawns += 1
 		Protocol.EVENT_BOSS:
 			boss_states.append(int(data.get("state", -1)))
+		Protocol.EVENT_PICKUP:
+			pickups[String(data["item_id"])] = int(pickups.get(String(data["item_id"]), 0)) + int(data["qty"])
+		Protocol.EVENT_DROP:
+			drops_seen += 1
+		Protocol.EVENT_DEATH:
+			if int(data.get("id", -1)) == my_id:
+				deaths += 1
+
+
+## E5.6: inventario completo sincronizado pelo servidor (payload ja validado).
+func on_inventory(data: Dictionary) -> void:
+	inventory_updates += 1
+	inventory = {}
+	for s: Variant in data.get("slots", []):
+		inventory[String(s["item_id"])] = int(inventory.get(String(s["item_id"]), 0)) + int(s["qty"])
+	equipment = (data.get("equipment", {}) as Dictionary).duplicate()
+
+
+func mark_step(step: String, t_s: float) -> void:
+	steps.append({"step": step, "t": snappedf(t_s, 0.1)})
 
 
 func on_rtt(ms: float) -> void:
@@ -147,6 +179,8 @@ func to_dict() -> Dictionary:
 		"xp": int(character_final.get("xp", -1)),
 		"level": int(character_final.get("level", -1)),
 		"elapsed_s": elapsed_s,
+		"adventure": {"steps": steps, "inventory": inventory, "equipment": equipment, "inventory_updates": inventory_updates, "pickups": pickups,
+			"drops_seen": drops_seen, "quests": quests, "deaths": deaths, "snapshot_entities_max": snapshot_entities_max},
 		"world": {"zones": zones_seen, "puzzle_open": puzzle_open_seen, "respawns": respawns, "boss_states": boss_states, "tour_done": tour_done},
 	}
 

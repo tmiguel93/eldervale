@@ -67,6 +67,12 @@ const CRAFT_OK: int = 1      ## {req_id, recipe_id, results:[{item_id, qty}]}
 const CRAFT_ERROR: int = 2   ## {req_id, recipe_id, code}
 const MAX_CRAFT_RESULTS: int = 4
 
+## E5.6 (aditivo, VERSION continua 2): INVENTARIO SINCRONIZADO. s_inventory(data) (servidor -> SO o dono, reliable):
+## `{capacity:int 1..MAX_INVENTORY_SLOTS, slots:[{item_id, qty}] (<= capacity entradas, uma por pilha), equipment:{weapon?,armor?,trinket?}}`.
+## E o estado COMPLETO e autoritativo (substitui o anterior); enviado no welcome e depois so quando muda (coalescido).
+const MAX_INVENTORY_SLOTS: int = 200
+const INVENTORY_EQUIP_SLOTS: Array[String] = ["weapon", "armor", "trinket"]
+
 ## Extensao aditiva E5.1 (quests + dialogo; VERSION continua 2, ver network_protocol.md "Revisao E5.1").
 ## c_quest_cmd: ops de quest. c_dialogue_cmd: ops de dialogo.
 const QUEST_OP_ACCEPT: int = 1
@@ -383,6 +389,33 @@ static func validate_craft_update(kind: Variant, d: Variant) -> bool:
 			return false
 		var q: Variant = (r as Dictionary).get("qty", null)
 		if typeof(q) != TYPE_INT or int(q) < 1 or int(q) > MAX_PICKUP_QTY:
+			return false
+	return true
+
+
+## E5.6: s_inventory(data) vindo do fio (o cliente descarta o que falhar). Limites: capacity 1..200, ate `capacity` pilhas,
+## item_id de conteudo, qty 1..999, so os 3 slots de equipamento conhecidos com item de conteudo.
+static func validate_inventory_update(d: Variant) -> bool:
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	var cap: Variant = e.get("capacity", null)
+	if typeof(cap) != TYPE_INT or int(cap) < 1 or int(cap) > MAX_INVENTORY_SLOTS:
+		return false
+	var slots: Variant = e.get("slots", null)
+	if typeof(slots) != TYPE_ARRAY or (slots as Array).size() > int(cap):
+		return false
+	for s: Variant in slots:
+		if typeof(s) != TYPE_DICTIONARY or not is_content_id((s as Dictionary).get("item_id", null)):
+			return false
+		var q: Variant = (s as Dictionary).get("qty", null)
+		if typeof(q) != TYPE_INT or int(q) < 1 or int(q) > MAX_PICKUP_QTY:
+			return false
+	var eq: Variant = e.get("equipment", null)
+	if typeof(eq) != TYPE_DICTIONARY or (eq as Dictionary).size() > INVENTORY_EQUIP_SLOTS.size():
+		return false
+	for k: Variant in (eq as Dictionary):
+		if typeof(k) != TYPE_STRING or not INVENTORY_EQUIP_SLOTS.has(String(k)) or not is_content_id((eq as Dictionary)[k]):
 			return false
 	return true
 

@@ -120,3 +120,17 @@ static func capture(loadout: PlayerLoadout) -> Dictionary:
 		"equipment": equipment,
 		"quests": loadout.quest_state.to_dict(),
 	}
+
+
+## E5.6: payload de `s_inventory` (inventario + equipamento COMPLETOS do personagem; Protocol.validate_inventory_update).
+## Uma entrada por pilha, na ordem do inventario; sem identidade de instancia.
+static func inventory_payload(loadout: PlayerLoadout) -> Dictionary:
+	var slots: Array = []
+	for s: Dictionary in loadout.inventory.contents():
+		slots.append({"item_id": String(s["id"]), "qty": int(s["qty"])})
+	var equipment: Dictionary = {}
+	for slot_value: int in SLOT_NAMES:
+		var id: StringName = loadout.equipment.get_equipped(slot_value)
+		if id != &"":
+			equipment[SLOT_NAMES[slot_value]] = String(id)
+	return {"capacity": clampi(loadout.inventory.capacity, 1, Protocol.MAX_INVENTORY_SLOTS), "slots": slots, "equipment": equipment}

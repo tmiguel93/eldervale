@@ -181,6 +181,7 @@ func add_player(peer_id: int, player_name: String, starting_items: bool = true) 
 		return 0
 	_strip_cosmetic(player)
 	player.use_external_input = true
+	player.move_speed *= settings.test_move_speed_mult # E5.6: 1.0 fora do modo de teste
 	var slot: PlayerSlot = PlayerSlot.new()
 	slot.id = _next_id
 	_next_id += 1
@@ -462,7 +463,7 @@ func _apply_difficulty_to(enemy: Enemy) -> void:
 	if _difficulty == null or enemy.data == null:
 		return
 	var n: int = maxi(difficulty_players_for(enemy), 1)
-	enemy.set_difficulty(_difficulty.health_mult(n, enemy.data.tier), _difficulty.damage_mult(n, enemy.data.tier))
+	enemy.set_difficulty(_difficulty.health_mult(n, enemy.data.tier) * settings.test_enemy_hp_mult, _difficulty.damage_mult(n, enemy.data.tier))
 
 
 ## Handler de invocacao dos inimigos: cria os adds no mundo do servidor (ids, eventos, escala).

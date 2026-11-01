@@ -49,3 +49,7 @@ Capacidade registrada = `--max-players`. HTTPS obrigatorio, exceto `localhost`/`
 - BLOQUEIO para o e2e: `backend/src/sessions/service.ts` ainda aceita `SUPPORTED_PROTOCOL_VERSIONS = [1]`; o registro com `protocol_version=2` volta 400 `unsupported_protocol` (observado). O backend precisa aceitar 2 (escopo do M4).
 - TLS real (HTTPS/CA) e proxies nao testados; encerramento por SIGTERM nao verificado (so `--max-seconds`); concorrencia real de varios jogadores e perda de rede em meio a operacoes nao testadas fora do fake.
 - Estado de HP/recurso/posicao nao persiste; desempenho do autosave com 4 jogadores nao medido.
+
+## E5.6 — Notas
+- Recompensas (`reward`) que falham por rede/5xx/429 sao **reentregues** com a mesma chave idempotente (a cada 3 s, ate 20 vezes) na frente da fila do personagem; ver `docs/E5_GATE.md`.
+- Knobs so de teste (exigem `ELDERVALE_TEST_MODE=1`): `--test-hp-mult`, `--test-speed-mult`, `--measure-snapshots`. Nao usar em producao.

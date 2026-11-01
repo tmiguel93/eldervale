@@ -150,6 +150,9 @@ func bind(p_session: ClientSession) -> void:
 	_link(session.dialogue_changed, _on_dialogue_changed)
 	_link(session.dialogue_error, _on_dialogue_error)
 	_link(session.craft_finished, _on_craft_finished)
+	_link(session.inventory_synced, _on_inventory_synced)
+	if not session.inventory_data.is_empty(): # sessao ja sincronizada antes do bind
+		_on_inventory_synced(session.inventory_data)
 	var log: ClientQuestLog = session.quest_log
 	_link(log.changed, _on_quest_log_changed)
 	_link(log.quest_accepted, _on_quest_accepted)
@@ -383,6 +386,10 @@ func _on_quest_error(_req: int, _op: int, qid: String, code: String) -> void:
 	if quests.is_open():
 		quests.set_status(msg, "bad")
 	toast("%s%s" % [UiText.quest_title(qid) + ": " if not qid.is_empty() else "", msg], "bad")
+
+
+func _on_inventory_synced(data: Dictionary) -> void:
+	inventory.apply_full(data.get("slots", []), data.get("equipment", {}))
 
 
 func _on_craft_requested(recipe_id: String) -> void:

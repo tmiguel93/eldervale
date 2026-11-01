@@ -1,7 +1,7 @@
 class_name InventoryPanel
 extends UiPanel
 ## E5.5: inventario/equipamento (I). Grade de slots (item + quantidade) a partir do ClientInventory.
-## Enquanto o servidor nao envia o inventario completo (`inventory.complete == false`) mostra um aviso
+## Enquanto o servidor nao enviou o inventario completo (`inventory.complete == false`, E5.6) mostra um aviso
 ## e os dados sao uma ESTIMATIVA da sessao. Sem comandos de equipar/usar (o protocolo ainda nao tem).
 ## Teclado: setas movem o cursor; mouse: passar o cursor mostra o detalhe.
 
@@ -20,7 +20,7 @@ var _slot_data: Array[Dictionary] = []  ## por slot: {} ou {item_id, qty}
 
 
 func _init() -> void:
-	super._init("Inventario", Vector2(520, 470))
+	super._init("Inventario", Vector2(520, 540))
 	banner = UiStyle.label("", UiStyle.ACCENT, 13, true)
 	body.add_child(banner)
 	body.add_child(UiStyle.label("Equipamento", UiStyle.INFO, 13))
@@ -78,7 +78,7 @@ func refresh(inv: ClientInventory) -> void:
 			slot_buttons[i].text = ""
 			slot_buttons[i].tooltip_text = ""
 	var complete: bool = _inv != null and _inv.complete
-	banner.text = "" if complete else "Estimativa desta sessao: o inventario completo ainda nao e sincronizado pelo servidor (itens de antes do login nao aparecem)."
+	banner.text = "" if complete else "Estimativa desta sessao: aguardando o inventario do servidor."
 	banner.visible = not complete
 	for slot: String in ClientInventory.EQUIP_SLOTS:
 		var l: Label = equip_labels[slot]

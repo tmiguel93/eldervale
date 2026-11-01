@@ -54,7 +54,7 @@ Portais apontam para zonas/spawns existentes; spawns dentro da zona e **fora do 
 - Visual so em primitivas; legibilidade em camera isometrica real, escala das zonas e sensacao de ritmo NAO foram vistas num cliente grafico (so headless).
 - Balanceamento do selvagem/ruinas (densidade, aggro, recarga) nao testado em jogo; os inimigos do selvagem nao reaparecem enquanto a zona esta carregada.
 - Jogadores de outras zonas nao aparecem no snapshot (sem lista de grupo no HUD); chat/party fora do escopo.
-- Snapshots de luta de chefe com varios adds podem passar do MTU (1392 B) em `unreliable` (aviso do ENet, mais perda); medir antes de fixar o tick/AOI.
+- Snapshots de luta de chefe com varios adds podem passar do MTU (1392 B) em `unreliable` (aviso do ENet, mais perda). **Medido no E5.6**: ate ~4,9 KB (21 entidades, 4 jogadores) e ~4,5 KB com 1 jogador nas ruinas; ver `docs/E5_GATE.md` secao 4.
 - Transicao e instantanea no servidor apos 0,6 s; nao ha tela de carregamento nem fade no cliente (o evento `zone(phase=0)` esta pronto para isso).
 - Posicao do jogador nao e persistida: entrar sempre nasce no hub (backend inalterado).
 - O padrao do servidor continua a arena; falta decidir quando `--world greenwood` vira padrao.

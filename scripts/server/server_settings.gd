@@ -53,6 +53,16 @@ var xp_for_participants: bool = true
 ## E5.4: c_craft_cmd: token bucket por peer.
 var craft_rate_per_sec: float = 2.0
 var craft_burst: int = 4
+## E5.6: inventario sincronizado (s_inventory): a cada N ticks o servidor compara o inventario/equipamento de cada jogador
+## com o ultimo enviado e so manda se mudou (coalesce: no maximo tick_rate/N mensagens por segundo por jogador). 0 desliga.
+var inventory_sync_ticks: int = 6
+## E5.6: PARAMETROS SO DE TESTE (harness de integracao; o servidor so os honra com ELDERVALE_TEST_MODE=1, ver server_main).
+## Multiplicam a vida dos inimigos / a velocidade dos jogadores para que a aventura inteira caiba num comando de 180 s na VM.
+## O padrao (1.0) deixa o ritmo de combate APROVADO intacto; nenhum e enviado ao cliente.
+var test_enemy_hp_mult: float = 1.0
+var test_move_speed_mult: float = 1.0
+## E5.6: mede o tamanho (aproximado) dos snapshots por peer (var_to_bytes) para o relatorio do gate. Desligado por padrao.
+var measure_snapshots: bool = false
 ## Testes podem desligar os inimigos da arena.
 var spawn_enemies: bool = true
 var spawn_points: Array[Vector3] = [

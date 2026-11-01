@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -158,6 +158,8 @@ func shutdown() -> void:
 	_quitting = true
 	_running = false
 	if session != null:
+		if settings.measure_snapshots:
+			print("[server] snapshots: %s" % JSON.stringify(session.snapshot_stats))
 		session.shutdown()
 	if peer != null:
 		peer.close()
@@ -182,6 +184,23 @@ func _apply_extras(extras: Dictionary) -> void:
 	if extras.has("individual-loot"): # E5.4: --individual-loot 0|1 forca o modo (padrao: ligado so com --world)
 		settings.individual_loot = String(extras["individual-loot"]).strip_edges() in ["1", "true", "on"]
 		print("[server] loot individual: %s" % ("ligado" if settings.individual_loot else "desligado"))
+	# E5.6: parametros SO de teste. Sem ELDERVALE_TEST_MODE=1 sao ignorados (com aviso): nunca valem em producao por engano.
+	var test_mode: bool = OS.get_environment("ELDERVALE_TEST_MODE") == "1"
+	for k: String in ["test-hp-mult", "test-speed-mult"]:
+		if not extras.has(k):
+			continue
+		if not test_mode:
+			print("[server] AVISO: --%s ignorado (exige ELDERVALE_TEST_MODE=1)" % k)
+			continue
+		if String(extras[k]).is_valid_float():
+			if k == "test-hp-mult":
+				settings.test_enemy_hp_mult = clampf(float(extras[k]), 0.02, 1.0)
+			else:
+				settings.test_move_speed_mult = clampf(float(extras[k]), 1.0, 3.0)
+	if test_mode and (settings.test_enemy_hp_mult != 1.0 or settings.test_move_speed_mult != 1.0):
+		print("[server] MODO DE TESTE: vida dos inimigos x%.2f, velocidade dos jogadores x%.2f (NAO usar em producao)" % [settings.test_enemy_hp_mult, settings.test_move_speed_mult])
+	if extras.has("measure-snapshots"):
+		settings.measure_snapshots = String(extras["measure-snapshots"]).strip_edges() in ["1", "true", "on"]
 	if extras.has("hello-timeout") and String(extras["hello-timeout"]).is_valid_float():
 		settings.hello_timeout_sec = clampf(float(extras["hello-timeout"]), 0.5, 600.0)
 

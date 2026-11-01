@@ -49,6 +49,8 @@ var _kill_target: int = -1
 var _kill_done_at: float = -1.0
 var _tour_memo: Dictionary = {}         # world_tour: estagio do puzzle
 var _tour_done_at: float = -1.0
+var _adv: AdventureBot = null           ## E5.6: bot de aventura (adv_*)
+var _adv_done_at: float = -1.0
 var _signals_wired: bool = false
 var _return_to_login: bool = false
 
@@ -131,6 +133,7 @@ func _start() -> void:
 		_rpc.quest_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_quest_update(kind, data))
 		_rpc.dialogue_received.connect(func(kind: int, data: Dictionary) -> void: session.on_dialogue(kind, data))
 		_rpc.craft_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_craft_update(kind, data))
+		_rpc.inventory_update_received.connect(func(data: Dictionary) -> void: session.on_inventory_update(data))
 		multiplayer.connected_to_server.connect(_on_connected)
 		multiplayer.connection_failed.connect(_on_connection_failed)
 		multiplayer.server_disconnected.connect(_on_server_disconnected)
@@ -416,6 +419,8 @@ func _tick_playing(delta: float) -> void:
 				_kill_enemy_tick()
 			elif cfg.bot_script == "world_tour":
 				_world_tour_tick()
+			elif AdventureBot.is_adventure(cfg.bot_script):
+				_adventure_tick()
 			else:
 				session.send_bot_items(BotScript.step(cfg.bot_script, _play_elapsed, _tick))
 		else:
@@ -432,6 +437,8 @@ func _tick_playing(delta: float) -> void:
 		if _kill_done_at >= 0.0 and _play_elapsed - _kill_done_at >= grace:
 			_finish(0)
 		elif _tour_done_at >= 0.0 and _play_elapsed - _tour_done_at >= 1.0:
+			_finish(0)
+		elif _adv != null and (_adv.drop_requested or (_adv_done_at >= 0.0 and _play_elapsed - _adv_done_at >= AdventureBot.FINAL_HOLD_S)):
 			_finish(0)
 		elif _play_elapsed >= bot_seconds:
 			_finish(0)
@@ -455,10 +462,22 @@ func _world_tour_tick() -> void:
 		session.result.tour_done = true
 
 
+func _adventure_tick() -> void:
+	if _adv == null:
+		_adv = AdventureBot.create(cfg.bot_script, session)
+	var items: Array[Dictionary] = _adv.tick(_play_elapsed)
+	if not items.is_empty():
+		session.send_bot_items(items)
+	if _adv.done and _adv_done_at < 0.0:
+		_adv_done_at = _play_elapsed
+
+
 ## Bots nao tem apresentacao: consomem os eventos aqui (contam mortes do alvo do kill_enemy).
 func _bot_drain_events() -> void:
 	for ev: Dictionary in session.drain_events():
 		session.result.on_world_event(int(ev["kind"]), ev["data"] as Dictionary, session.player_id)
+		if _adv != null:
+			_adv.on_event(int(ev["kind"]), ev["data"] as Dictionary)
 		if int(ev["kind"]) == Protocol.EVENT_DEATH and cfg.bot_script == "kill_enemy":
 			var d: Variant = ev["data"]
 			if d is Dictionary and int((d as Dictionary).get("id", -2)) == _kill_target and _kill_target >= 0:
@@ -516,6 +535,10 @@ func _finish(code: int) -> void:
 
 func _finalize(code: int) -> void:
 	session.result.attempts = _attempts
+	if _adv != null:
+		session.result.quests = _adv.quest_summary()
+	elif is_bot and session.state == ClientSession.State.PLAYING:
+		session.result.quests = {"active": session.quest_log.active.duplicate(true), "completed": session.quest_log.completed.duplicate()}
 	_drop_connection()
 	# GET final do personagem (XP/nivel/itens persistidos), apos dar tempo ao checkpoint do servidor.
 	if is_bot and api != null and api.is_logged_in() and not String(_flow_info.get("character_id", "")).is_empty() and code == 0:

@@ -7,7 +7,11 @@ extends Node
 ##   correm em paralelo). Autosave periodico envia o estado completo com expected_revision.
 ## - 409 de revision no checkpoint: recarrega o personagem, adota a revision e avisa o
 ##   `conflict_handler` (a sessao reaplica o estado do backend); nao derruba ninguem.
-## - Falha permanente de recompensa: logada; o estado em memoria fica e o proximo checkpoint reconcilia.
+## - Falha permanente de recompensa (4xx): logada; o estado em memoria fica e o proximo checkpoint reconcilia.
+## - E5.6: falha TRANSITORIA de recompensa (rede/timeout/5xx/429 depois das tentativas do BackendClient): a recompensa e
+##   REENTREGUE com a MESMA chave (idempotente) a cada `reward_redeliver_delay_sec`, ate `reward_redeliver_max` vezes; a fila do
+##   personagem espera (a ordem e mantida). Sem isso, uma queda curta do backend perdia a recompensa/conclusao da quest no banco
+##   enquanto a memoria ja a tinha dado (a quest voltava a "pronta" apos relogar e pagava de novo).
 ## - Tempo: tudo avanca em `tick(delta)` (chamado por _process; testes chamam direto).
 ## Nunca loga tickets nem o segredo.
 
@@ -19,6 +23,8 @@ class CharSync extends RefCounted:
 	var queue: Array[Dictionary] = []
 	var busy: bool = false
 	var inflight_kind: String = ""
+	var retry_op: Dictionary = {} ## E5.6: recompensa aguardando reentrega ({} = nenhuma); `busy` continua true
+	var retry_wait: float = 0.0
 	var live: bool = false ## jogador conectado: elegivel a autosave
 	var terminal: bool = false ## depois de drenar a fila, esquecer o personagem
 
@@ -32,6 +38,10 @@ var autosave_interval_sec: float = 30.0
 var register_retry_sec: float = 5.0
 var register_retry_max_sec: float = 30.0
 var shutdown_timeout_sec: float = 8.0
+## E5.6: reentrega de recompensas apos falha transitoria (ver cabecalho).
+var reward_redeliver_delay_sec: float = 3.0
+var reward_redeliver_max: int = 20
+var stats: Dictionary = {"reward_redeliveries": 0}
 var session_id_file: String = ""
 ## (character_id: String) -> Dictionary com o estado completo ({} se nao ha jogador).
 var snapshot_provider: Callable
@@ -91,6 +101,7 @@ func pending_ops() -> int:
 # ------------------------------------------------------------------ tempo
 
 func tick(delta: float) -> void:
+	_tick_redeliveries(delta)
 	if _shutting_down:
 		_tick_shutdown(delta)
 		return
@@ -108,6 +119,18 @@ func tick(delta: float) -> void:
 	if _autosave_timer >= autosave_interval_sec:
 		_autosave_timer = 0.0
 		autosave_now()
+
+
+func _tick_redeliveries(delta: float) -> void:
+	for cs: CharSync in _chars.values():
+		if cs.retry_op.is_empty():
+			continue
+		cs.retry_wait -= delta
+		if cs.retry_wait <= 0.0:
+			var op: Dictionary = cs.retry_op
+			cs.retry_op = {}
+			stats["reward_redeliveries"] = int(stats["reward_redeliveries"]) + 1
+			_run_op(cs, op)
 
 
 ## Enfileira um checkpoint (com coalescencia) de todo personagem vivo. Devolve quantos enfileirou.
@@ -315,6 +338,10 @@ func _pump(cs: CharSync) -> void:
 		return
 	var op: Dictionary = cs.queue.pop_front()
 	cs.busy = true
+	_run_op(cs, op)
+
+
+func _run_op(cs: CharSync, op: Dictionary) -> void:
 	cs.inflight_kind = String(op["kind"])
 	var cid: String = cs.character_id
 	match String(op["kind"]):
@@ -395,7 +422,16 @@ func _op_reward_done(r: Dictionary, cs: CharSync, op: Dictionary) -> void:
 		if bool(r["data"].get("replayed", false)):
 			ServerLog.info("[sync] recompensa %s ja aplicada (replay)" % String(op["key"]))
 	else:
-		ServerLog.warn("[sync] recompensa %s falhou de forma permanente (status %d, %s); estado em memoria mantido" % [String(op["key"]), int(r["status"]), String(r["code"])])
+		var status: int = int(r["status"])
+		var transient: bool = status == 0 or status == 429 or status >= 500
+		var tries: int = int(op.get("redeliveries", 0))
+		if transient and not _shutting_down and tries < reward_redeliver_max:
+			op["redeliveries"] = tries + 1
+			cs.retry_op = op
+			cs.retry_wait = reward_redeliver_delay_sec
+			ServerLog.warn("[sync] recompensa %s sem resposta do backend (%s); reentrega %d/%d com a mesma chave em %.0fs" % [String(op["key"]), String(r["code"]), tries + 1, reward_redeliver_max, reward_redeliver_delay_sec])
+			return # a fila do personagem espera (busy continua true)
+		ServerLog.warn("[sync] recompensa %s falhou de forma permanente (status %d, %s); estado em memoria mantido" % [String(op["key"]), status, String(r["code"])])
 	_op_finish(cs)
 
 
@@ -427,6 +463,9 @@ func begin_shutdown() -> void:
 		return
 	_shutting_down = true
 	_shutdown_elapsed = 0.0
+	for cs: CharSync in _chars.values(): # ultima tentativa imediata das recompensas em espera
+		if not cs.retry_op.is_empty():
+			cs.retry_wait = 0.0
 	if client == null or not client.is_configured():
 		_shutdown_done = true
 

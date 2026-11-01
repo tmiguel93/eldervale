@@ -2,15 +2,14 @@ class_name ClientInventory
 extends RefCounted
 ## E5.5: espelho SOMENTE-LEITURA do inventario para a UI.
 ##
-## LACUNA DOCUMENTADA (docs/E5_UI.md): o protocolo v2 NAO envia o inventario completo nem o equipamento ao
-## cliente (so eventos: pickup coletado, resultado de craft, recompensa de quest). Enquanto isso, esta classe
-## guarda uma ESTIMATIVA da sessao (`complete == false`) somando os ganhos e subtraindo os ingredientes
-## consumidos em crafts; o inventario persistido de antes do login NAO aparece. A UI avisa isso ao jogador.
-## Quando o servidor passar a enviar o estado completo, basta chamar `apply_full` (complete = true).
+## E5.6: o servidor envia o inventario COMPLETO (`s_inventory`, ClientSession.inventory_synced) e `apply_full` o aplica
+## (`complete = true`: esconde o aviso). Depois disso o servidor e a unica fonte: as estimativas por evento (pickup, craft,
+## recompensa de quest) viram no-op para nao contar duas vezes. Antes do primeiro `s_inventory` (ou com servidor antigo, que
+## nao envia) a classe guarda uma ESTIMATIVA da sessao (`complete == false`) e a UI avisa isso ao jogador.
 
 signal changed()
 
-const SLOT_COUNT: int = 20  ## capacidade padrao de Inventory (scripts/inventory/inventory.gd)
+const SLOT_COUNT: int = 25  ## grade da UI (5x5); o backend usa capacidade 24 (CharacterLimits), Inventory padrao 20
 const EQUIP_SLOTS: Array[String] = ["weapon", "armor", "trinket"]
 
 var complete: bool = false
@@ -26,7 +25,7 @@ func reset() -> void:
 
 
 func add(item_id: String, qty: int) -> void:
-	if qty <= 0 or not Protocol.is_content_id(item_id):
+	if complete or qty <= 0 or not Protocol.is_content_id(item_id):
 		return
 	_qty[item_id] = int(_qty.get(item_id, 0)) + qty
 	changed.emit()
@@ -34,7 +33,7 @@ func add(item_id: String, qty: int) -> void:
 
 ## Remove ate `qty` (nunca fica negativo: a estimativa pode nao conhecer o estoque anterior).
 func remove(item_id: String, qty: int) -> void:
-	if qty <= 0 or not _qty.has(item_id):
+	if complete or qty <= 0 or not _qty.has(item_id):
 		return
 	var left: int = int(_qty[item_id]) - qty
 	if left <= 0:
@@ -65,6 +64,8 @@ func on_pickup(data: Dictionary) -> void:
 
 ## Craft concluido: soma resultados e subtrai os ingredientes da receita (dados locais, so para a estimativa).
 func on_craft_ok(data: Dictionary) -> void:
+	if complete:
+		return # o servidor reenvia o inventario completo
 	var def: RecipeDef = RecipeCatalog.shared().get_recipe(String(data.get("recipe_id", "")))
 	if def != null:
 		for i: Dictionary in def.ingredients:

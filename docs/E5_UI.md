@@ -23,7 +23,7 @@ Os paineis modais são **exclusivos** (abrir um fecha o outro). Enquanto algum e
 | `ui_panel.gd` | base dos modais (título, status, dica, `handle_key`) |
 | `dialogue_panel.gd` | fala, nome do NPC, escolhas (índice do servidor), nó terminal |
 | `quest_panel.gd` | diário: prontas > ativas > disponíveis > concluídas; objetivos com progresso, recompensa, aceitar/entregar/abandonar |
-| `inventory_panel.gd` + `client_inventory.gd` | grade de 20 slots + 3 slots de equipamento (ver lacuna abaixo) |
+| `inventory_panel.gd` + `client_inventory.gd` | grade de 25 slots + 3 slots de equipamento (sincronizada com o servidor desde o E5.6) |
 | `craft_panel.gd` | receitas da estação (`data/recipes`), ingredientes, resultado, botão Fabricar, resultado de `craft_finished` |
 | `party_panel.gd` | jogadores do snapshot com barra de vida |
 | `boss_bar.gd` | barra do chefe/mini-chefe vivo (tier `boss`/`mini_boss` do `EnemyData`) com fase |
@@ -44,7 +44,7 @@ Mudanças mínimas em `scripts/client/client_main.gd`: (1) `_build_presentation`
 - Vida do jogador local: barra no canto inferior esquerdo.
 
 ## Lacunas conhecidas (importante)
-1. **Inventário completo não é sincronizado.** O protocolo v2 não envia inventário nem equipamento ao cliente (só os eventos `pickup`, `craft` e recompensas de quest). Não alterei o protocolo. `ClientInventory` mantém uma **estimativa da sessão** (soma ganhos, subtrai ingredientes de crafts) e o painel avisa "Estimativa desta sessão" em destaque; itens de antes do login e o equipamento (`?`) não aparecem; consumo/venda/equipar por outras vias também não são vistos. `ClientInventory.apply_full(slots, equip)` já existe e marca `complete = true` (esconde o aviso, mostra "tem N" no crafting) para quando o servidor passar a enviar o estado (sugestão: mensagem aditiva `s_inventory` no welcome e após cada mudança). Sem comandos de equipar/usar item: não existem no protocolo.
+1. **RESOLVIDA no E5.6**: o servidor envia o inventário/equipamento completo por `s_inventory` (welcome + após mudanças; ver `shared/contracts/network_protocol.md`). `ClientUi` aplica `ClientInventory.apply_full`; o aviso de estimativa só aparece até a primeira sincronização ("aguardando o inventário do servidor"). Continuam sem existir comandos de equipar/usar/vender item (fora do escopo do protocolo v2).
 2. O crafting não sabe se o jogador tem os ingredientes: o botão sempre fica ativo e o servidor responde `insufficient_ingredients` (mostrado em texto).
 3. Grupo: o snapshot só traz jogadores da **mesma zona**; quem está em outra zona não aparece. Nomes vêm de `player_joined` (que o servidor só envia para jogadores já presentes no join/depois); sem nome, aparece "Jogador <id>".
 4. Diálogo terminal: o servidor não manda `DIALOGUE_END` ao fim de um nó terminal; o painel fecha localmente (Enter/F/clique) sem enviar `close`. Fechar no meio de uma conversa envia `dialogue_close`.

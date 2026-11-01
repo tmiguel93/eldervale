@@ -39,5 +39,10 @@ func send_craft_update(_peer_id: int, _kind: int, _data: Dictionary) -> void:
 	pass
 
 
+## E5.6: inventario + equipamento completos do jogador (reliable, so para este peer). Ver Protocol.validate_inventory_update.
+func send_inventory(_peer_id: int, _data: Dictionary) -> void:
+	pass
+
+
 func disconnect_peer(_peer_id: int) -> void:
 	pass

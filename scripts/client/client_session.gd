@@ -45,6 +45,12 @@ var send_dialogue_cmd: Callable
 var send_craft_cmd: Callable
 signal craft_finished(ok: bool, data: Dictionary)
 var crafts_rejected: int = 0
+## E5.6: inventario COMPLETO sincronizado pelo servidor (s_inventory). `inventory_data` = ultimo payload valido
+## ({capacity, slots, equipment}; vazio ate o primeiro). A UI escuta `inventory_synced`.
+signal inventory_synced(data: Dictionary)
+var inventory_data: Dictionary = {}
+var inventory_updates: int = 0
+var inventory_rejected: int = 0
 
 ## E5.1: espelho do diario de quests e do dialogo atual (somente leitura; a UI escuta os sinais).
 signal dialogue_changed(view: Dictionary)   ## view vazio = dialogo encerrado
@@ -255,6 +261,19 @@ func on_craft_update(kind: int, data: Dictionary) -> void:
 		crafts_rejected += 1
 		return
 	craft_finished.emit(kind == Protocol.CRAFT_OK, data)
+
+
+## s_inventory do servidor (so aceito em PLAYING; malformado e descartado e contado). Substitui o estado anterior.
+func on_inventory_update(data: Dictionary) -> void:
+	if state != State.PLAYING:
+		return
+	if not Protocol.validate_inventory_update(data):
+		inventory_rejected += 1
+		return
+	inventory_data = data
+	inventory_updates += 1
+	result.on_inventory(data)
+	inventory_synced.emit(data)
 
 
 ## Pede para fabricar `recipe_id` (precisa estar perto da estacao; o servidor valida). Devolve o req_id (-1 se nao enviou).

@@ -34,6 +34,9 @@ class PeerState extends RefCounted:
 	var ping_limiter: RateLimiter
 	var quest_limiter: RateLimiter
 	var craft_limiter: RateLimiter
+	## E5.6: assinatura do ultimo inventario enviado (so reenvia quando muda) e contagem de envios.
+	var inv_sig: String = ""
+	var inv_sent: int = 0
 
 
 var settings: ServerSettings
@@ -53,6 +56,9 @@ var _registry: ContentRegistry
 var quests: QuestService
 ## E5.4: crafting (criado em setup).
 var crafting: CraftingService
+## E5.6: medicao de snapshots (so com settings.measure_snapshots): maior payload aproximado (var_to_bytes) e contagens.
+var snapshot_stats: Dictionary = {"samples": 0, "max_bytes": 0, "max_entities": 0, "over_mtu": 0, "sum_bytes": 0}
+const MTU_PAYLOAD: int = 1392
 
 
 func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: ServerTransport) -> void:
@@ -97,6 +103,8 @@ func step_tick() -> void:
 	world.server_tick += 1
 	check_timeouts()
 	quests.tick()
+	if settings.inventory_sync_ticks > 0 and world.server_tick % settings.inventory_sync_ticks == 0:
+		sync_inventories()
 	if world.server_tick % settings.snapshot_divisor() == 0:
 		send_snapshots()
 
@@ -297,7 +305,33 @@ func _complete_join(p: PeerState, entity_id: int) -> void:
 	if join_loadout != null:
 		quests.attach(entity_id, peer_id, p.character_id, join_loadout)
 	crafting.attach(entity_id)
+	send_inventory(p, true) # E5.6: estado completo logo apos o welcome (depois, so quando mudar)
 	player_joined.emit(peer_id, entity_id)
+
+
+# ------------------------------------------------------------------ inventario sincronizado (E5.6)
+
+## Compara o inventario/equipamento de cada jogador com o ultimo enviado e manda `s_inventory` so se mudou. Cobre TODAS as
+## vias (coleta, craft e seu desfazer, recompensa de quest, drop legado, reaplicacao por conflito de revision) sem hooks.
+func sync_inventories() -> void:
+	for p: PeerState in _peers.values():
+		if p.welcomed and not p.closing:
+			send_inventory(p, false)
+
+
+## Envia o inventario completo do jogador. `force` ignora a comparacao (entrada). Devolve true se enviou.
+func send_inventory(p: PeerState, force: bool) -> bool:
+	var loadout: PlayerLoadout = _loadout_of(p)
+	if loadout == null:
+		return false
+	var payload: Dictionary = CharacterCodec.inventory_payload(loadout)
+	var sig: String = JSON.stringify(payload)
+	if not force and sig == p.inv_sig:
+		return false
+	p.inv_sig = sig
+	p.inv_sent += 1
+	transport.send_inventory(p.peer_id, payload)
+	return true
 
 
 # ------------------------------------------------------------------ persistencia (E4)
@@ -537,7 +571,24 @@ func send_snapshots() -> void:
 				# E5.4: SO os pickups do proprio dono entram no snapshot deste peer (nunca os de outro jogador).
 				mine = entities.duplicate()
 				mine.append_array(world.pickup_entities_for(p.entity_id))
+			if settings.measure_snapshots:
+				_measure_snapshot(world.server_tick, p.last_seq, mine)
 			transport.send_snapshot(p.peer_id, world.server_tick, p.last_seq, mine)
+
+
+## Tamanho aproximado do s_snapshot no fio (codificacao Variant do Godot dos 3 argumentos; sem cabecalhos de RPC/ENet).
+func _measure_snapshot(tick: int, last_seq: int, entities: Array) -> void:
+	var bytes: int = var_to_bytes(tick).size() + var_to_bytes(last_seq).size() + var_to_bytes(entities).size()
+	snapshot_stats["samples"] = int(snapshot_stats["samples"]) + 1
+	snapshot_stats["sum_bytes"] = int(snapshot_stats["sum_bytes"]) + bytes
+	var new_max: bool = bytes > int(snapshot_stats["max_bytes"])
+	snapshot_stats["max_bytes"] = maxi(int(snapshot_stats["max_bytes"]), bytes)
+	snapshot_stats["max_entities"] = maxi(int(snapshot_stats["max_entities"]), entities.size())
+	if bytes > MTU_PAYLOAD:
+		snapshot_stats["over_mtu"] = int(snapshot_stats["over_mtu"]) + 1
+	# Linha de resumo a cada novo maximo (e a cada 200 amostras): o harness le a ultima; nao depende do encerramento limpo.
+	if new_max or int(snapshot_stats["samples"]) % 200 == 0:
+		print("[server] snapshots: %s" % JSON.stringify(snapshot_stats))
 
 
 func _broadcast_event(kind: int, data: Dictionary) -> void:
