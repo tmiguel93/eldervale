@@ -3,12 +3,12 @@ import type { Catalog } from "./catalog.ts";
 import type { CharacterLimits } from "./limits.ts";
 import { EMPTY_QUESTS, type QuestCatalog } from "../quests/catalog.ts";
 import { validateQuestsState, type QuestsState } from "../quests/state.ts";
+import type { ClassCatalog } from "./classes.ts";
 import { levelForXp, MAX_LEVEL, MAX_TOTAL_XP } from "./progression.ts";
 
 export const SCHEMA_VERSION = 1;
 export const EQUIP_SLOTS = ["weapon", "armor", "trinket"] as const;
 export type EquipSlot = (typeof EQUIP_SLOTS)[number];
-export const ALLOWED_CLASSES: readonly string[] = ["warrior"];
 
 /** Stats BASE do personagem (nivel/equipamento sao aplicados em runtime pelo jogo; ver StatBlock). */
 export const STAT_KEYS = ["max_health", "max_resource", "resource_regen", "attack_power", "defense", "resistance", "move_speed"] as const;
@@ -170,8 +170,9 @@ export function validateCharacterName(raw: unknown): string {
   return name;
 }
 
-export function validateClassId(raw: unknown): string {
-  if (typeof raw !== "string" || !ALLOWED_CLASSES.includes(raw)) throw Errors.badRequest("class_id invalido", "invalid_class");
+/** E6.1: o class_id tem de existir no catalogo de classes (shared/content_schemas/classes.json); a classe e imutavel apos a criacao. */
+export function validateClassId(raw: unknown, classes: ClassCatalog): string {
+  if (typeof raw !== "string" || !classes.has(raw)) throw Errors.badRequest("class_id invalido", "invalid_class");
   return raw;
 }
 

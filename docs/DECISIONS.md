@@ -109,3 +109,48 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Escolha provisória:** (c)+(d)+(e)+(f): `c_caps(caps)` reliable após o welcome; `s_snapshot_c(tick, last_seq, part, parts, blob)` unreliable_ordered para quem declara `CAP_SNAPSHOT_COMPACT`, legado para os demais (`VERSION` continua 2; kill-switch `--compact-snapshots 0`). Blob binário (posição 1 cm `s16` relativa a uma origem por parte, yaw `u16`, hp/max_hp inteiros em varint, `type`/`atk` por índice de tabela *por parte*, `phase`/`atk` só quando != padrão). Cada parte é autocontida (sem estado entre pacotes unreliable, então perda/duplicação/reordenação não corrompem nada). Particiona por orçamento de 1200 B de blob (<= 16 partes); o cliente só entrega o snapshot com todas as partes do tick (parte perdida ⇒ tick descartado, mesma semântica do legado). Interesse (AOI/zona/pickups do dono) segue por peer, aplicado antes de codificar. Só a codificação já dá ~10x (30 entidades: 7216 → 620 B); o particionamento é a garantia de teto (256 entidades = 4 partes, maior mensagem 1236 B <= 1392 B), e custou pouco por reutilizar a mesma estrutura de mensagem.
 - **Consequências:** medido: `party` 4912 → 792 B/mensagem e `ruins` 4456 → 400 B, 0 mensagens acima do MTU; erro de posição <= 0,87 cm (abaixo da zona morta de 5 cm da reconciliação), yaw <= 4,8e-5 rad, hp inteiro (vivo nunca vira 0). Custos: dois formatos para manter (o legado só sai quando todos os clientes migrarem — decisão futura); `NetRpc` ganhou 2 RPCs, então servidor e cliente precisam ser atualizados juntos (mesma limitação do `s_inventory`); quantização de hp/posição vale também para a UI de grupo e o BossBar (proporção); mais CPU no servidor para codificar por peer (não medida isoladamente; o harness `party` não apresentou atraso). Não validado em rede real com perda.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0010 — Classes como JSON validado em `data/classes`, catálogo derivado para o backend; habilidades seguem em `.tres` (E6.1)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (modelo de conteúdo; contrato com o backend)
+- **Contexto:** o GDD pede 3 classes (Guerreiro, Mago, Patrulheiro) com 3 especializações cada, "uma classe e uma especialização por classe" no vertical slice, e a arquitetura exige conteúdo data-driven com IDs estáveis e referências validadas (AGENTS §8). O backend precisa conhecer as classes para validar `class_id` e criar o personagem com os stats base certos.
+- **Opções consideradas:** (a) `Resource` `.tres` por classe; (b) JSON por classe lido por Godot e pelo backend (como quests, DEC-0006); (c) tabela de classes no banco.
+- **Escolha provisória:** (b). `data/classes/<id>.json` (fonte de verdade; `class_id`, recurso stamina/mana, `base_stats`, `growth_per_level`, 4 slots → ids de habilidade, especializações `{id, display_name, tags, planned}`), lido por `ClassDef`/`ClassCatalog`, com `tools/gen_classes_catalog.mjs` gerando `shared/content_schemas/classes.json` (`--check` em testes) e validando referências (habilidade existe em `data/skills`, tipo certo por slot, ataque básico sem custo, habilidade exclusiva por classe, especializações únicas, ao menos uma especialização inicial). As habilidades continuam `SkillData` `.tres` (ganharam campos de projétil e `tags`). Uma especialização inicial por classe (`berserker`, `elementalist`, `hunter`) e as outras 6 `planned: true`, **sem mecânica nem seleção** nesta etapa.
+- **Consequências:** adicionar classe/habilidade = dados + regenerar catálogo, sem migração. Dois leitores do mesmo JSON (GDScript e TypeScript) mantidos em paridade por teste. Especialização ainda não é escolhida nem persistida (E6.x: árvore de talentos). `move_speed` por classe existe como stat, mas o `Player` ainda não o consome (movimento segue fixo).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0011 — Classe imutável por personagem em `characters.class_id`; migração 0004 (default + CHECK); stats base na criação (E6.1)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (schema persistente, regra de economia/progressão)
+- **Contexto:** `characters.class_id text NOT NULL` já existia desde a 0001 e a API só aceitava `warrior`. Era preciso aceitar as 3 classes sem quebrar saves (AGENTS §2.12) e sem mexer no formato do estado (`schema_version` 1).
+- **Opções consideradas:** (a) nova coluna/tabela de classe; (b) reaproveitar a coluna existente com migração de endurecimento; (c) guardar a classe dentro do `state` do checkpoint.
+- **Escolha provisória:** (b). Migração `0004_character_class_default.sql` (aditiva, idempotente): normaliza para `warrior` só ids malformados, `DEFAULT 'warrior'`, `CHECK` de formato de id; a validação contra o catálogo é da aplicação (novas classes não exigem migração). A classe é escolhida **só** na criação (`POST /v1/characters`, validada contra `classes.json`) e nunca muda; fica **fora** do checkpoint (o backend já rejeita campo desconhecido no estado) e chega ao servidor Godot em `GET /internal/characters/:id`. Personagem novo nasce com `characters.stats` = `base_stats` da classe (guerreiro = os stats históricos, então saves existentes não mudam); o crescimento por nível vem da classe no servidor (`PlayerLoadout.apply_class`). Plano de rollback em `backend/migrations/README.md`.
+- **Consequências:** não há troca de classe/respec de classe (decisão de produto pendente). Rebalancear `base_stats` de uma classe não altera personagens já criados (valem os stats gravados); o crescimento por nível, sim, vale para todos. `class_id` desconhecido vindo do backend faz o servidor Godot recusar a entrada (`REJECT_NOT_AUTHENTICATED`) em vez de improvisar.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0012 — Habilidades permitidas decididas no servidor por slot fixo + `s_class` aditivo só para o dono (E6.1)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (contrato de rede e limite de 4 habilidades)
+- **Contexto:** o cliente nunca pode decidir habilidades permitidas (AGENTS §2.8, §6). O protocolo v2 tem 4 bits de ação (ataque, skill_1, skill_2, esquiva).
+- **Opções consideradas:** (a) mais bits de ação (até 6 habilidades) já agora; (b) manter 4 bits e deixar o servidor resolver cada bit pela classe; (c) o cliente envia `skill_id`.
+- **Escolha provisória:** (b). O servidor aplica a classe no join (`PlayerCombat.apply_class`: troca os 4 slots e restringe `try_use` aos ids da classe; recusa `not_allowed` sem custo/cooldown); o cliente continua enviando só bits. Novo RPC aditivo `s_class({class_id})` (reliable, só o dono) alimenta o HUD (`SkillBar`); `VERSION` continua 2 e a máscara de ações (15) não muda — bit desconhecido continua rejeitado. Sem backend (bots/dev) vale `ServerSettings.default_class_id` (`--default-class`, só servidor); o guerreiro mantém os stats da cena (E1–E5 intactos).
+- **Consequências:** 4 habilidades por classe nesta etapa (faixa 4–6 do roadmap, no piso); passar disso exige bits novos (aditivos). O RPC novo vale a mesma ressalva de `s_inventory`: servidor e cliente atualizados juntos. O cliente remoto não escolhe nem vê classe de outros jogadores (só a própria).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0013 — Projétil de habilidade como `SkillProjectile` varrido, só no servidor; áreas à distância por `hitbox_offset` (E6.1)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (combate/rede/apresentação)
+- **Contexto:** Mago e Patrulheiro precisam de projéteis e áreas; o servidor roda a física a 30 Hz e o `Hitbox` do E2 é uma área presa ao jogador.
+- **Opções consideradas:** (a) reaproveitar `Hitbox` movendo-o; (b) estender o `Projectile` inimigo; (c) novo `SkillProjectile` (Area3D sem polling de overlap) com consulta de forma por sub-passo.
+- **Escolha provisória:** (c). `SkillData` ganhou `projectile_speed/range/pierce` e `tags` (projétil = ataque com esfera, `hitbox_size.x` = raio); `PlayerCombat` o cria na fase ACTIVE com dano = ataque × multiplicador calculado no servidor. O movimento é varrido em sub-passos de no máximo o raio (`intersect_shape` na camada `ENEMY_HURT`), então não atravessa alvos a 30 Hz; um `StaticBody` do mundo (raio) o consome; cada alvo leva um golpe por projétil (dedupe por `hit_id`, como o `Hitbox`); `pierce` = alvos adicionais. Áreas (`frost_nova`, `arrow_rain`) são esferas com `hitbox_offset` (a distância). Esquivas/mobilidade (`blink`, `roll`) usam o `DODGE` existente (deslocamento + i-frames).
+- **Consequências:** o cliente **não** renderiza projéteis (não são entidades de snapshot): vê só o efeito (vida, números de dano) — apresentação de projétil/áreas fica para quando houver arte/eventos cosméticos. Limite de velocidade 40 m/s e alcance 40 m na validação. Acertos além de `pierce` no mesmo sub-passo são ignorados (ordem de sobreposição). Balanceamento dos números é provisório (sem medição de DPS/uso).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+

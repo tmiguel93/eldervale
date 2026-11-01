@@ -25,6 +25,8 @@ var progress: CharacterProgress = CharacterProgress.new()
 ## CharacterCodec restaura/captura em-place). O cliente nunca escreve aqui.
 var quest_state: QuestState = QuestState.new()
 var final_stats: StatBlock
+## E6.1: classe aplicada pelo servidor (`apply_class`); null = jogador legado/offline (crescimento e habilidades padrao da cena).
+var class_def: ClassDef
 
 var combat: PlayerCombat
 var health: HealthComponent
@@ -53,6 +55,21 @@ func _ready() -> void:
 	equipment.equipment_changed.connect(func(_slot: int) -> void: recalculate())
 	progress.leveled_up.connect(func(_lvl: int, _gained: int) -> void: recalculate())
 	recalculate()
+
+
+## E6.1: aplica a classe: habilidades dos slots (+ restricao de uso em PlayerCombat) e o crescimento por nivel. Os stats BASE nao
+## mudam aqui (vem do personagem salvo / da cena). So o servidor chama; o cliente nunca escolhe habilidades.
+func apply_class(def: ClassDef) -> bool:
+	if def == null or combat == null or not combat.apply_class(def):
+		return false
+	class_def = def
+	progress.bonus_per_level = def.growth.copy()
+	recalculate()
+	return true
+
+
+func class_id() -> String:
+	return class_def.id if class_def != null else ""
 
 
 ## Recalcula e aplica os stats finais (ver politica de proporcao no cabecalho).

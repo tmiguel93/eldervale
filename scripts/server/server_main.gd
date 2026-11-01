@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "default-class"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -182,6 +182,13 @@ func _apply_extras(extras: Dictionary) -> void:
 		settings.world_id = "" if w == "arena" or w.is_empty() else w
 		print("[server] mundo: %s" % ("arena de teste" if settings.world_id.is_empty() else settings.world_id))
 		settings.individual_loot = not settings.world_id.is_empty() # E5.4: o mundo usa loot individual (arena: legado E3/E4)
+	if extras.has("default-class"): # E6.1: classe dos jogadores sem personagem do backend (modo dev); invalida => padrao
+		var dc: String = String(extras["default-class"]).strip_edges()
+		if ClassCatalog.shared().has_class(dc):
+			settings.default_class_id = dc
+			print("[server] classe padrao (dev): %s" % dc)
+		else:
+			print("[server] --default-class '%s' desconhecida; mantendo %s" % [dc.left(32), settings.default_class_id])
 	if extras.has("individual-loot"): # E5.4: --individual-loot 0|1 forca o modo (padrao: ligado so com --world)
 		settings.individual_loot = String(extras["individual-loot"]).strip_edges() in ["1", "true", "on"]
 		print("[server] loot individual: %s" % ("ligado" if settings.individual_loot else "desligado"))

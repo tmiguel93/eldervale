@@ -5,6 +5,7 @@ import { created, noContent, ok } from "../http/respond.ts";
 import type { Router } from "../http/router.ts";
 import type { Catalog } from "./catalog.ts";
 import { loadCatalogFromDisk } from "./catalog.ts";
+import { loadClassCatalogFromDisk, type ClassCatalog } from "./classes.ts";
 import { loadCharacterLimits, type CharacterLimits } from "./limits.ts";
 import { loadQuestCatalogFromDisk, type QuestCatalog } from "../quests/catalog.ts";
 import { loadRecipeCatalogFromDisk, type RecipeCatalog } from "../crafting/catalog.ts";
@@ -57,13 +58,14 @@ function objectBody(b: unknown): Record<string, unknown> {
 }
 
 /** `opts` existe para testes; em producao use os padroes (catalogo do disco, limites de env). */
-export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: { catalog?: Catalog; limits?: CharacterLimits; quests?: QuestCatalog; recipes?: RecipeCatalog } = {}): void {
+export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: { catalog?: Catalog; limits?: CharacterLimits; quests?: QuestCatalog; recipes?: RecipeCatalog; classes?: ClassCatalog } = {}): void {
   const catalog = opts.catalog ?? loadCatalogFromDisk();
   const limits = opts.limits ?? loadCharacterLimits();
   const quests = opts.quests ?? loadQuestCatalogFromDisk(catalog);
   const recipes = opts.recipes ?? loadRecipeCatalogFromDisk(catalog);
+  const classes = opts.classes ?? loadClassCatalogFromDisk();
   const { db, requireAuth, requireInternal } = deps;
-  const svc = (log: ServiceCtx["log"]): ServiceCtx => ({ catalog, limits, now: deps.now, log, quests });
+  const svc = (log: ServiceCtx["log"]): ServiceCtx => ({ catalog, limits, now: deps.now, log, quests, classes });
 
   // ----------------------------------------------------------- publico
   router.get("/v1/characters", requireAuth(async (ctx) => ok({ characters: await listCharacters(db, ctx.auth.accountId) })));
@@ -72,7 +74,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
     const body = objectBody(await ctx.json());
     for (const k of Object.keys(body)) if (k !== "name" && k !== "class_id") throw Errors.badRequest(`campo desconhecido "${k.slice(0, 40)}"`, "invalid_body");
     const name = validateCharacterName(body.name);
-    const classId = validateClassId(body.class_id);
+    const classId = validateClassId(body.class_id, classes);
     const rec = await createCharacter(db, svc(ctx.log), ctx.auth.accountId, name, classId);
     return created({ character: publicView(rec, limits) });
   }));

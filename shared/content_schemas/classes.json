@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "source": "data/classes/*.json (gerado por tools/gen_classes_catalog.mjs)",
+  "default_class": "warrior",
+  "classes": [
+    {
+      "id": "mage",
+      "resource_kind": "mana",
+      "base_stats": {
+        "max_health": 80,
+        "max_resource": 100,
+        "resource_regen": 6,
+        "attack_power": 13,
+        "defense": 0,
+        "resistance": 0.05,
+        "move_speed": 5
+      },
+      "skills": {
+        "attack": "arcane_bolt",
+        "skill_1": "fireball",
+        "skill_2": "frost_nova",
+        "dodge": "blink"
+      },
+      "specializations": [
+        {
+          "id": "elementalist",
+          "planned": false
+        },
+        {
+          "id": "summoner",
+          "planned": true
+        },
+        {
+          "id": "arcanist",
+          "planned": true
+        }
+      ]
+    },
+    {
+      "id": "ranger",
+      "resource_kind": "stamina",
+      "base_stats": {
+        "max_health": 90,
+        "max_resource": 70,
+        "resource_regen": 8,
+        "attack_power": 11,
+        "defense": 0,
+        "resistance": 0,
+        "move_speed": 5.5
+      },
+      "skills": {
+        "attack": "quick_shot",
+        "skill_1": "piercing_arrow",
+        "skill_2": "arrow_rain",
+        "dodge": "roll"
+      },
+      "specializations": [
+        {
+          "id": "hunter",
+          "planned": false
+        },
+        {
+          "id": "explorer",
+          "planned": true
+        },
+        {
+          "id": "arcane_archer",
+          "planned": true
+        }
+      ]
+    },
+    {
+      "id": "warrior",
+      "resource_kind": "stamina",
+      "base_stats": {
+        "max_health": 100,
+        "max_resource": 50,
+        "resource_regen": 5,
+        "attack_power": 10,
+        "defense": 0,
+        "resistance": 0,
+        "move_speed": 5
+      },
+      "skills": {
+        "attack": "basic_attack",
+        "skill_1": "heavy_strike",
+        "skill_2": "whirlwind",
+        "dodge": "dodge"
+      },
+      "specializations": [
+        {
+          "id": "berserker",
+          "planned": false
+        },
+        {
+          "id": "guardian",
+          "planned": true
+        },
+        {
+          "id": "arcane_knight",
+          "planned": true
+        }
+      ]
+    }
+  ]
+}

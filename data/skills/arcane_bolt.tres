@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"arcane_bolt"
+display_name = "Raio Arcano"
+kind = 0
+resource_cost = 0.0
+cooldown = 0.5
+damage_multiplier = 1.0
+windup = 0.12
+active = 0.1
+recover = 0.2
+hitbox_shape = 1
+hitbox_size = Vector3(0.4, 0.4, 0.4)
+hitbox_offset = 0.8
+i_frames = 0.0
+dodge_distance = 0.0
+attack_move_scale = 0.6
+projectile_speed = 20.0
+projectile_range = 14.0
+projectile_pierce = 0
+tags = PackedStringArray("projectile", "arcane")

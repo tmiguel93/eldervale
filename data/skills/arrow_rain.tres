@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"arrow_rain"
+display_name = "Chuva de Flechas"
+kind = 0
+resource_cost = 28.0
+cooldown = 9.0
+damage_multiplier = 1.7
+windup = 0.4
+active = 0.5
+recover = 0.3
+hitbox_shape = 1
+hitbox_size = Vector3(3.0, 1.0, 1.0)
+hitbox_offset = 6.0
+i_frames = 0.0
+dodge_distance = 0.0
+attack_move_scale = 0.5
+tags = PackedStringArray("area", "physical")

@@ -2,6 +2,7 @@ import { ApiError, Errors } from "../http/errors.ts";
 import type { Logger } from "../http/logger.ts";
 import { isUniqueViolation, type Db } from "../persistence/db.ts";
 import type { Catalog } from "./catalog.ts";
+import type { ClassCatalog } from "./classes.ts";
 import type { CharacterLimits } from "./limits.ts";
 import {
   addItems, BASE_STATS, EQUIP_SLOTS, itemTotals, invalidState, SCHEMA_VERSION, STARTING_EQUIPMENT,
@@ -18,6 +19,8 @@ export interface ServiceCtx {
   log: Logger;
   /** Catalogo de quests (E5.1). Ausente = vazio (nenhuma quest conhecida). */
   quests?: QuestCatalog;
+  /** Catalogo de classes (E6.1). Ausente = so os stats base historicos (BASE_STATS) na criacao. */
+  classes?: ClassCatalog;
 }
 
 export interface CharacterRecord {
@@ -134,7 +137,7 @@ export async function createCharacter(db: Db, ctx: ServiceCtx, accountId: string
       const ins = await tx.tx((t) =>
         t.query<{ id: string }>(
           "INSERT INTO characters (account_id, name, class_id, stats, schema_version, created_at, updated_at) VALUES ($1, $2, $3, $4::jsonb, $5, $6, $6) RETURNING id",
-          [accountId, name, classId, JSON.stringify(BASE_STATS), SCHEMA_VERSION, new Date(ctx.now())]));
+          [accountId, name, classId, JSON.stringify(ctx.classes?.get(classId)?.base_stats ?? BASE_STATS), SCHEMA_VERSION, new Date(ctx.now())]));
       id = ins.rows[0]!.id;
     } catch (e) {
       if (isUniqueViolation(e)) throw Errors.conflict("nome ja em uso", "name_taken");

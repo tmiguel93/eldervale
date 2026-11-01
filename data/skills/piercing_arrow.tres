@@ -1,0 +1,25 @@
+[gd_resource type="Resource" script_class="SkillData" load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/combat/skill_data.gd" id="1_skill"]
+
+[resource]
+script = ExtResource("1_skill")
+id = &"piercing_arrow"
+display_name = "Flecha Perfurante"
+kind = 0
+resource_cost = 18.0
+cooldown = 4.0
+damage_multiplier = 1.8
+windup = 0.35
+active = 0.1
+recover = 0.3
+hitbox_shape = 1
+hitbox_size = Vector3(0.35, 0.35, 0.35)
+hitbox_offset = 0.8
+i_frames = 0.0
+dodge_distance = 0.0
+attack_move_scale = 0.3
+projectile_speed = 30.0
+projectile_range = 22.0
+projectile_pierce = 2
+tags = PackedStringArray("projectile", "physical", "pierce")

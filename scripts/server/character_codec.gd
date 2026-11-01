@@ -35,6 +35,10 @@ static func validate(ch: Dictionary, registry: ContentRegistry) -> String:
 			return "stat invalido: " + key
 	if typeof(ch["inventory"]) != TYPE_ARRAY or typeof(ch["equipment"]) != TYPE_DICTIONARY:
 		return "inventario/equipamento invalidos"
+	# E6.1: `class_id` e opcional (backend/fake antigo = classe padrao); se presente, tem de existir no catalogo (senao o jogo recusa
+	# a entrada em vez de inventar habilidades/stats para uma classe desconhecida).
+	if ch.has("class_id") and not ClassCatalog.shared().has_class(ch["class_id"]):
+		return "class_id desconhecido"
 	# E5.1: `quests` e opcional (backend antigo/personagem pre-E5.1 = sem quests); se presente, a FORMA deve ser valida.
 	if ch.has("quests") and not QuestState.shape_error(ch["quests"]).is_empty():
 		return "quests invalido"
@@ -71,6 +75,9 @@ static func apply(loadout: PlayerLoadout, ch: Dictionary) -> void:
 	base.resistance = float(stats["resistance"])
 	base.move_speed = float(stats["move_speed"])
 	loadout.base_stats = base
+	var class_def: ClassDef = ClassCatalog.shared().get_def(String(ch.get("class_id", ClassCatalog.DEFAULT_CLASS_ID)))
+	if class_def == null or not loadout.apply_class(class_def):
+		ServerLog.warn("[state] classe indisponivel; mantendo a classe atual do jogador")
 	loadout.progress.level = int(ch["level"])
 	loadout.progress.total_xp = int(ch["xp"])
 	var inv: Inventory = loadout.inventory

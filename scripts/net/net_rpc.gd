@@ -23,6 +23,8 @@ signal craft_cmd_received(peer_id: int, req_id: int, recipe_id: String)
 signal craft_update_received(kind: int, data: Dictionary)
 ## Extensao aditiva E5.6 (inventario sincronizado, so servidor -> dono). NAO valida o conteudo (Protocol.validate_inventory_update).
 signal inventory_update_received(data: Dictionary)
+## Extensao aditiva E6.1 (classe do personagem, so servidor -> dono). NAO valida o conteudo (Protocol.validate_class_update).
+signal class_update_received(data: Dictionary)
 ## Extensao aditiva E5.7 (snapshot compacto). `caps_received` NAO valida o conteudo (Protocol.validate_caps);
 ## `snapshot_part_received` ja traz tipos basicos conferidos, mas o cabecalho/blob passam por Protocol.validate_snapshot_part.
 signal caps_received(peer_id: int, caps: int)
@@ -249,6 +251,15 @@ func s_inventory(data: Variant) -> void:
 	inventory_update_received.emit(data as Dictionary)
 
 
+@rpc("authority", "call_remote", "reliable")
+func s_class(data: Variant) -> void:
+	if not _from_server():
+		return
+	if typeof(data) != TYPE_DICTIONARY:
+		return
+	class_update_received.emit(data as Dictionary)
+
+
 # ---------------------------------------------------------------- envio
 
 func _can_send() -> bool:
@@ -330,6 +341,10 @@ func send_craft_update(peer: int, kind: int, data: Dictionary) -> void:
 
 func send_inventory(peer: int, data: Dictionary) -> void:
 	_send(peer, &"s_inventory", [data], true)
+
+
+func send_class(peer: int, data: Dictionary) -> void:
+	_send(peer, &"s_class", [data], true)
 
 
 func send_quest_update(peer: int, kind: int, data: Dictionary) -> void:

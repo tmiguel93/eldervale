@@ -33,6 +33,10 @@ var respawns: int = 0                # eventos respawn do proprio jogador
 var boss_states: Array[int] = []     # estados de chefe recebidos (0 armado, 1 ativo, 2 derrotado)
 var tour_done: bool = false          # world_tour: chegou ao salao do chefe
 
+# --- E6.1 (classe informada pelo servidor via s_class) ---
+var class_id: String = ""            # ultima classe valida recebida
+var class_updates: int = 0           # s_class validos recebidos
+
 # --- E5.6 (aventura / inventario sincronizado) ---
 var inventory_updates: int = 0       # s_inventory validos recebidos
 var inventory: Dictionary = {}       # ultimo inventario sincronizado: item_id -> qty
@@ -99,6 +103,12 @@ func on_world_event(kind: int, data: Dictionary, my_id: int) -> void:
 		Protocol.EVENT_DEATH:
 			if int(data.get("id", -1)) == my_id:
 				deaths += 1
+
+
+## E6.1: classe informada pelo servidor (id ja validado contra o catalogo local).
+func on_class(p_class_id: String) -> void:
+	class_id = p_class_id
+	class_updates += 1
 
 
 ## E5.6: inventario completo sincronizado pelo servidor (payload ja validado).
@@ -177,6 +187,8 @@ func to_dict() -> Dictionary:
 		"kills": kills,
 		"events_total": _events_total(),
 		"character_final": character_final,
+		"class_id": class_id,
+		"class_updates": class_updates,
 		"xp": int(character_final.get("xp", -1)),
 		"level": int(character_final.get("level", -1)),
 		"elapsed_s": elapsed_s,

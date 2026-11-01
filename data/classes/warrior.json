@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "id": "warrior",
+  "display_name": "Guerreiro",
+  "description": "Combatente corpo a corpo resistente; usa stamina.",
+  "resource": {
+    "kind": "stamina",
+    "display_name": "Stamina"
+  },
+  "base_stats": {
+    "max_health": 100,
+    "max_resource": 50,
+    "resource_regen": 5,
+    "attack_power": 10,
+    "defense": 0,
+    "resistance": 0,
+    "move_speed": 5
+  },
+  "growth_per_level": {
+    "max_health": 10,
+    "max_resource": 3,
+    "attack_power": 1,
+    "defense": 0.25
+  },
+  "skills": {
+    "attack": "basic_attack",
+    "skill_1": "heavy_strike",
+    "skill_2": "whirlwind",
+    "dodge": "dodge"
+  },
+  "specializations": [
+    {
+      "id": "berserker",
+      "display_name": "Berserker",
+      "tags": [
+        "physical",
+        "aggression",
+        "speed"
+      ],
+      "description": "Agressao, dano fisico e velocidade.",
+      "planned": false
+    },
+    {
+      "id": "guardian",
+      "display_name": "Guardiao",
+      "tags": [
+        "mitigation",
+        "block",
+        "control"
+      ],
+      "description": "Mitigacao, bloqueio e controle.",
+      "planned": true
+    },
+    {
+      "id": "arcane_knight",
+      "display_name": "Cavaleiro Arcano",
+      "tags": [
+        "weapon",
+        "magic"
+      ],
+      "description": "Arma e magia.",
+      "planned": true
+    }
+  ]
+}

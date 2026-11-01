@@ -28,6 +28,7 @@ var party: PartyPanel
 var boss: BossBar
 var toasts: ToastStack
 var fade: ScreenFade
+var skill_bar: SkillBar ## E6.1: classe + habilidades (reflete o s_class do servidor)
 var vitals_box: PanelContainer
 var vitals_bar: ProgressBar
 var prompt: Label
@@ -85,6 +86,9 @@ func ensure_built() -> void:
 	vitals_box.add_child(vitals_bar)
 	vitals_box.visible = false
 	_place(vitals_box, 0.0, 1.0, 12, -48, 262, -12)
+	skill_bar = SkillBar.new()
+	skill_bar.name = "SkillBar"
+	_place(skill_bar, 1.0, 1.0, -300, -140, -12, -12)
 	prompt = UiStyle.label("", UiStyle.ACCENT, 17)
 	prompt.name = "Prompt"
 	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -151,6 +155,9 @@ func bind(p_session: ClientSession) -> void:
 	_link(session.dialogue_error, _on_dialogue_error)
 	_link(session.craft_finished, _on_craft_finished)
 	_link(session.inventory_synced, _on_inventory_synced)
+	_link(session.class_synced, skill_bar.refresh)
+	if not session.class_id.is_empty():
+		skill_bar.refresh(session.class_id)
 	if not session.inventory_data.is_empty(): # sessao ja sincronizada antes do bind
 		_on_inventory_synced(session.inventory_data)
 	var log: ClientQuestLog = session.quest_log
@@ -176,6 +183,7 @@ func reset_view() -> void:
 	party.refresh([], -1, {})
 	boss.refresh([])
 	vitals_box.visible = false
+	skill_bar.refresh("")
 
 
 func _panels() -> Array[UiPanel]:

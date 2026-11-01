@@ -312,6 +312,8 @@ func _complete_join(p: PeerState, entity_id: int) -> void:
 		quests.attach(entity_id, peer_id, p.character_id, join_loadout)
 	crafting.attach(entity_id)
 	send_inventory(p, true) # E5.6: estado completo logo apos o welcome (depois, so quando mudar)
+	if join_loadout != null and join_loadout.class_def != null: # E6.1: classe (autoridade do servidor) so para o dono
+		transport.send_class(peer_id, {"class_id": join_loadout.class_def.id})
 	player_joined.emit(peer_id, entity_id)
 
 

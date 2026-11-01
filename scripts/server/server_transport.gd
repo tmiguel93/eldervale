@@ -49,5 +49,10 @@ func send_inventory(_peer_id: int, _data: Dictionary) -> void:
 	pass
 
 
+## E6.1: classe do personagem (reliable, so para este peer). Ver Protocol.validate_class_update.
+func send_class(_peer_id: int, _data: Dictionary) -> void:
+	pass
+
+
 func disconnect_peer(_peer_id: int) -> void:
 	pass

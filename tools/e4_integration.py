@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Integracao E2E E4: API Node local (PGlite temporario) + servidor Godot headless + bots, tudo em processos
 separados em 127.0.0.1. Segredos aleatorios gerados a cada execucao e passados SO por ambiente.
-Uso: python3 tools/e4_integration.py <happy|replay|double|crash|badticket|nobackendsecret|all> [--godot CAMINHO] [--port N]
+Uso: python3 tools/e4_integration.py <happy|mage|ranger|replay|double|crash|badticket|nobackendsecret|all> [--godot CAMINHO] [--port N]
 Requer: python3 (stdlib), node >= 22 e `npm ci` em backend/, binario Godot 4.7.2. Saida 0 = tudo PASS.
 Cada cenario leva < 170 s; `all` soma todos (rode um por vez se o seu shell tem limite de tempo)."""
 import argparse, glob, json, os, re, secrets, shutil, signal, subprocess, sys, time, urllib.error, urllib.request
@@ -158,11 +158,11 @@ class Ctx:
         st, d = self.http("GET", "/v1/sessions", token=self.access)
         return d["sessions"] if st == 200 else None
 
-    def prepare_account(self, char_name):
+    def prepare_account(self, char_name, class_id="warrior"):
         """Registra e cria o personagem por HTTP (os bots tambem sabem fazer isso sozinhos)."""
         self.http("POST", "/v1/auth/register", {"email": self.email, "password": self.password})
         self.login_http()
-        st, d = self.http("POST", "/v1/characters", {"name": char_name, "class_id": "warrior"}, token=self.access)
+        st, d = self.http("POST", "/v1/characters", {"name": char_name, "class_id": class_id}, token=self.access)
         return d["character"]["id"] if st == 201 else None
 
     # ---- servidor Godot
@@ -283,6 +283,36 @@ def sc_happy(c):
     c.no_secrets_in_logs()
 
 
+def _sc_class(c, class_id, first_skill):
+    """E6.1: personagem de outra classe pelo fluxo real (API -> servidor Godot -> bot): s_class chega ao dono, o bot mata um
+    inimigo com o ataque basico DA CLASSE (projetil, no caso de mago/patrulheiro) e o class_id segue intacto no backend."""
+    c.start_api()
+    cid = c.prepare_account("Classy", class_id)
+    srv, sf = c.start_server("a")
+    sid = c.wait_session(sf, srv)
+    c.check(sid is not None and cid is not None, "API, conta, personagem e sessao prontos")
+    if not sid or not cid:
+        return
+    bot, out = c.start_bot("a", "kill_enemy", "Classy", 45, session_id=sid)
+    r = c.finish_bot(bot, out, 110)
+    c.check(r.get("_exit") == 0 and r.get("connected") is True, f"bot de {class_id} conectou e saiu com 0 (codigo {r.get('_exit')}, erros {r.get('errors')})")
+    c.check(r.get("class_id") == class_id and r.get("class_updates") == 1, f"s_class recebido uma vez: {r.get('class_id')} x{r.get('class_updates')}")
+    c.check(r.get("kills", 0) >= 1, f"bot de {class_id} matou um inimigo com a habilidade da classe ({first_skill}) (kills={r.get('kills')})")
+    ch = c.poll_character(cid, lambda x: x.get("xp", 0) > 0 and x.get("revision", 0) > 0)
+    c.check(bool(ch) and ch.get("class_id") == class_id, f"backend mantem class_id={class_id} apos checkpoints (revision={ch and ch.get('revision')})")
+    c.check(bool(ch) and int(ch.get("xp", 0)) > 0, f"XP persistido (xp={ch and ch.get('xp')})")
+    c.no_errors_in(["a"])
+    c.no_secrets_in_logs()
+
+
+def sc_mage(c):
+    _sc_class(c, "mage", "arcane_bolt")
+
+
+def sc_ranger(c):
+    _sc_class(c, "ranger", "quick_shot")
+
+
 def sc_replay(c):
     c.start_api()
     cid = c.prepare_account("Replay")
@@ -398,7 +428,7 @@ def sc_crash(c):
     c.no_secrets_in_logs()
 
 
-SCENARIOS = {"happy": sc_happy, "replay": sc_replay, "double": sc_double, "crash": sc_crash,
+SCENARIOS = {"happy": sc_happy, "mage": sc_mage, "ranger": sc_ranger, "replay": sc_replay, "double": sc_double, "crash": sc_crash,
              "badticket": sc_badticket, "nobackendsecret": sc_nobackendsecret}
 
 

@@ -8,8 +8,13 @@ extends Node
 ## Testes podem desligar o physics_process e chamar step(delta) manualmente.
 
 signal skill_started(skill: SkillData)
-signal skill_failed(skill: SkillData, reason: StringName) ## cooldown / resource / busy / dead
+signal skill_failed(skill: SkillData, reason: StringName) ## cooldown / resource / busy / dead / not_allowed
 signal strike_started(skill: SkillData, hit_id: int)
+## E6.1: um SkillProjectile foi disparado (para testes/efeitos); o projetil vive no mundo, nao sob o Player.
+signal projectile_spawned(projectile: SkillProjectile)
+
+## E6.1: slots de habilidade da classe (chaves de `apply_class`). A ordem e a do HUD.
+const SLOTS: Array[StringName] = [&"attack", &"skill_1", &"skill_2", &"dodge"]
 
 @export var base_stats: StatBlock
 @export var health_path: NodePath = NodePath("../Health")
@@ -22,6 +27,10 @@ signal strike_started(skill: SkillData, hit_id: int)
 @export var hitbox_height: float = 0.9
 
 var read_input_actions: bool = true
+## E6.1: classe aplicada (`apply_class`). Com classe, SO as habilidades dela podem ser usadas (`try_use` recusa o resto com
+## `not_allowed`). Vazio = jogador legado/offline sem restricao (cena do jogo local e testes E1-E5).
+var class_id: StringName = &""
+var allowed_skill_ids: Dictionary = {} ## StringName -> true
 var machine: CharacterStateMachine = CharacterStateMachine.new()
 var resource_pool: ResourcePool = ResourcePool.new()
 var cooldowns: CooldownTracker = CooldownTracker.new()
@@ -98,9 +107,49 @@ func _attack_move_scale() -> float:
 	return 0.0
 
 
-## Tenta usar a habilidade. Ordem: estado -> cooldown -> custo; so gasta/inicia cooldown se TUDO ok.
+## E6.1: aplica a classe (so o SERVIDOR/jogo chama; nunca vem do cliente). Troca os 4 slots, restringe `try_use` as habilidades da
+## classe e zera cooldowns/acao em curso. NAO mexe em stats (vem do personagem: CharacterCodec / PlayerLoadout.apply_class_growth).
+func apply_class(def: ClassDef) -> bool:
+	if def == null:
+		return false
+	var resolved: Dictionary = {}
+	for slot: StringName in SLOTS:
+		var skill: SkillData = ClassCatalog.load_skill(StringName(def.skills.get(String(slot), "")))
+		if skill == null:
+			return false
+		resolved[slot] = skill
+	basic_attack = resolved[&"attack"]
+	skill_1 = resolved[&"skill_1"]
+	skill_2 = resolved[&"skill_2"]
+	dodge_skill = resolved[&"dodge"]
+	allowed_skill_ids.clear()
+	for slot: StringName in SLOTS:
+		allowed_skill_ids[(resolved[slot] as SkillData).id] = true
+	class_id = StringName(def.id)
+	cooldowns.clear()
+	return true
+
+
+## Habilidade de um slot (`SLOTS`); null se o slot e desconhecido.
+func skill_for_slot(slot: StringName) -> SkillData:
+	match slot:
+		&"attack": return basic_attack
+		&"skill_1": return skill_1
+		&"skill_2": return skill_2
+		&"dodge": return dodge_skill
+	return null
+
+
+func is_skill_allowed(skill: SkillData) -> bool:
+	return skill != null and (allowed_skill_ids.is_empty() or allowed_skill_ids.has(skill.id))
+
+
+## Tenta usar a habilidade. Ordem: classe -> estado -> cooldown -> custo; so gasta/inicia cooldown se TUDO ok.
 func try_use(skill: SkillData) -> bool:
 	if skill == null:
+		return false
+	if not is_skill_allowed(skill):
+		skill_failed.emit(skill, &"not_allowed")
 		return false
 	if machine.is_dead():
 		skill_failed.emit(skill, &"dead")
@@ -159,6 +208,9 @@ func _on_state_changed(from: CharacterStateMachine.State, _to: CharacterStateMac
 
 
 func _begin_strike(skill: SkillData) -> void:
+	if skill.is_projectile():
+		_spawn_projectile(skill)
+		return
 	var yaw: float = _player.facing_yaw_value
 	hitbox.configure_shape(skill)
 	hitbox.rotation.y = yaw
@@ -166,6 +218,20 @@ func _begin_strike(skill: SkillData) -> void:
 	var amount: float = health.stats.attack_power * skill.damage_multiplier
 	var hit_id: int = hitbox.begin_strike(amount, _player)
 	strike_started.emit(skill, hit_id)
+
+
+## Dispara o projetil da skill a frente do jogador (dano = ataque * multiplicador, calculado AGORA pelo servidor).
+func _spawn_projectile(skill: SkillData) -> void:
+	var parent: Node = _player.get_parent()
+	if parent == null:
+		parent = get_tree().root
+	var amount: float = health.stats.attack_power * skill.damage_multiplier
+	var origin: Vector3 = _player.global_position + _player.get_facing_direction() * skill.hitbox_offset + Vector3(0.0, hitbox_height, 0.0)
+	var proj: SkillProjectile = SkillProjectile.from_skill(skill, _player, Vector3.ZERO, _player.get_facing_direction(), amount)
+	parent.add_child(proj)
+	proj.global_position = origin
+	projectile_spawned.emit(proj)
+	strike_started.emit(skill, proj.hit_id)
 
 
 func _on_damaged(_info: DamageInfo, _final_amount: float) -> void:

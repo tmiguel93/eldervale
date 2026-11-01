@@ -57,6 +57,13 @@ var inventory_data: Dictionary = {}
 var inventory_updates: int = 0
 var inventory_rejected: int = 0
 
+## E6.1: classe do personagem informada pelo servidor (s_class; so o dono recebe). Vazio ate chegar. O cliente NAO escolhe nem muda
+## a classe nem as habilidades: so usa o id para o HUD (catalogo local). Id desconhecido localmente e descartado e contado.
+signal class_synced(class_id: String)
+var class_id: String = ""
+var class_updates: int = 0
+var class_rejected: int = 0
+
 ## E5.1: espelho do diario de quests e do dialogo atual (somente leitura; a UI escuta os sinais).
 signal dialogue_changed(view: Dictionary)   ## view vazio = dialogo encerrado
 signal dialogue_error(req_id: int, op: int, code: String)
@@ -295,6 +302,19 @@ func on_inventory_update(data: Dictionary) -> void:
 	inventory_updates += 1
 	result.on_inventory(data)
 	inventory_synced.emit(data)
+
+
+## s_class do servidor (so aceito em PLAYING; malformado ou de classe desconhecida e descartado e contado).
+func on_class_update(data: Dictionary) -> void:
+	if state != State.PLAYING:
+		return
+	if not Protocol.validate_class_update(data) or not ClassCatalog.shared().has_class(data["class_id"]):
+		class_rejected += 1
+		return
+	class_id = String(data["class_id"])
+	class_updates += 1
+	result.on_class(class_id)
+	class_synced.emit(class_id)
 
 
 ## Pede para fabricar `recipe_id` (precisa estar perto da estacao; o servidor valida). Devolve o req_id (-1 se nao enviou).

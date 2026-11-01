@@ -137,6 +137,7 @@ func _start() -> void:
 		_rpc.dialogue_received.connect(func(kind: int, data: Dictionary) -> void: session.on_dialogue(kind, data))
 		_rpc.craft_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_craft_update(kind, data))
 		_rpc.inventory_update_received.connect(func(data: Dictionary) -> void: session.on_inventory_update(data))
+		_rpc.class_update_received.connect(func(data: Dictionary) -> void: session.on_class_update(data))
 		multiplayer.connected_to_server.connect(_on_connected)
 		multiplayer.connection_failed.connect(_on_connection_failed)
 		multiplayer.server_disconnected.connect(_on_server_disconnected)

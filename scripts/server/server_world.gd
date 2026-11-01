@@ -199,6 +199,14 @@ func add_player(peer_id: int, player_name: String, starting_items: bool = true) 
 	slot.node = player
 	slot.health = player.get_node("Health") as HealthComponent
 	slot.loadout = PlayerLoadout.find_for(player)
+	if slot.loadout != null: # E6.1: classe padrao do servidor (o personagem do backend a substitui no CharacterCodec.apply)
+		var def: ClassDef = ClassCatalog.shared().get_def(settings.default_class_id)
+		if def == null:
+			def = ClassCatalog.shared().default_def()
+		slot.loadout.apply_class(def)
+		if def.id != ClassCatalog.DEFAULT_CLASS_ID: # dev (--default-class): stats base da classe; o guerreiro mantem os da cena (E1-E5)
+			slot.loadout.base_stats = def.base_stats.copy()
+			slot.loadout.recalculate()
 	if starting_items and slot.loadout != null and slot.loadout.inventory != null:
 		for item_id: StringName in TestArena.STARTING_ITEMS:
 			slot.loadout.inventory.add(item_id, 1)

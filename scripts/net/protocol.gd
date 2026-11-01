@@ -73,6 +73,11 @@ const MAX_CRAFT_RESULTS: int = 4
 const MAX_INVENTORY_SLOTS: int = 200
 const INVENTORY_EQUIP_SLOTS: Array[String] = ["weapon", "armor", "trinket"]
 
+## E6.1 (aditivo, VERSION continua 2): CLASSE DO PERSONAGEM. s_class(data) (servidor -> SO o dono, reliable): `{class_id: id de conteudo}`.
+## Enviado uma vez logo apos o welcome (e o inventario). O servidor e a autoridade da classe e das habilidades permitidas; o cliente
+## so usa o id para o HUD (nomes/custos vem do catalogo local data/classes). NAO existe comando do cliente para trocar de classe.
+const MAX_CLASS_ID_LEN: int = 48
+
 ## E5.7 (aditivo, VERSION continua 2): SNAPSHOT COMPACTO. O cliente anuncia capacidades com `c_caps(caps)` (reliable, apos o
 ## welcome); se `CAP_SNAPSHOT_COMPACT` estiver ligada o servidor envia `s_snapshot_c(tick, last_input_seq, part, parts, blob)`
 ## (unreliable_ordered) em vez de `s_snapshot`. Codificacao em `SnapshotCodec`, mescla em `SnapshotAssembler`.
@@ -428,6 +433,16 @@ static func validate_inventory_update(d: Variant) -> bool:
 		if typeof(k) != TYPE_STRING or not INVENTORY_EQUIP_SLOTS.has(String(k)) or not is_content_id((eq as Dictionary)[k]):
 			return false
 	return true
+
+
+## E6.1: s_class(data) vindo do fio (o cliente descarta o que falhar). Exatamente a chave `class_id` (id de conteudo ate 48 chars).
+static func validate_class_update(d: Variant) -> bool:
+	if typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	if e.size() != 1 or not is_content_id(e.get("class_id", null)):
+		return false
+	return String(e["class_id"]).length() <= MAX_CLASS_ID_LEN
 
 
 ## E5.7: c_caps(caps) vindo do cliente. Retorna {ok, code, message, caps}; bits desconhecidos sao IGNORADOS (mascarados) para

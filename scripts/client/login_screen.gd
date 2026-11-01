@@ -15,11 +15,14 @@ var busy: bool = false
 var status_text: String = ""
 var wanted_session: String = ""
 var auto_create_name: String = ""
+## E6.1: classe do novo personagem (id do catalogo; o backend valida de novo). Padrao: classe padrao do catalogo.
+var selected_class: String = ClassCatalog.DEFAULT_CLASS_ID
 
 var _email: LineEdit
 var _password: LineEdit
 var _list: ItemList
 var _new_name: LineEdit
+var _class_pick: OptionButton
 var _status: Label
 var _buttons: Array[Button] = []
 var _play_btn: Button
@@ -69,6 +72,14 @@ func _build_ui() -> void:
 	_new_name = LineEdit.new()
 	_new_name.placeholder_text = "Nome do novo personagem"
 	box.add_child(_new_name)
+	_class_pick = OptionButton.new()
+	for cid: String in ClassCatalog.shared().ids():
+		_class_pick.add_item(ClassCatalog.shared().get_def(cid).display_name)
+		_class_pick.set_item_metadata(_class_pick.item_count - 1, cid)
+		if cid == selected_class:
+			_class_pick.select(_class_pick.item_count - 1)
+	_class_pick.item_selected.connect(func(i: int) -> void: select_class(String(_class_pick.get_item_metadata(i))))
+	box.add_child(_class_pick)
 	box.add_child(_btn("Criar personagem", func() -> void: await do_create(_new_name.text)))
 	_play_btn = _btn("Jogar", func() -> void: await do_play())
 	box.add_child(_play_btn)
@@ -139,6 +150,14 @@ func do_register(email: String, password: String) -> bool:
 	return ok
 
 
+## Escolhe a classe do proximo personagem. Id fora do catalogo e ignorado (devolve false).
+func select_class(class_id: String) -> bool:
+	if not ClassCatalog.shared().has_class(class_id):
+		return false
+	selected_class = class_id
+	return true
+
+
 func do_create(char_name: String) -> bool:
 	if busy or not api.is_logged_in():
 		return false
@@ -146,7 +165,7 @@ func do_create(char_name: String) -> bool:
 		_set_status("Nome muito curto.")
 		return false
 	_set_busy(true)
-	var r: Dictionary = await api.create_character(char_name.strip_edges(), "warrior")
+	var r: Dictionary = await api.create_character(char_name.strip_edges(), selected_class)
 	var ok: bool = bool(r["ok"])
 	if ok:
 		ok = await _refresh_characters()
@@ -193,7 +212,8 @@ func _refresh_characters() -> bool:
 		_list.clear()
 		for c: Variant in characters:
 			var d: Dictionary = c if c is Dictionary else {}
-			_list.add_item("%s  (nv %d)" % [String(d.get("name", "?")), int(d.get("level", 1))])
+			var cdef: ClassDef = ClassCatalog.shared().get_def(String(d.get("class_id", "")))
+			_list.add_item("%s  (%s nv %d)" % [String(d.get("name", "?")), cdef.display_name if cdef != null else "?", int(d.get("level", 1))])
 	selected = 0 if not characters.is_empty() else -1
 	_select_in_list()
 	_set_status("Escolha um personagem ou crie um novo." if characters.is_empty() else "Pronto.")

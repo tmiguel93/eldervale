@@ -51,6 +51,10 @@ func send_inventory(peer_id: int, data: Dictionary) -> void:
 	rpc.send_inventory(peer_id, data)
 
 
+func send_class(peer_id: int, data: Dictionary) -> void:
+	rpc.send_class(peer_id, data)
+
+
 ## Desconecta DEPOIS do s_reject: com NetSim a desconexao entra na mesma fila reliable (mesma
 ## ordem); sem NetSim espera uma folga curta para o ENet entregar o reject.
 func disconnect_peer(peer_id: int) -> void:

@@ -68,6 +68,8 @@ var measure_snapshots: bool = false
 var compact_snapshots: bool = true
 ## E5.7: orcamento do blob por mensagem do snapshot compacto (bytes); o MTU de payload e 1392.
 var snapshot_part_bytes: int = SnapshotCodec.MAX_PART_BYTES
+## E6.1: classe dos jogadores SEM personagem do backend (modo dev/bots). Com backend a classe vem do personagem (`class_id`).
+var default_class_id: String = ClassCatalog.DEFAULT_CLASS_ID
 ## Testes podem desligar os inimigos da arena.
 var spawn_enemies: bool = true
 var spawn_points: Array[Vector3] = [

@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "id": "mage",
+  "display_name": "Mago",
+  "description": "Conjurador de projeteis e areas; usa mana.",
+  "resource": {
+    "kind": "mana",
+    "display_name": "Mana"
+  },
+  "base_stats": {
+    "max_health": 80,
+    "max_resource": 100,
+    "resource_regen": 6,
+    "attack_power": 13,
+    "defense": 0,
+    "resistance": 0.05,
+    "move_speed": 5
+  },
+  "growth_per_level": {
+    "max_health": 7,
+    "max_resource": 6,
+    "attack_power": 1.4,
+    "defense": 0.1
+  },
+  "skills": {
+    "attack": "arcane_bolt",
+    "skill_1": "fireball",
+    "skill_2": "frost_nova",
+    "dodge": "blink"
+  },
+  "specializations": [
+    {
+      "id": "elementalist",
+      "display_name": "Elementalista",
+      "tags": [
+        "fire",
+        "ice",
+        "lightning"
+      ],
+      "description": "Fogo, gelo e raio.",
+      "planned": false
+    },
+    {
+      "id": "summoner",
+      "display_name": "Invocador",
+      "tags": [
+        "familiars",
+        "summons"
+      ],
+      "description": "Familiares e criaturas temporarias.",
+      "planned": true
+    },
+    {
+      "id": "arcanist",
+      "display_name": "Arcanista",
+      "tags": [
+        "energy",
+        "control"
+      ],
+      "description": "Manipulacao de energia e controle.",
+      "planned": true
+    }
+  ]
+}

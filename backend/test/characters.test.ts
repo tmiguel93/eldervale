@@ -149,7 +149,7 @@ describe("criar/listar/ler personagens", () => {
 
   it("class_id so da lista permitida; campos extras e corpo invalido => 400", async () => {
     const acc = await newAccount();
-    expect((await call(app, "POST", "/v1/characters", { as: acc, body: { name: uname(), class_id: "mage" } })).json.error.code).toBe("invalid_class");
+    expect((await call(app, "POST", "/v1/characters", { as: acc, body: { name: uname(), class_id: "necromancer" } })).json.error.code).toBe("invalid_class");
     expect((await call(app, "POST", "/v1/characters", { as: acc, body: { name: uname(), class_id: "warrior", level: 50 } })).status).toBe(400);
     expect((await call(app, "POST", "/v1/characters", { as: acc, body: [] })).status).toBe(400);
   });

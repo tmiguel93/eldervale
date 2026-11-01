@@ -65,6 +65,10 @@ Cliente de jogo (`scenes/client/client_boot.tscn`, ver `docs/E3_CLIENT.md` e `do
 | Del (no diário) | abandonar a quest selecionada (pede confirmação com um segundo toque) |
 | Esc | fecha o painel aberto (no diálogo, avisa o servidor) |
 
+As **habilidades dependem da classe** do personagem (E6.1: Guerreiro, Mago ou Patrulheiro; escolhida ao criar o personagem na tela de login). As teclas acima
+valem para todas as classes (Mouse 1 = ataque básico, Q/E = habilidades, Espaço = esquiva/mobilidade); a barra no canto inferior direito mostra as habilidades da classe.
+Servidor de desenvolvimento sem backend: `--default-class mage|ranger|warrior` (padrão `warrior`; só no servidor). Detalhes em [`docs/E6_CLASSES.md`](docs/E6_CLASSES.md).
+
 Com um painel aberto o cliente não envia ataque/habilidade/esquiva (clicar em botão não ataca); o movimento continua.
 
 ## Documentação adicional

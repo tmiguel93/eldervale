@@ -50,6 +50,23 @@ Impacto: o codigo E5.1 (src/quests, characters/service.ts) le/grava a coluna; re
 Recompensas ja pagas (`reward_claims` com chave `quest:...`) permanecem; sem a coluna uma quest concluida poderia ser aceita de novo
 e a recompensa NAO duplicaria (a chave idempotente e a mesma), mas o jogador nao a receberia outra vez.
 
+### 0004_character_class_default
+Aditiva e idempotente (E6.1). `characters.class_id` ja existia (0001); a migracao (1) normaliza para `'warrior'` apenas valores FORA do formato de id
+estavel (`[a-z][a-z0-9_]{0,47}`; a API nunca os produz), (2) define `DEFAULT 'warrior'` e (3) adiciona o CHECK `characters_class_id_format`
+(somente se ausente). Ids bem formados, inclusive de classes futuras, nao sao tocados; a validacao contra o catalogo de classes
+(`shared/content_schemas/classes.json`) e da aplicacao. Desfazer (apos backup; NAO restaura os valores malformados normalizados no passo 1,
+que nao existem em dados criados pela API):
+```sql
+BEGIN;
+ALTER TABLE characters DROP CONSTRAINT IF EXISTS characters_class_id_format;
+ALTER TABLE characters ALTER COLUMN class_id DROP DEFAULT;
+DELETE FROM schema_migrations WHERE version = 4;
+COMMIT;
+```
+Impacto: sem a migracao o codigo E6.1 continua funcionando (a coluna e o catalogo ja bastam); so deixam de valer o default e o CHECK de formato.
+Reverter o CODIGO E6.1 sem reverter a migracao e seguro: personagens `mage`/`ranger` ja criados passam a falhar na validacao do codigo antigo
+(`class_id` fora de `["warrior"]`) ate o deploy ser refeito; os dados nao sao perdidos.
+
 ### Modelo para novas migracoes
 Toda migracao nova deve acrescentar aqui sua secao: SQL de desfazer (preferir mudancas
 aditivas/expand-contract: adicionar coluna nullable -> backfill -> restringir), impacto em dados,

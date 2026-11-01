@@ -19,3 +19,4 @@ hitbox_offset = 1.0
 i_frames = 0.0
 dodge_distance = 0.0
 attack_move_scale = 0.5
+tags = PackedStringArray("melee", "physical")
