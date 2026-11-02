@@ -1,0 +1,106 @@
+{
+  "schema_version": 1,
+  "_comment": "E6.3. A raridade controla o ORCAMENTO de propriedades (soma dos custos dos tiers dos affixes), nao so a cor. 'uncommon' = Magico (id estavel; o nome e so de exibicao).",
+  "ilvl_max": 50,
+  "max_affixes": 6,
+  "rarities": [
+    {
+      "id": "common",
+      "name": "Comum",
+      "rank": 0,
+      "budget": 0,
+      "affix_min": 0,
+      "affix_max": 0,
+      "prefix_max": 0,
+      "suffix_max": 0,
+      "drop_weight": 6000,
+      "color": "#c8c8c8"
+    },
+    {
+      "id": "uncommon",
+      "name": "Mágico",
+      "rank": 1,
+      "budget": 4,
+      "affix_min": 1,
+      "affix_max": 2,
+      "prefix_max": 1,
+      "suffix_max": 1,
+      "drop_weight": 2600,
+      "color": "#6fd16f"
+    },
+    {
+      "id": "rare",
+      "name": "Raro",
+      "rank": 2,
+      "budget": 9,
+      "affix_min": 3,
+      "affix_max": 4,
+      "prefix_max": 2,
+      "suffix_max": 2,
+      "drop_weight": 1000,
+      "color": "#f1d04b"
+    },
+    {
+      "id": "epic",
+      "name": "Épico",
+      "rank": 3,
+      "budget": 14,
+      "affix_min": 4,
+      "affix_max": 5,
+      "prefix_max": 3,
+      "suffix_max": 3,
+      "drop_weight": 300,
+      "color": "#b46cf2"
+    },
+    {
+      "id": "legendary",
+      "name": "Lendário",
+      "rank": 4,
+      "budget": 20,
+      "affix_min": 5,
+      "affix_max": 6,
+      "prefix_max": 3,
+      "suffix_max": 3,
+      "drop_weight": 90,
+      "color": "#ff9a2e"
+    },
+    {
+      "id": "mythic",
+      "name": "Mítico",
+      "rank": 5,
+      "budget": 24,
+      "affix_min": 6,
+      "affix_max": 6,
+      "prefix_max": 3,
+      "suffix_max": 3,
+      "drop_weight": 10,
+      "color": "#ff4f6a"
+    }
+  ],
+  "tier_weight_mult": {
+    "normal": {
+      "common": 1.0,
+      "uncommon": 1.0,
+      "rare": 1.0,
+      "epic": 1.0,
+      "legendary": 1.0,
+      "mythic": 1.0
+    },
+    "mini_boss": {
+      "common": 0.3,
+      "uncommon": 0.6,
+      "rare": 2.0,
+      "epic": 4.0,
+      "legendary": 6.0,
+      "mythic": 6.0
+    },
+    "boss": {
+      "common": 0.0,
+      "uncommon": 0.2,
+      "rare": 2.0,
+      "epic": 6.0,
+      "legendary": 15.0,
+      "mythic": 30.0
+    }
+  }
+}

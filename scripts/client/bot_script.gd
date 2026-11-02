@@ -4,7 +4,7 @@ extends RefCounted
 ## (30 Hz). Cada item: {move: Vector2, yaw: float, actions: int, seq_repeat: bool (opcional)}.
 ## Sem "seq" no item, a sessao atribui o proximo seq crescente; com seq_repeat reenvia o ultimo.
 
-const NAMES: PackedStringArray = ["idle", "walk_square", "attack_loop", "cheat_speed", "invalid_flood", "bad_version", "kill_enemy", "replay_ticket", "bad_ticket", "world_tour", "adv_hub_wild", "adv_ruins", "adv_party", "adv_prep", "adv_zone_drop", "adv_check", "talents"]
+const NAMES: PackedStringArray = ["idle", "walk_square", "attack_loop", "cheat_speed", "invalid_flood", "bad_version", "kill_enemy", "replay_ticket", "bad_ticket", "world_tour", "adv_hub_wild", "adv_ruins", "adv_party", "adv_prep", "adv_zone_drop", "adv_check", "talents", "items"]
 const SQUARE_SIDE_S: float = 1.5  # s por lado
 const KILL_MELEE_RANGE: float = 1.3  # distancia (m) em que o bot para de andar e so golpeia
 const KILL_YAW: float = 0.0  # yaw de camera usado pelo bot: forward = -Z, right = +X

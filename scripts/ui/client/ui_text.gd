@@ -133,6 +133,60 @@ static func craft_error(code: String) -> String:
 	return "Nao foi possivel fabricar (%s)." % clamp_text(code, 32)
 
 
+## E6.3: nome de exibicao do item; com instancia, "Prefixo Base Sufixo" (affixes); unicos usam o nome do .tres.
+static func item_display(item_id: String, inst: Dictionary = {}) -> String:
+	var base: String = item_name(item_id)
+	if inst.is_empty():
+		return base
+	return ItemRules.shared().display_name(base, inst)
+
+
+## E6.3: id de raridade do item ("common" sem instancia, exceto unicos, que usam a raridade do .tres).
+static func rarity_of(item_id: String, inst: Dictionary = {}) -> String:
+	if not inst.is_empty():
+		return String(inst.get("rarity", "common"))
+	if Protocol.is_content_id(item_id) and ItemRules.shared().is_unique(item_id):
+		var path: String = ITEMS_DIR + item_id + ".tres"
+		if ResourceLoader.exists(path):
+			var it: ItemData = load(path) as ItemData
+			if it != null:
+				return ItemRules.rarity_id_of(int(it.rarity))
+	return "common"
+
+
+static func rarity_color(item_id: String, inst: Dictionary = {}) -> Color:
+	return ItemRules.shared().rarity_color(rarity_of(item_id, inst))
+
+
+## E6.3: tooltip multilinha: nome, raridade/ilvl, linhas de affix (instancia) ou descricao (unico). O cliente so exibe o que o servidor mandou.
+static func item_tooltip(item_id: String, qty: int, inst: Dictionary = {}) -> String:
+	var rules: ItemRules = ItemRules.shared()
+	var lines: PackedStringArray = PackedStringArray()
+	lines.append(stack_text(item_id, qty) if inst.is_empty() else item_display(item_id, inst))
+	var rid: String = rarity_of(item_id, inst)
+	if not inst.is_empty():
+		lines.append("%s - ilvl %d" % [rules.rarity_name(rid), int(inst.get("ilvl", 1))])
+		for l: String in rules.lines(inst):
+			lines.append(l)
+	elif rules.is_unique(item_id):
+		lines.append("%s - Unico" % rules.rarity_name(rid))
+		lines.append(String((rules.uniques[item_id] as Dictionary).get("description", "")))
+	return "\n".join(lines)
+
+
+static func equip_error(code: String) -> String:
+	match code:
+		"inventory_full": return "Inventario cheio para trocar o equipamento."
+		"busy": return "Aguarde a operacao em andamento."
+		"bad_index", "item_mismatch": return "O inventario mudou; tente de novo."
+		"not_equippable": return "Este item nao pode ser equipado."
+		"invalid_instance": return "Item invalido recusado pelo servidor."
+		"empty_slot": return "Nada equipado neste slot."
+		"not_available": return "Indisponivel agora."
+		"duplicate_request": return "Pedido repetido."
+	return "Nao foi possivel equipar."
+
+
 static func quest_error(code: String) -> String:
 	match code:
 		"unknown_quest": return "Quest desconhecida."

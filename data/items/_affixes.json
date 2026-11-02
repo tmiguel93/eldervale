@@ -1,0 +1,535 @@
+{
+  "schema_version": 1,
+  "_comment": "E6.3. Affixes: prefixo/sufixo, slots permitidos, faixas por tier (tier 3 = baixo ... 1 = alto) liberado por ilvl. cost = custo no orcamento da raridade. Mesmo 'group' nao coexiste no item. effect.type: stat (campo do StatBlock) ou skill_mod (mod do SkillMods E6.2; skill '*' = todas as habilidades que nao sao esquiva; param = campo do mod; sign multiplica o valor).",
+  "affixes": [
+    {
+      "id": "pre_vital",
+      "kind": "prefix",
+      "group": "health",
+      "name": "Vital",
+      "slots": [
+        "armor",
+        "trinket"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "max_health"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 6,
+          "max": 12,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 14,
+          "max": 26,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 30,
+          "max": 50,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "suf_of_titan",
+      "kind": "suffix",
+      "group": "health",
+      "name": "do Titã",
+      "slots": [
+        "weapon",
+        "armor",
+        "trinket"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "max_health"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 4,
+          "max": 8,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 10,
+          "max": 18,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 20,
+          "max": 34,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "pre_brutal",
+      "kind": "prefix",
+      "group": "attack",
+      "name": "Brutal",
+      "slots": [
+        "weapon",
+        "trinket"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "attack_power"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 1,
+          "max": 2,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 3,
+          "max": 5,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 6,
+          "max": 9,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "suf_of_might",
+      "kind": "suffix",
+      "group": "attack",
+      "name": "da Potência",
+      "slots": [
+        "weapon"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "attack_power"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 1,
+          "max": 3,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 4,
+          "max": 6,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 7,
+          "max": 11,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "pre_bulwark",
+      "kind": "prefix",
+      "group": "defense",
+      "name": "Baluarte",
+      "slots": [
+        "armor",
+        "trinket"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "defense"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 1,
+          "max": 2,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 3,
+          "max": 5,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 6,
+          "max": 9,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "suf_of_ward",
+      "kind": "suffix",
+      "group": "resist",
+      "name": "da Proteção",
+      "slots": [
+        "weapon",
+        "armor",
+        "trinket"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "resistance"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 0.01,
+          "max": 0.02,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 0.03,
+          "max": 0.05,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 0.06,
+          "max": 0.09,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "pre_arcane",
+      "kind": "prefix",
+      "group": "resource",
+      "name": "Arcano",
+      "slots": [
+        "weapon",
+        "trinket"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "max_resource"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 5,
+          "max": 10,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 12,
+          "max": 22,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 25,
+          "max": 40,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "suf_of_insight",
+      "kind": "suffix",
+      "group": "regen",
+      "name": "da Clareza",
+      "slots": [
+        "weapon",
+        "armor",
+        "trinket"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "resource_regen"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 0.3,
+          "max": 0.8,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 1.0,
+          "max": 1.8,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 2.0,
+          "max": 3.2,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "pre_swift",
+      "kind": "prefix",
+      "group": "speed",
+      "name": "Ágil",
+      "slots": [
+        "armor"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "move_speed"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 0.05,
+          "max": 0.1,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 0.12,
+          "max": 0.22,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 0.25,
+          "max": 0.4,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "suf_of_the_wind",
+      "kind": "suffix",
+      "group": "speed",
+      "name": "do Vento",
+      "slots": [
+        "armor",
+        "trinket"
+      ],
+      "effect": {
+        "type": "stat",
+        "stat": "move_speed"
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 0.05,
+          "max": 0.1,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 0.12,
+          "max": 0.22,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 0.25,
+          "max": 0.4,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "suf_of_fury",
+      "kind": "suffix",
+      "group": "skill_damage",
+      "name": "da Fúria",
+      "slots": [
+        "weapon",
+        "trinket"
+      ],
+      "effect": {
+        "type": "skill_mod",
+        "skill": "*",
+        "mod": "damage",
+        "param": "damage_pct",
+        "sign": 1
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 0.02,
+          "max": 0.04,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 0.05,
+          "max": 0.08,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 0.09,
+          "max": 0.14,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "pre_thrifty",
+      "kind": "prefix",
+      "group": "skill_cost",
+      "name": "Econômico",
+      "slots": [
+        "armor",
+        "trinket"
+      ],
+      "effect": {
+        "type": "skill_mod",
+        "skill": "*",
+        "mod": "cost",
+        "param": "cost_pct",
+        "sign": -1
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 0.03,
+          "max": 0.05,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 0.06,
+          "max": 0.1,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 0.11,
+          "max": 0.18,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    },
+    {
+      "id": "pre_sweeping",
+      "kind": "prefix",
+      "group": "skill_area",
+      "name": "Amplo",
+      "slots": [
+        "weapon"
+      ],
+      "effect": {
+        "type": "skill_mod",
+        "skill": "*",
+        "mod": "area",
+        "param": "radius_pct",
+        "sign": 1
+      },
+      "tiers": [
+        {
+          "tier": 3,
+          "ilvl_min": 1,
+          "min": 0.03,
+          "max": 0.06,
+          "cost": 1,
+          "weight": 100
+        },
+        {
+          "tier": 2,
+          "ilvl_min": 12,
+          "min": 0.07,
+          "max": 0.12,
+          "cost": 2,
+          "weight": 60
+        },
+        {
+          "tier": 1,
+          "ilvl_min": 28,
+          "min": 0.13,
+          "max": 0.2,
+          "cost": 4,
+          "weight": 25
+        }
+      ]
+    }
+  ]
+}

@@ -145,3 +145,20 @@ Dois RPCs novos (reliable); o cliente só PEDE, o servidor decide e o banco pers
 Validação (`Protocol.validate_talent_cmd` / `validate_talents_update`): tipos estritos (int/string), `arg` = id de conteúdo (`[a-z][a-z0-9_]{0,47}`) em allocate/choose_spec e vazio em respec, `op` desconhecida recusada, no máximo `MAX_TALENT_NODES=40` nós e `MAX_TALENT_RANK=5` por nó no estado. Payload inválido e rate limit (`talent_rate_per_sec=2`, `talent_burst=4`, configurável) contam como abuso (`_count_invalid`/`dropped_rate`); comando antes do welcome fecha o peer. Violação de REGRA (sem pontos, pré-requisito, fora de zona segura…) não pune o peer: volta `TALENTS_ERROR` com um código estável (`unknown_node`, `spec_not_chosen`, `wrong_spec`, `max_rank`, `level_too_low`, `prerequisite`, `no_points`, `unknown_spec`, `spec_already_chosen`, `nothing_to_reset`, `not_safe_zone`, `insufficient_items`, `duplicate_request`, `busy`, `not_available`, `not_ready`, `revision_conflict`, `session_fenced`, `backend_error`).
 Anti-replay: `req_id <= último` => `duplicate_request`; um comando por vez (`busy`). O estado é reenviado ao entrar, após cada comando, ao subir de nível e após recarga do banco (só quando muda). Backend: `POST /internal/characters/:id/talents` (ver `docs/E6_TALENTS.md`).
 
+## Extensão E6.3 — Itens com raridade e affixes (aditiva; `VERSION` continua 2)
+O servidor rola a instância (`uid`, `rarity`, `ilvl`, `affixes`); o cliente só exibe e PEDE equipar/desequipar. Nenhum campo existente mudou; cliente antigo ignora campos opcionais novos.
+
+| Item | Direção | Payload |
+|---|---|---|
+| `c_equip_cmd(req_id, op, index, item_id)` | cliente -> servidor | `req_id` int >= 0 estritamente crescente; `op`: `EQUIP_OP_EQUIP=1` (`index` = pilha 0..199 do `s_inventory`, `item_id` = base esperada) ou `EQUIP_OP_UNEQUIP=2` (`index` = slot 0 arma, 1 armadura, 2 amuleto; `item_id` opcional, vazio ou a base equipada) |
+| `s_equip(kind, data)` | servidor -> SÓ o dono | `EQUIP_OK=1`: `{req_id, op}`; `EQUIP_ERROR=2`: `{req_id, op, code}` com `code` em `bad_index, item_mismatch, not_equippable, invalid_instance, inventory_full, empty_slot, busy, not_available, duplicate_request` |
+| `s_inventory.slots[i].inst` | servidor -> dono | opcional: instância da pilha (`qty` obrigatoriamente 1) |
+| `s_inventory.equipment_inst` | servidor -> dono | opcional: `{weapon?, armor?, trinket?}` -> instância do equipado |
+| `EVENT_DROP.rarity` | servidor -> dono | opcional: id da raridade (cor do marcador); nunca a instância |
+| `EVENT_PICKUP.inst` | servidor -> dono | opcional: instância coletada |
+
+Instância: `{uid:string[16 hex], rarity:id, ilvl:int 1..100 no fio (1..50 nas regras), affixes:[{id, tier:int 1..5, value:número finito}] (<= 8)}`; JSON <= `Protocol.MAX_INSTANCE_BYTES` = 512. Validadores: `Protocol.validate_item_instance`, `validate_equip_cmd`, `validate_equip_update`, `validate_inventory_update` (estendido), `validate_drop_event`/`validate_pickup_event` (estendidos). As regras de raridade/faixas/orçamento são do `ItemRules` (jogo) e do backend, não do protocolo.
+Resposta/abuso: comando inválido e rate limit (`equip_rate_per_sec=4`, `equip_burst=8`, configurável) contam como mensagem inválida; regra de jogo violada responde `EQUIP_ERROR` sem punir o peer. Um comando por vez por jogador na prática (`busy` com craft/talento em voo).
+**Snapshot compacto inalterado**: o pickup continua `{type=item_id, qty}`; a instância completa só vai em `s_inventory`/`EVENT_PICKUP` ao dono (testado: pickup com e sem instância ocupam os mesmos bytes). `s_inventory` é uma mensagem reliable própria (fora do orçamento de MTU do snapshot compacto); o tamanho de um inventário cheio de instâncias (até 24 × 512 bytes) **não foi medido contra o MTU** — o ENet fragmenta mensagens reliable, mas vale medir antes de aumentar capacidade ou limite.
+Compatibilidade: como nas extensões anteriores, o RPC de alto nível do Godot exige o mesmo conjunto de métodos nos dois lados; servidor e cliente devem ser atualizados juntos.
+

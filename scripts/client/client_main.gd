@@ -53,6 +53,8 @@ var _adv: AdventureBot = null           ## E5.6: bot de aventura (adv_*)
 var _adv_done_at: float = -1.0
 var _talent_bot: TalentBot = null       ## E6.2: bot `talents`
 var _talent_done_at: float = -1.0
+var _item_bot: ItemBot = null           ## E6.3: bot `items`
+var _item_done_at: float = -1.0
 var _signals_wired: bool = false
 var _return_to_login: bool = false
 
@@ -106,6 +108,7 @@ func _wire_session(ss: ClientSession) -> void:
 	ss.send_dialogue_cmd = Callable(_rpc, "send_dialogue_cmd")
 	ss.send_craft_cmd = Callable(_rpc, "send_craft_cmd")
 	ss.send_talent_cmd = Callable(_rpc, "send_talent_cmd")
+	ss.send_equip_cmd = Callable(_rpc, "send_equip_cmd")
 	ss.send_caps = Callable(_rpc, "send_caps")
 
 
@@ -138,6 +141,7 @@ func _start() -> void:
 		_rpc.pong_received.connect(_on_pong)
 		_rpc.quest_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_quest_update(kind, data))
 		_rpc.dialogue_received.connect(func(kind: int, data: Dictionary) -> void: session.on_dialogue(kind, data))
+		_rpc.equip_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_equip_update(kind, data))
 		_rpc.craft_update_received.connect(func(kind: int, data: Dictionary) -> void: session.on_craft_update(kind, data))
 		_rpc.inventory_update_received.connect(func(data: Dictionary) -> void: session.on_inventory_update(data))
 		_rpc.class_update_received.connect(func(data: Dictionary) -> void: session.on_class_update(data))
@@ -430,6 +434,11 @@ func _tick_playing(delta: float) -> void:
 				if _talent_bot == null or not _talent_bot.holding:
 					_kill_enemy_tick()
 				_talents_tick()
+			elif cfg.bot_script == "items":
+				# E6.3: abate inimigos ate chegar um item rolado, entao PARA, pede para equipar e confere (ItemBot)
+				if _item_bot == null or not _item_bot.holding:
+					_kill_enemy_tick()
+				_items_tick()
 			elif cfg.bot_script == "world_tour":
 				_world_tour_tick()
 			elif AdventureBot.is_adventure(cfg.bot_script):
@@ -449,6 +458,8 @@ func _tick_playing(delta: float) -> void:
 			session.result.max_hp_last = float(session.local_entity.get("max_hp", -1.0))
 		var grace: float = args.kill_grace_s if args.kill_grace_s >= 0.0 else KILL_GRACE_S
 		if _kill_done_at >= 0.0 and _play_elapsed - _kill_done_at >= grace:
+			_finish(0)
+		elif _item_done_at >= 0.0 and _play_elapsed - _item_done_at >= ItemBot.FINAL_HOLD_S:
 			_finish(0)
 		elif _tour_done_at >= 0.0 and _play_elapsed - _tour_done_at >= 1.0:
 			_finish(0)
@@ -474,6 +485,14 @@ func _talents_tick() -> void:
 	_talent_bot.tick(_play_elapsed)
 	if _talent_bot.done and _talent_done_at < 0.0:
 		_talent_done_at = _play_elapsed
+
+
+func _items_tick() -> void:
+	if _item_bot == null:
+		_item_bot = ItemBot.new(session)
+	_item_bot.tick(_play_elapsed)
+	if _item_bot.done and _item_done_at < 0.0:
+		_item_done_at = _play_elapsed
 
 
 func _world_tour_tick() -> void:

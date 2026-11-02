@@ -81,6 +81,21 @@ COMMIT;
 Impacto: sem a coluna o codigo E6.2 falha ao ler personagens (`COLS` inclui `talents`); reverter so o CODIGO e seguro (a coluna extra e ignorada pelo codigo antigo).
 Chaves de idempotencia `talent:...` ficam em `reward_claims` (sem migracao propria); apos o rollback elas sao inofensivas.
 
+### 0006_item_instances
+Aditiva e idempotente (E6.3). Adiciona `character_inventory.inst jsonb` e `character_equipment.inst jsonb` (NULL = item simples/Comum; formato `{"uid","rarity","ilvl","affixes":[{"id","tier","value"}]}`), os CHECKs `character_inventory_inst_is_object` / `character_equipment_inst_is_object` (somente se ausentes) e os indices unicos parciais `character_inventory_inst_uid_uniq` / `character_equipment_inst_uid_uniq` por `(character_id, inst->>'uid')`. Nenhum backfill: todos os saves existentes continuam validos e inalterados. As regras (raridade, faixas, orcamento) ficam em `shared/content_schemas/items.json` e sao verificadas pela aplicacao. Desfazer (apos backup; DESTRUTIVO: apaga os affixes rolados, os itens voltam a ser a base Comum):
+```sql
+BEGIN;
+DROP INDEX IF EXISTS character_inventory_inst_uid_uniq;
+DROP INDEX IF EXISTS character_equipment_inst_uid_uniq;
+ALTER TABLE character_inventory DROP CONSTRAINT IF EXISTS character_inventory_inst_is_object;
+ALTER TABLE character_equipment DROP CONSTRAINT IF EXISTS character_equipment_inst_is_object;
+ALTER TABLE character_inventory DROP COLUMN IF EXISTS inst;
+ALTER TABLE character_equipment DROP COLUMN IF EXISTS inst;
+DELETE FROM schema_migrations WHERE version = 6;
+COMMIT;
+```
+Impacto: sem as colunas o codigo E6.3 falha ao ler inventario/equipamento (`inst` entra nos SELECT); reverter so o CODIGO e seguro (as colunas extras sao ignoradas pelo codigo antigo, que le `item_id`/`qty` e trata tudo como Comum). Chaves `loot:` com instancia ficam em `reward_claims` (sem migracao propria) e sao inofensivas apos o rollback.
+
 ### Modelo para novas migracoes
 Toda migracao nova deve acrescentar aqui sua secao: SQL de desfazer (preferir mudancas
 aditivas/expand-contract: adicionar coluna nullable -> backfill -> restringir), impacto em dados,

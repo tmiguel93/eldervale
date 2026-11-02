@@ -27,7 +27,7 @@ func run(ctx: Object) -> void:
 	for e: String in errs:
 		print("    erro: ", e)
 	ctx.check(errs.is_empty(), "conteudo real: 0 erros de validacao")
-	ctx.check(reg.items.size() == 7, "conteudo real: 7 itens (%d)" % reg.items.size())
+	ctx.check(reg.items.size() == 12, "conteudo real: 7 itens base + 5 unicos E6.3 (%d)" % reg.items.size())
 	ctx.check(reg.enemies.size() == 10, "conteudo real: 10 inimigos (2 do E2 + 8 do E5.2)")
 	ctx.check(reg.loot_tables.size() == 10, "conteudo real: 10 tabelas de loot")
 	var sw: ItemData = reg.get_item(&"sword_rare")

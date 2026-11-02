@@ -30,7 +30,7 @@ func run(ctx: Object) -> void:
 		print("    erro: ", e)
 	ctx.check(errs.is_empty(), "conteudo real (itens+inimigos+loot+dificuldade): 0 erros")
 	ctx.check(reg.enemies.size() == 10, "10 inimigos (8 comuns + mini-chefe + chefe): %d" % reg.enemies.size())
-	ctx.check(reg.items.size() == 7, "nenhum item novo (7)")
+	ctx.check(reg.items.size() == 12, "itens: 7 base + 5 unicos de teste E6.3 (12)")
 	ctx.check(reg.difficulties.has(&"greenwood_coop"), "escala de dificuldade carregada")
 
 	# 6..8 tipos comuns de Greenwood, ids exatos do catalogo

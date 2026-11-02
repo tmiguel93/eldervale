@@ -4,9 +4,10 @@ import { isUniqueViolation, type Db } from "../persistence/db.ts";
 import type { Catalog } from "./catalog.ts";
 import type { ClassCatalog } from "./classes.ts";
 import type { CharacterLimits } from "./limits.ts";
+import { sameInstance, type ItemInstance } from "./instances.ts";
 import {
-  addItems, BASE_STATS, EQUIP_SLOTS, itemTotals, invalidState, SCHEMA_VERSION, STARTING_EQUIPMENT,
-  type CharacterState, type Equipment, type EquipSlot, type InventoryEntry, type RewardRequest, type Stats,
+  addItems, BASE_STATS, EQUIP_SLOTS, instancesOf, itemTotals, invalidState, SCHEMA_VERSION, STARTING_EQUIPMENT,
+  type CharacterState, type Equipment, type EquipmentInst, type EquipSlot, type InventoryEntry, type RewardRequest, type Stats,
 } from "./model.ts";
 import { applyXp, xpToNext } from "./progression.ts";
 import { EMPTY_QUESTS, type QuestCatalog } from "../quests/catalog.ts";
@@ -55,12 +56,17 @@ export async function loadRecord(db: Db, id: string, opts: { accountId?: string;
   const r = await db.query<CharRow>(sql, params);
   const row = r.rows[0];
   if (!row) return null;
-  const inv = await db.query<{ slot: number; item_id: string; qty: number }>(
-    "SELECT slot, item_id, qty FROM character_inventory WHERE character_id = $1 ORDER BY slot", [id]);
-  const eq = await db.query<{ slot_name: string; item_id: string }>(
-    "SELECT slot_name, item_id FROM character_equipment WHERE character_id = $1", [id]);
+  const inv = await db.query<{ slot: number; item_id: string; qty: number; inst: ItemInstance | null }>(
+    "SELECT slot, item_id, qty, inst FROM character_inventory WHERE character_id = $1 ORDER BY slot", [id]);
+  const eq = await db.query<{ slot_name: string; item_id: string; inst: ItemInstance | null }>(
+    "SELECT slot_name, item_id, inst FROM character_equipment WHERE character_id = $1", [id]);
   const equipment: Equipment = {};
-  for (const e of eq.rows) if ((EQUIP_SLOTS as readonly string[]).includes(e.slot_name)) equipment[e.slot_name as EquipSlot] = e.item_id;
+  const equipmentInst: EquipmentInst = {};
+  for (const e of eq.rows) {
+    if (!(EQUIP_SLOTS as readonly string[]).includes(e.slot_name)) continue;
+    equipment[e.slot_name as EquipSlot] = e.item_id;
+    if (e.inst) equipmentInst[e.slot_name as EquipSlot] = e.inst;
+  }
   const stats = { ...BASE_STATS, ...(row.stats as Partial<Stats>) } as Stats;
   return {
     id: row.id,
@@ -75,8 +81,9 @@ export async function loadRecord(db: Db, id: string, opts: { accountId?: string;
       level: row.level,
       xp: Number(row.xp),
       stats,
-      inventory: inv.rows.map((e) => ({ slot: e.slot, item_id: e.item_id, qty: e.qty })),
+      inventory: inv.rows.map((e) => (e.inst ? { slot: e.slot, item_id: e.item_id, qty: e.qty, inst: e.inst } : { slot: e.slot, item_id: e.item_id, qty: e.qty })),
       equipment,
+      ...(Object.keys(equipmentInst).length > 0 ? { equipment_inst: equipmentInst } : {}),
       quests: normalizeStoredQuests(row.quests),
     },
   };
@@ -87,22 +94,23 @@ async function replaceInventory(db: Db, id: string, inv: readonly InventoryEntry
   if (inv.length === 0) return;
   const params: unknown[] = [id];
   const values = inv.map((e, i) => {
-    params.push(e.slot, e.item_id, e.qty);
-    return `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4})`;
+    params.push(e.slot, e.item_id, e.qty, e.inst ? JSON.stringify(e.inst) : null);
+    return `($1, $${i * 4 + 2}, $${i * 4 + 3}, $${i * 4 + 4}, $${i * 4 + 5}::jsonb)`;
   });
-  await db.query(`INSERT INTO character_inventory (character_id, slot, item_id, qty) VALUES ${values.join(", ")}`, params);
+  await db.query(`INSERT INTO character_inventory (character_id, slot, item_id, qty, inst) VALUES ${values.join(", ")}`, params);
 }
 
-async function replaceEquipment(db: Db, id: string, eq: Equipment): Promise<void> {
+async function replaceEquipment(db: Db, id: string, eq: Equipment, inst: EquipmentInst = {}): Promise<void> {
   await db.query("DELETE FROM character_equipment WHERE character_id = $1", [id]);
   const entries = Object.entries(eq).filter(([, v]) => v) as [string, string][];
   if (entries.length === 0) return;
   const params: unknown[] = [id];
   const values = entries.map(([slot, item], i) => {
-    params.push(slot, item);
-    return `($1, $${i * 2 + 2}, $${i * 2 + 3})`;
+    const x = inst[slot as EquipSlot];
+    params.push(slot, item, x ? JSON.stringify(x) : null);
+    return `($1, $${i * 3 + 2}, $${i * 3 + 3}, $${i * 3 + 4}::jsonb)`;
   });
-  await db.query(`INSERT INTO character_equipment (character_id, slot_name, item_id) VALUES ${values.join(", ")}`, params);
+  await db.query(`INSERT INTO character_equipment (character_id, slot_name, item_id, inst) VALUES ${values.join(", ")}`, params);
 }
 
 /** Persiste o estado e incrementa a revision (a linha deve estar travada/validada pelo chamador). */
@@ -113,7 +121,7 @@ export async function writeState(db: Db, ctx: ServiceCtx, id: string, expectedRe
     [id, expectedRevision, s.level, s.xp, JSON.stringify(s.stats), SCHEMA_VERSION, new Date(ctx.now()), JSON.stringify(s.quests ?? emptyQuests())]);
   if (r.rows.length !== 1) throw Errors.conflict("revision divergente", "revision_conflict");
   await replaceInventory(db, id, s.inventory);
-  await replaceEquipment(db, id, s.equipment);
+  await replaceEquipment(db, id, s.equipment, s.equipment_inst ?? {});
   return Number(r.rows[0]!.revision);
 }
 
@@ -192,6 +200,14 @@ export async function checkpoint(db: Db, ctx: ServiceCtx, id: string, expectedRe
         reject("item_gain_limit", `ganho de ${item} acima do limite por checkpoint (${ctx.limits.checkpointMaxItemGain})`);
       }
     }
+    // E6.3: instancias so nascem em /rewards (loot:). O checkpoint pode MOVER (inventario <-> equipado) ou REMOVER instancias, nunca criar
+    // nem alterar: todo uid do estado novo tem de existir no persistido, com a mesma base e o mesmo conteudo.
+    const known = instancesOf(cur.state);
+    for (const [uid, got] of instancesOf(next)) {
+      const was = known.get(uid);
+      if (!was) reject("unknown_instance", `instancia ${uid} desconhecida (so recompensas validadas criam itens com affixes)`);
+      else if (was.item_id !== got.item_id || !sameInstance(was.inst, got.inst)) reject("instance_modified", `instancia ${uid} nao pode ser alterada pelo checkpoint`);
+    }
     // E5.1: `completed` e somente-servidor; ausente no checkpoint = manter o do banco.
     const quests = mergeCheckpointQuests(cur.state.quests ?? emptyQuests(), next.quests ?? cur.state.quests ?? emptyQuests());
     const toWrite: CharacterState = { ...next, quests };
@@ -233,6 +249,13 @@ export async function grantReward(db: Db, ctx: ServiceCtx, id: string, req: Rewa
     }
     const xpRes = applyXp(cur.state.xp, req.xp);
     let inventory = cur.state.inventory;
+    const held = instancesOf(cur.state);
+    for (const it of req.items) {
+      if (it.inst && held.has(it.inst.uid)) {
+        ctx.log.warn("reward_rejected", { character_id: id, reason: "duplicate_instance" });
+        throw new ApiError(409, "duplicate_instance", "instancia ja existe neste personagem");
+      }
+    }
     if (req.items.length > 0) {
       const add = addItems(inventory, req.items, ctx.catalog, ctx.limits.inventoryCapacity);
       if (!add.ok) {
@@ -264,6 +287,7 @@ export function publicView(r: CharacterRecord, limits: CharacterLimits) {
     level: r.state.level, xp: r.state.xp, xp_to_next: xpToNext(r.state.level),
     stats: r.state.stats, schema_version: r.state.schema_version, revision: r.revision,
     inventory_capacity: limits.inventoryCapacity, inventory: r.state.inventory, equipment: r.state.equipment,
+    ...(r.state.equipment_inst ? { equipment_inst: r.state.equipment_inst } : {}),
     quests: r.state.quests ?? emptyQuests(),
     talents: r.talents,
   };

@@ -48,6 +48,7 @@ static func validate(ch: Dictionary, registry: ContentRegistry) -> String:
 	var cap: int = int(ch.get("inventory_capacity", 20))
 	if cap < 1 or cap > 200 or (ch["inventory"] as Array).size() > cap:
 		return "capacidade de inventario invalida"
+	var uids: Dictionary = {}
 	for e: Variant in ch["inventory"]:
 		if typeof(e) != TYPE_DICTIONARY or typeof((e as Dictionary).get("item_id", null)) != TYPE_STRING or not _is_num((e as Dictionary).get("qty", null)):
 			return "entrada de inventario invalida"
@@ -57,12 +58,38 @@ static func validate(ch: Dictionary, registry: ContentRegistry) -> String:
 		var qty: int = int((e as Dictionary)["qty"])
 		if qty < 1 or qty > item.effective_max_stack():
 			return "quantidade invalida"
+		# E6.3: `inst` e opcional (save antigo = item simples/Comum). Se presente: qty 1, base equipavel e instancia valida/unica.
+		if (e as Dictionary).has("inst"):
+			var why: String = _instance_error((e as Dictionary)["inst"], item, uids)
+			if qty != 1 or not why.is_empty():
+				return "instancia de inventario invalida"
 	for slot_name: Variant in (ch["equipment"] as Dictionary):
 		if not SLOT_NAMES.values().has(slot_name) or typeof(ch["equipment"][slot_name]) != TYPE_STRING:
 			return "slot de equipamento invalido"
 		var it: ItemData = registry.get_item(StringName(ch["equipment"][slot_name]))
 		if it == null or SLOT_NAMES.get(int(it.slot), "") != slot_name:
 			return "item equipado invalido"
+	if ch.has("equipment_inst"):
+		if typeof(ch["equipment_inst"]) != TYPE_DICTIONARY:
+			return "equipment_inst invalido"
+		for sn: Variant in (ch["equipment_inst"] as Dictionary):
+			if not (ch["equipment"] as Dictionary).has(sn):
+				return "equipment_inst sem item equipado"
+			var eitem: ItemData = registry.get_item(StringName(ch["equipment"][sn]))
+			if eitem == null or not _instance_error((ch["equipment_inst"] as Dictionary)[sn], eitem, uids).is_empty():
+				return "instancia equipada invalida"
+	return ""
+
+
+## E6.3: "" se `inst` e uma instancia valida da base `item` e o uid ainda nao apareceu em `uids` (que e atualizado).
+static func _instance_error(inst: Variant, item: ItemData, uids: Dictionary) -> String:
+	var why: String = ItemRules.shared().validate_instance(inst, item)
+	if not why.is_empty():
+		return why
+	var uid: String = String((inst as Dictionary)["uid"])
+	if uids.has(uid):
+		return "uid duplicado"
+	uids[uid] = true
 	return ""
 
 
@@ -93,16 +120,21 @@ static func apply(loadout: PlayerLoadout, ch: Dictionary) -> void:
 	var entries: Array = (ch["inventory"] as Array).duplicate()
 	entries.sort_custom(func(a: Variant, b: Variant) -> bool: return int((a as Dictionary).get("slot", 0)) < int((b as Dictionary).get("slot", 0)))
 	for e: Variant in entries:
+		if (e as Dictionary).has("inst"):
+			if not inv.add_instance(StringName((e as Dictionary)["item_id"]), (e as Dictionary)["inst"] as Dictionary):
+				ServerLog.warn("[state] inventario: instancia nao coube ao carregar")
+			continue
 		var left: int = inv.add(StringName((e as Dictionary)["item_id"]), int((e as Dictionary)["qty"]))
 		if left > 0:
 			ServerLog.warn("[state] inventario: %d unidades nao couberam ao carregar" % left)
 	var eq: Equipment = loadout.equipment
 	for slot: int in Equipment.SLOTS:
-		eq._equipped.erase(slot)
+		eq.clear_slot(slot)
+	var eq_inst: Dictionary = ch.get("equipment_inst", {}) as Dictionary
 	for slot_value: int in SLOT_NAMES:
 		var nm: String = SLOT_NAMES[slot_value]
 		if (ch["equipment"] as Dictionary).has(nm):
-			eq._equipped[slot_value] = StringName(ch["equipment"][nm])
+			eq.set_equipped(slot_value, StringName(ch["equipment"][nm]), (eq_inst.get(nm, {}) as Dictionary))
 	loadout.recalculate()
 	# Quests: restauracao leniente (ids desconhecidos descartados) EM-PLACE, preservando a referencia do tracker.
 	for w: String in loadout.quest_state.restore(ch.get("quests", {}), QuestCatalog.shared()):
@@ -116,14 +148,21 @@ static func capture(loadout: PlayerLoadout) -> Dictionary:
 	var inventory: Array = []
 	var slot_index: int = 0
 	for s: Dictionary in loadout.inventory.contents():
-		inventory.append({"slot": slot_index, "item_id": String(s["id"]), "qty": int(s["qty"])})
+		var entry: Dictionary = {"slot": slot_index, "item_id": String(s["id"]), "qty": int(s["qty"])}
+		if s.has("inst"):
+			entry["inst"] = s["inst"]
+		inventory.append(entry)
 		slot_index += 1
 	var equipment: Dictionary = {}
+	var equipment_inst: Dictionary = {}
 	for slot_value: int in SLOT_NAMES:
 		var id: StringName = loadout.equipment.get_equipped(slot_value)
 		if id != &"":
 			equipment[SLOT_NAMES[slot_value]] = String(id)
-	return {
+			var einst: Dictionary = loadout.equipment.get_equipped_instance(slot_value)
+			if not einst.is_empty():
+				equipment_inst[SLOT_NAMES[slot_value]] = einst
+	var state: Dictionary = {
 		"schema_version": SCHEMA_VERSION,
 		"level": loadout.progress.level,
 		"xp": loadout.progress.total_xp,
@@ -135,6 +174,9 @@ static func capture(loadout: PlayerLoadout) -> Dictionary:
 		"equipment": equipment,
 		"quests": loadout.quest_state.to_dict(),
 	}
+	if not equipment_inst.is_empty():
+		state["equipment_inst"] = equipment_inst # E6.3: so presente quando ha instancia equipada (backend aceita ausente)
+	return state
 
 
 ## E5.6: payload de `s_inventory` (inventario + equipamento COMPLETOS do personagem; Protocol.validate_inventory_update).
@@ -142,10 +184,20 @@ static func capture(loadout: PlayerLoadout) -> Dictionary:
 static func inventory_payload(loadout: PlayerLoadout) -> Dictionary:
 	var slots: Array = []
 	for s: Dictionary in loadout.inventory.contents():
-		slots.append({"item_id": String(s["id"]), "qty": int(s["qty"])})
+		var entry: Dictionary = {"item_id": String(s["id"]), "qty": int(s["qty"])}
+		if s.has("inst"):
+			entry["inst"] = s["inst"] # E6.3: instancia completa SO aqui (dono), nunca no snapshot
+		slots.append(entry)
 	var equipment: Dictionary = {}
+	var equipment_inst: Dictionary = {}
 	for slot_value: int in SLOT_NAMES:
 		var id: StringName = loadout.equipment.get_equipped(slot_value)
 		if id != &"":
 			equipment[SLOT_NAMES[slot_value]] = String(id)
-	return {"capacity": clampi(loadout.inventory.capacity, 1, Protocol.MAX_INVENTORY_SLOTS), "slots": slots, "equipment": equipment}
+			var einst: Dictionary = loadout.equipment.get_equipped_instance(slot_value)
+			if not einst.is_empty():
+				equipment_inst[SLOT_NAMES[slot_value]] = einst
+	var payload: Dictionary = {"capacity": clampi(loadout.inventory.capacity, 1, Protocol.MAX_INVENTORY_SLOTS), "slots": slots, "equipment": equipment}
+	if not equipment_inst.is_empty():
+		payload["equipment_inst"] = equipment_inst
+	return payload

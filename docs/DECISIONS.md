@@ -187,3 +187,47 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Consequências:** o bônus de vida/ataque chega ao cliente pelo caminho normal (snapshot/HUD), não pelo `s_talents`. Servidor e cliente precisam ser atualizados juntos.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
 
+---
+
+## DEC-0017 — Instância de item (raridade + affixes) guardada ao lado da base, em `inst jsonb`, migração 0006 (E6.3)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (modelo de dados e economia)
+- **Contexto:** raridades e affixes precisam de identidade por item (`uid`), persistência compatível com saves antigos e nenhum caminho para o cliente ou o checkpoint forjarem poder.
+- **Opções consideradas:** (a) tabela própria de instâncias com FK; (b) trocar `item_id` por um id composto; (c) coluna `inst jsonb` NULLable em `character_inventory` e `character_equipment`, com a base ainda em `item_id`.
+- **Escolha provisória:** (c). Migração `0006_item_instances` aditiva e idempotente (`IF NOT EXISTS`, CHECK só se ausente, índices únicos parciais por `(character_id, inst->>'uid')`, sem backfill: `NULL` = item simples/Comum). As regras (orçamento, faixas, slots) vivem em `shared/content_schemas/items.json` e são aplicadas pelo backend (`parseInstance`, espelho de `ItemRules.validate_instance`); o banco garante só a forma e a unicidade. Instâncias só nascem em `POST /rewards` com chave `loot:`; o checkpoint apenas as move (`unknown_instance`/`instance_modified`). Rollback documentado em `backend/migrations/README.md` (destrutivo para os affixes: exige backup).
+- **Consequências:** cada instância ocupa 1 slot (não empilha); itens com affixes ficam fora de receitas. A unicidade entre inventário e equipamento é checada na transação (não por índice). Se o jogo cair entre o loot coletado e o próximo checkpoint, a recompensa já persistida garante a posse (sem duplicar, pela chave).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0018 — Itens únicos como itens simples (`ItemData`) com efeitos autorados em dado, reaproveitando `SkillMods` e `StatBlock` (E6.3)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (balanceamento e design dos únicos)
+- **Contexto:** os únicos precisam de efeito legível, condição de obtenção e drop em dados, sem sistema paralelo e sem serem obrigatórios.
+- **Opções consideradas:** (a) scripts por item; (b) únicos como instâncias com affixes fixos; (c) `ItemData` + `_uniques.json` com `effects[]` no formato `skill_mod` dos talentos e `obtain` (nível mínimo + chance por tabela de loot).
+- **Escolha provisória:** (c). Efeito curinga `skill:"*"` mesclado em `PlayerCombat.mods_for` (exceto esquiva), stats fixos no `.tres`. Os 5 únicos são placeholders de teste (3 slots, efeitos de dano condicional, área, custo, projétil, conversão).
+- **Consequências:** únicos não rolam affixes e não aceitam instância (validação os recusa). Números provisórios; `damage_type` ainda sem resistências por inimigo (conversão = marcação + dano).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0019 — Equipar pela rede: `c_equip_cmd`/`s_equip` aditivos, `inst`/`equipment_inst` só ao dono, snapshot compacto intacto (E6.3)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (contrato de rede)
+- **Contexto:** o cliente precisa pedir equipar/desequipar e ver os affixes sem decidir nada e sem aumentar o custo por entidade do snapshot.
+- **Opções consideradas:** (a) estender o snapshot; (b) enviar a instância em todo evento; (c) comando por índice + base esperada, instância completa só em `s_inventory`/`EVENT_PICKUP` ao dono.
+- **Escolha provisória:** (c), `VERSION` continua 2. `c_equip_cmd(req_id, op, index, item_id)` com rate limit (4/s, rajada 8), anti-replay por `req_id`, `busy` com craft/talento em voo, recusas de regra de jogo viram `s_equip(EQUIP_ERROR, code)` sem punir o peer; payload inválido conta como abuso. Limite de 512 bytes por instância (cabe no MTU de `s_inventory` com folga).
+- **Consequências:** servidor e cliente devem ser atualizados juntos (mesma ressalva dos RPCs anteriores). O índice é o da pilha no servidor; a base esperada protege contra corrida de inventário.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+---
+
+## DEC-0020 — Gancho de teste `--loot-test-force <raridade>` (só com `ELDERVALE_TEST_MODE=1`) para integração determinística (E6.3)
+- **Data:** 2026-11-01
+- **Status:** PROPOSTA — aguarda revisão humana (superfície de teste no servidor)
+- **Contexto:** a integração real precisa de um item rolado a cada abate, mas a raridade é probabilística.
+- **Opções consideradas:** (a) abater até sair sorte; (b) semente fixa de loot; (c) forçar a raridade e garantir um equipamento por rolagem, mantendo affixes/valores rolados pelo servidor normalmente.
+- **Escolha provisória:** (c), no mesmo padrão dos `--test-*` existentes: sem `ELDERVALE_TEST_MODE=1` o argumento é ignorado com aviso e nunca vale em produção. Não toca a validação (a instância forçada é validada como qualquer outra).
+- **Consequências:** a integração valida a rolagem real (orçamento/faixas), mas não a distribuição de raridade (coberta pelo teste unitário).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+

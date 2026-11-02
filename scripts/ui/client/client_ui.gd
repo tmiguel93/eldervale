@@ -114,6 +114,8 @@ func ensure_built() -> void:
 	quests.abandon_requested.connect(func(q: String) -> void: _quest_cmd("abandon", q))
 	quests.turn_in_requested.connect(func(q: String) -> void: _quest_cmd("turn_in", q))
 	craft.craft_requested.connect(_on_craft_requested)
+	inventory_panel.equip_requested.connect(func(i: int, item_id: String) -> void: _equip_cmd(true, i, item_id))
+	inventory_panel.unequip_requested.connect(func(i: int) -> void: _equip_cmd(false, i, ""))
 	talents.allocate_requested.connect(func(node_id: String) -> void: _talent_cmd(Protocol.TALENT_OP_ALLOCATE, node_id))
 	talents.respec_requested.connect(func() -> void: _talent_cmd(Protocol.TALENT_OP_RESPEC, ""))
 	talents.spec_requested.connect(func(spec_id: String) -> void: _talent_cmd(Protocol.TALENT_OP_CHOOSE_SPEC, spec_id))
@@ -160,6 +162,7 @@ func bind(p_session: ClientSession) -> void:
 	_link(session.dialogue_error, _on_dialogue_error)
 	_link(session.craft_finished, _on_craft_finished)
 	_link(session.inventory_synced, _on_inventory_synced)
+	_link(session.equip_finished, _on_equip_finished)
 	_link(session.class_synced, skill_bar.refresh)
 	_link(session.talents_changed, _on_talents_changed)
 	_link(session.talents_error, _on_talents_error)
@@ -412,7 +415,21 @@ func _on_quest_error(_req: int, _op: int, qid: String, code: String) -> void:
 
 
 func _on_inventory_synced(data: Dictionary) -> void:
-	inventory.apply_full(data.get("slots", []), data.get("equipment", {}))
+	inventory.apply_full(data.get("slots", []), data.get("equipment", {}), data.get("equipment_inst", {}))
+
+
+## E6.3: pedido de equipar/desequipar (o servidor decide; o resultado chega por s_inventory e snapshot).
+func _equip_cmd(equip: bool, index: int, item_id: String) -> void:
+	var r: int = -1
+	if session != null:
+		r = session.equip(index, item_id) if equip else session.unequip(index)
+	if r < 0:
+		toast("Sem conexao com o servidor.", "bad")
+
+
+func _on_equip_finished(ok: bool, data: Dictionary) -> void:
+	if not ok:
+		toast(UiText.equip_error(String(data.get("code", ""))), "bad")
 
 
 func _talent_cmd(op: int, arg: String) -> void:

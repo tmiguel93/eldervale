@@ -67,6 +67,11 @@ var class_rejected: int = 0
 ## E6.2: talentos. send_talent_cmd(req_id:int, op:int, arg:String). `talents_state` = ultimo s_talents(STATE) valido (vazio ate chegar):
 ## {spec, ranks, respecs, level, points_total, points_spent, points_available, req_id}. O cliente so PEDE; o servidor decide tudo.
 var send_talent_cmd: Callable
+## E6.3: send_equip_cmd(req_id:int, op:int, index:int, item_id:String). O resultado chega em `equip_finished` (o servidor decide tudo; o
+## inventario/stats novos chegam por s_inventory e snapshot).
+var send_equip_cmd: Callable
+signal equip_finished(ok: bool, data: Dictionary)
+var equips_rejected: int = 0
 signal talents_changed(state: Dictionary)
 signal talents_error(req_id: int, op: int, code: String)
 var talents_state: Dictionary = {}
@@ -288,6 +293,35 @@ func on_dialogue(kind: int, data: Dictionary) -> void:
 			dialogue_changed.emit(dialogue_view)
 		Protocol.DIALOGUE_ERROR:
 			dialogue_error.emit(int(data.get("req_id", 0)), int(data.get("op", 0)), String(data.get("code", "")).substr(0, 48))
+
+
+## s_equip do servidor (so aceito em PLAYING; malformado e descartado e contado).
+func on_equip_update(kind: int, data: Dictionary) -> void:
+	if state != State.PLAYING:
+		return
+	if not Protocol.validate_equip_update(kind, data):
+		equips_rejected += 1
+		return
+	result.equip_results.append({"ok": kind == Protocol.EQUIP_OK, "op": int(data.get("op", 0)), "code": String(data.get("code", ""))})
+	equip_finished.emit(kind == Protocol.EQUIP_OK, data)
+
+
+## Pede para equipar a pilha `index` de `inventory_data.slots` (base esperada `item_id`). Devolve o req_id (-1 se nao enviou).
+func equip(index: int, item_id: String) -> int:
+	if state != State.PLAYING or not send_equip_cmd.is_valid() or not Protocol.is_content_id(item_id):
+		return -1
+	var r: int = _next_req()
+	send_equip_cmd.call(r, Protocol.EQUIP_OP_EQUIP, index, item_id)
+	return r
+
+
+## Pede para desequipar o slot (0 weapon, 1 armor, 2 trinket).
+func unequip(slot_index: int) -> int:
+	if state != State.PLAYING or not send_equip_cmd.is_valid():
+		return -1
+	var r: int = _next_req()
+	send_equip_cmd.call(r, Protocol.EQUIP_OP_UNEQUIP, slot_index, "")
+	return r
 
 
 ## s_craft do servidor (so aceito em PLAYING; malformado e descartado e contado).

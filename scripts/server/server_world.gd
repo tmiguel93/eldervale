@@ -16,7 +16,7 @@ signal player_killed_enemy(killer_id: int, enemy_id: int, enemy_type: String)
 signal event_to_player(entity_id: int, kind: int, data: Dictionary)
 ## E5.4 (loot individual): o pickup `pickup_id` do jogador `owner_id` foi coletado e o item JA esta no inventario dele
 ## (memoria do servidor). A sessao paga o mesmo item no backend (chave `loot:<sessao>:<pickup_id>:<personagem>`).
-signal pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: int)
+signal pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: int, inst: Dictionary)
 ## E5.4: `player_id` (nao matador) recebeu `xp` por participar da morte de `enemy_id` (ja somado na memoria do servidor).
 signal participant_rewarded(enemy_id: int, player_id: int, xp: int)
 
@@ -112,7 +112,7 @@ func _alloc_id() -> int:
 ## E5.4: avanca TTL e auto-coleta dos pickups individuais (testes chamam direto, sem depender de frames).
 func step_loot(delta: float) -> void:
 	for p: LootManager.LootPickup in loot.step(delta):
-		pickup_collected.emit(p.id, p.owner_id, p.item_id, p.qty)
+		pickup_collected.emit(p.id, p.owner_id, p.item_id, p.qty, p.inst)
 
 
 ## Entidades de snapshot (kind 3) dos pickups DO jogador (nunca os de outro dono).
@@ -751,9 +751,15 @@ func _defeat_individual(enemy: Enemy, xp: int, entity_id: int) -> void:
 			var slot: PlayerSlot = _players.get(pid) as PlayerSlot
 			if slot == null or slot.health.is_dead or slot.zone_id != zone:
 				continue
-			var rolled: Array[LootDrop] = loot.roll_for(enemy.data.loot_table, entity_id, pid)
+			# E6.3: ilvl = nivel do participante (limitado a ilvl_max), tier do inimigo ajusta os pesos de raridade.
+			var plevel: int = slot.loadout.progress.level if slot.loadout != null else 1
+			var ilvl: int = clampi(plevel, 1, ItemRules.shared().ilvl_max)
+			var rolled: Array[LootDrop] = loot.roll_for(enemy.data.loot_table, entity_id, pid, ilvl, String(enemy.data.tier), plevel)
 			for pk: LootManager.LootPickup in loot.spawn_for(pid, rolled, enemy.global_position, zone):
-				emit_to_player(pid, Protocol.EVENT_DROP, {"pos": pk.pos, "item_id": pk.item_id, "qty": pk.qty, "id": pk.id})
+				var dev: Dictionary = {"pos": pk.pos, "item_id": pk.item_id, "qty": pk.qty, "id": pk.id}
+				if not pk.inst.is_empty():
+					dev["rarity"] = String(pk.inst["rarity"])
+				emit_to_player(pid, Protocol.EVENT_DROP, dev)
 			if pid != killer_id and settings.xp_for_participants and xp > 0 and slot.loadout != null:
 				slot.loadout.grant_xp(xp)
 				participant_rewarded.emit(entity_id, pid, xp)

@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "default-class"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "default-class", "loot-test-force"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -92,6 +92,7 @@ func _start() -> void:
 	rpc.dialogue_cmd_received.connect(session.on_dialogue_cmd)
 	rpc.craft_cmd_received.connect(session.on_craft_cmd)
 	rpc.talent_cmd_received.connect(session.on_talent_cmd)
+	rpc.equip_cmd_received.connect(session.on_equip_cmd)
 	rpc.caps_received.connect(session.on_caps)
 	multiplayer.peer_connected.connect(session.on_peer_connected)
 	multiplayer.peer_disconnected.connect(session.on_peer_disconnected)
@@ -208,6 +209,13 @@ func _apply_extras(extras: Dictionary) -> void:
 				settings.test_move_speed_mult = clampf(float(extras[k]), 1.0, 3.0)
 	if test_mode and (settings.test_enemy_hp_mult != 1.0 or settings.test_move_speed_mult != 1.0):
 		print("[server] MODO DE TESTE: vida dos inimigos x%.2f, velocidade dos jogadores x%.2f (NAO usar em producao)" % [settings.test_enemy_hp_mult, settings.test_move_speed_mult])
+	if extras.has("loot-test-force"):
+		var fr: String = String(extras["loot-test-force"]).strip_edges()
+		if not test_mode:
+			print("[server] AVISO: --loot-test-force ignorado (exige ELDERVALE_TEST_MODE=1)")
+		elif ItemRules.shared().has_rarity(fr) and fr != "common":
+			settings.test_force_rarity = fr
+			print("[server] MODO DE TESTE: equipamentos do loot com raridade forcada '%s' (NAO usar em producao)" % fr)
 	if extras.has("measure-snapshots"):
 		settings.measure_snapshots = String(extras["measure-snapshots"]).strip_edges() in ["1", "true", "on"]
 	if extras.has("compact-snapshots"):

@@ -55,6 +55,10 @@ func send_class(peer_id: int, data: Dictionary) -> void:
 	rpc.send_class(peer_id, data)
 
 
+func send_equip_update(peer_id: int, kind: int, data: Dictionary) -> void:
+	rpc.send_equip_update(peer_id, kind, data)
+
+
 func send_talents(peer_id: int, kind: int, data: Dictionary) -> void:
 	rpc.send_talents(peer_id, kind, data)
 

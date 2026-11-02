@@ -21,6 +21,12 @@ class RecordingTransport extends ServerTransport:
 	func send_craft_update(peer_id: int, kind: int, data: Dictionary) -> void:
 		craft_updates.append({"peer": peer_id, "kind": kind, "data": data})
 
+	## E6.3: respostas de equipar/desequipar gravadas ({peer, kind, data}).
+	var equip_updates: Array[Dictionary] = []
+
+	func send_equip_update(peer_id: int, kind: int, data: Dictionary) -> void:
+		equip_updates.append({"peer": peer_id, "kind": kind, "data": data})
+
 	## E5.6: inventario sincronizado gravado ({peer, data}).
 	var inventories: Array[Dictionary] = []
 

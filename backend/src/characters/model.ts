@@ -5,6 +5,7 @@ import { EMPTY_QUESTS, type QuestCatalog } from "../quests/catalog.ts";
 import { validateQuestsState, type QuestsState } from "../quests/state.ts";
 import type { ClassCatalog } from "./classes.ts";
 import { levelForXp, MAX_LEVEL, MAX_TOTAL_XP } from "./progression.ts";
+import { parseInstance, type ItemInstance } from "./instances.ts";
 
 export const SCHEMA_VERSION = 1;
 export const EQUIP_SLOTS = ["weapon", "armor", "trinket"] as const;
@@ -29,8 +30,12 @@ export interface InventoryEntry {
   slot: number;
   item_id: string;
   qty: number;
+  /** E6.3: instancia rolada (raridade/affixes). Ausente = item simples/Comum (saves antigos). Com `inst`, qty e sempre 1. */
+  inst?: ItemInstance;
 }
 export type Equipment = Partial<Record<EquipSlot, string>>;
+/** E6.3: instancia do item equipado no slot (a base continua em `Equipment`). */
+export type EquipmentInst = Partial<Record<EquipSlot, ItemInstance>>;
 export interface CharacterState {
   schema_version: number;
   level: number;
@@ -38,6 +43,8 @@ export interface CharacterState {
   stats: Stats;
   inventory: InventoryEntry[];
   equipment: Equipment;
+  /** E6.3. Opcional; so presente quando ha instancia equipada (leitores antigos ignoram). */
+  equipment_inst?: EquipmentInst;
   /** E5.1. Opcional na ENTRADA do checkpoint (ausente = manter o do banco); sempre presente no que e lido/gravado. */
   quests?: QuestsState;
 }
@@ -59,7 +66,7 @@ function exactKeys(o: Record<string, unknown>, allowed: readonly string[], where
  */
 export function validateState(input: unknown, catalog: Catalog, limits: CharacterLimits, quests: QuestCatalog = EMPTY_QUESTS): CharacterState {
   if (!isObj(input)) throw invalidState("state deve ser um objeto");
-  exactKeys(input, ["schema_version", "level", "xp", "stats", "inventory", "equipment", "quests"], "state");
+  exactKeys(input, ["schema_version", "level", "xp", "stats", "inventory", "equipment", "equipment_inst", "quests"], "state");
   if (input.schema_version !== SCHEMA_VERSION) throw invalidState(`schema_version deve ser ${SCHEMA_VERSION}`);
 
   const { level, xp } = input;
@@ -80,10 +87,11 @@ export function validateState(input: unknown, catalog: Catalog, limits: Characte
   if (!Array.isArray(input.inventory)) throw invalidState("inventory deve ser uma lista");
   if (input.inventory.length > limits.inventoryCapacity) throw invalidState(`inventory excede a capacidade (${limits.inventoryCapacity})`);
   const seen = new Set<number>();
+  const uids = new Set<string>();
   const inventory: InventoryEntry[] = [];
   for (const e of input.inventory as unknown[]) {
     if (!isObj(e)) throw invalidState("entrada de inventory invalida");
-    exactKeys(e, ["slot", "item_id", "qty"], "inventory");
+    exactKeys(e, ["slot", "item_id", "qty", "inst"], "inventory");
     if (!isInt(e.slot) || e.slot < 0 || e.slot >= limits.inventoryCapacity) throw invalidState(`inventory.slot deve ser inteiro 0..${limits.inventoryCapacity - 1}`);
     if (seen.has(e.slot)) throw invalidState(`inventory.slot ${e.slot} duplicado`);
     seen.add(e.slot);
@@ -92,7 +100,13 @@ export function validateState(input: unknown, catalog: Catalog, limits: Characte
     if (!item) throw invalidState(`item desconhecido "${e.item_id.slice(0, 40)}"`);
     if (!isInt(e.qty) || e.qty < 1) throw invalidState("inventory.qty deve ser inteiro >= 1");
     if (e.qty > item.max_stack) throw invalidState(`${item.id}: qty ${e.qty} acima do max_stack ${item.max_stack}`);
-    inventory.push({ slot: e.slot, item_id: item.id, qty: e.qty });
+    if (e.inst !== undefined) {
+      if (e.qty !== 1) throw invalidState("inventory.qty de uma instancia deve ser 1");
+      const inst = checkInstance(e.inst, item, catalog, uids);
+      inventory.push({ slot: e.slot, item_id: item.id, qty: 1, inst });
+    } else {
+      inventory.push({ slot: e.slot, item_id: item.id, qty: e.qty });
+    }
   }
   inventory.sort((a, b) => a.slot - b.slot);
 
@@ -108,16 +122,63 @@ export function validateState(input: unknown, catalog: Catalog, limits: Characte
     if (item.slot !== s) throw invalidState(`item ${item.id} (slot ${item.slot}) nao cabe em ${s}`);
     equipment[s] = item.id;
   }
+  let equipment_inst: EquipmentInst | undefined;
+  if (input.equipment_inst !== undefined) {
+    if (!isObj(input.equipment_inst)) throw invalidState("equipment_inst deve ser um objeto");
+    exactKeys(input.equipment_inst, EQUIP_SLOTS, "equipment_inst");
+    equipment_inst = {};
+    for (const s of EQUIP_SLOTS) {
+      const v = input.equipment_inst[s];
+      if (v === undefined || v === null) continue;
+      const baseId = equipment[s];
+      const base = baseId ? catalog.get(baseId) : undefined;
+      if (!base) throw invalidState(`equipment_inst.${s} sem item equipado`);
+      equipment_inst[s] = checkInstance(v, base, catalog, uids);
+    }
+    if (Object.keys(equipment_inst).length === 0) equipment_inst = undefined;
+  }
   const out: CharacterState = { schema_version: SCHEMA_VERSION, level, xp, stats, inventory, equipment };
+  if (equipment_inst) out.equipment_inst = equipment_inst;
   if (input.quests !== undefined) out.quests = validateQuestsState(input.quests, quests, limits.maxActiveQuests);
   return out;
 }
 
-/** Quantidade total por item (inventario + equipado). Itens nao tem identidade de instancia: a conservacao e por contagem. */
-export function itemTotals(state: Pick<CharacterState, "inventory" | "equipment">): Map<string, number> {
+/** E6.3: valida uma instancia e garante uid unico dentro do estado (inventario + equipamento). Erros viram 422. */
+function checkInstance(raw: unknown, base: { id: string; slot: string; stackable: boolean; max_stack: number; rarity: string }, catalog: Catalog, uids: Set<string>): ItemInstance {
+  let inst: ItemInstance;
+  try {
+    inst = parseInstance(raw, base as Parameters<typeof parseInstance>[1], catalog);
+  } catch (err) {
+    throw invalidState(`instancia invalida em ${base.id}: ${(err as Error).message}`);
+  }
+  if (uids.has(inst.uid)) throw invalidState(`instancia ${inst.uid} duplicada`);
+  uids.add(inst.uid);
+  return inst;
+}
+
+/** Todas as instancias do estado (inventario + equipados) por uid, com a base. */
+export function instancesOf(state: Pick<CharacterState, "inventory" | "equipment" | "equipment_inst">): Map<string, { item_id: string; inst: ItemInstance }> {
+  const m = new Map<string, { item_id: string; inst: ItemInstance }>();
+  for (const e of state.inventory) if (e.inst) m.set(e.inst.uid, { item_id: e.item_id, inst: e.inst });
+  for (const s of EQUIP_SLOTS) {
+    const inst = state.equipment_inst?.[s];
+    const id = state.equipment[s];
+    if (inst && id) m.set(inst.uid, { item_id: id, inst });
+  }
+  return m;
+}
+
+/**
+ * Quantidade total por item (inventario + equipado) de itens SIMPLES. Instancias (E6.3) tem identidade propria (uid) e sao
+ * conservadas por `instancesOf`, nao por contagem: um item com affixes nunca soma aqui.
+ */
+export function itemTotals(state: Pick<CharacterState, "inventory" | "equipment" | "equipment_inst">): Map<string, number> {
   const m = new Map<string, number>();
-  for (const e of state.inventory) m.set(e.item_id, (m.get(e.item_id) ?? 0) + e.qty);
-  for (const id of Object.values(state.equipment)) if (id) m.set(id, (m.get(id) ?? 0) + 1);
+  for (const e of state.inventory) if (!e.inst) m.set(e.item_id, (m.get(e.item_id) ?? 0) + e.qty);
+  for (const s of EQUIP_SLOTS) {
+    const id = state.equipment[s];
+    if (id && !state.equipment_inst?.[s]) m.set(id, (m.get(id) ?? 0) + 1);
+  }
   return m;
 }
 
@@ -129,18 +190,26 @@ export type AddResult =
  * Adiciona itens ao inventario (puro, tudo-ou-nada). Como Inventory.add do jogo: completa pilhas existentes
  * por ordem de slot e abre novos slots no menor indice livre < capacity.
  */
-export function addItems(inventory: readonly InventoryEntry[], items: readonly { item_id: string; qty: number }[], catalog: Catalog, capacity: number): AddResult {
+export function addItems(inventory: readonly InventoryEntry[], items: readonly { item_id: string; qty: number; inst?: ItemInstance }[], catalog: Catalog, capacity: number): AddResult {
   const slots = new Map<number, InventoryEntry>();
   for (const e of inventory) slots.set(e.slot, { ...e });
   const missing: { item_id: string; qty: number }[] = [];
-  for (const { item_id, qty } of items) {
+  for (const { item_id, qty, inst } of items) {
     const item = catalog.get(item_id);
     if (!item) throw new Error(`item fora do catalogo: ${item_id}`); // chamadores validam antes
     let left = qty;
+    if (inst) {
+      // E6.3: instancia = 1 slot proprio, nunca empilha.
+      let s = 0;
+      while (s < capacity && slots.has(s)) s++;
+      if (s >= capacity) missing.push({ item_id, qty: 1 });
+      else slots.set(s, { slot: s, item_id, qty: 1, inst });
+      continue;
+    }
     if (item.stackable) {
       for (const e of [...slots.values()].sort((a, b) => a.slot - b.slot)) {
         if (left === 0) break;
-        if (e.item_id !== item_id || e.qty >= item.max_stack) continue;
+        if (e.item_id !== item_id || e.inst || e.qty >= item.max_stack) continue;
         const put = Math.min(left, item.max_stack - e.qty);
         e.qty += put;
         left -= put;
@@ -183,7 +252,7 @@ export interface RewardRequest {
   /** E5.1: recompensa de quest (chave estavel `quest:<quest_id>:<character_id>`, xp/itens iguais ao catalogo). */
   quest_id?: string;
   xp: number;
-  items: { item_id: string; qty: number }[];
+  items: { item_id: string; qty: number; inst?: ItemInstance }[];
 }
 
 export function validateRewardRequest(body: unknown, catalog: Catalog, limits: CharacterLimits, quests: QuestCatalog = EMPTY_QUESTS, characterId = ""): RewardRequest {
@@ -198,17 +267,32 @@ export function validateRewardRequest(body: unknown, catalog: Catalog, limits: C
     xp = body.xp;
   }
   const merged = new Map<string, number>();
+  const rolled: { item_id: string; qty: number; inst: ItemInstance }[] = [];
   if (body.items !== undefined) {
     if (!Array.isArray(body.items) || body.items.length > limits.rewardMaxItems) throw bad(`items deve ser lista de ate ${limits.rewardMaxItems}`);
     for (const e of body.items as unknown[]) {
       if (!isObj(e)) throw bad("item invalido");
-      for (const k of Object.keys(e)) if (k !== "item_id" && k !== "qty") throw bad(`campo desconhecido "${k.slice(0, 40)}" em item`);
+      for (const k of Object.keys(e)) if (k !== "item_id" && k !== "qty" && k !== "inst") throw bad(`campo desconhecido "${k.slice(0, 40)}" em item`);
       if (typeof e.item_id !== "string" || !catalog.has(e.item_id)) throw bad("item_id desconhecido", "unknown_item");
       if (!isInt(e.qty) || e.qty < 1 || e.qty > limits.rewardMaxQty) throw bad(`qty deve ser inteiro 1..${limits.rewardMaxQty}`);
+      if (e.inst !== undefined) {
+        // E6.3: instancia rolada so chega por loot: (pickup coletado), 1 unidade, e e revalidada contra o catalogo.
+        if (!key.startsWith("loot:")) throw bad("instancia de item so e aceita em recompensas loot:", "invalid_instance");
+        if (e.qty !== 1) throw bad("qty de uma instancia deve ser 1", "invalid_instance");
+        let inst: ItemInstance;
+        try {
+          inst = parseInstance(e.inst, catalog.get(e.item_id)!, catalog);
+        } catch (err) {
+          throw bad(`instancia invalida: ${(err as Error).message}`, "invalid_instance");
+        }
+        rolled.push({ item_id: e.item_id, qty: 1, inst });
+        continue;
+      }
       merged.set(e.item_id, (merged.get(e.item_id) ?? 0) + e.qty);
     }
   }
-  const items = [...merged.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([item_id, qty]) => ({ item_id, qty }));
+  const items: RewardRequest["items"] = [...merged.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([item_id, qty]) => ({ item_id, qty }));
+  items.push(...rolled);
   if (body.quest_id !== undefined) {
     const qid = body.quest_id;
     if (typeof qid !== "string" || !/^[a-z][a-z0-9_]{0,47}$/.test(qid)) throw bad("quest_id invalido", "invalid_reward");
@@ -221,6 +305,6 @@ export function validateRewardRequest(body: unknown, catalog: Catalog, limits: C
     }
     return { idempotency_key: key, quest_id: qid, xp, items };
   }
-  if (xp === 0 && merged.size === 0) throw bad("recompensa vazia");
+  if (xp === 0 && items.length === 0) throw bad("recompensa vazia");
   return { idempotency_key: key, xp, items };
 }

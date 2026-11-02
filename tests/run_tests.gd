@@ -14,6 +14,7 @@ func _initialize() -> void:
 
 
 func _run_all() -> void:
+	await physics_frame # a raiz so aceita add_child depois de _initialize (testes com --only que nao aguardam um frame)
 	# Filtro opcional (E5.1): `-- --only=tests/e5` (prefixo/trecho do caminho) roda so uma parte da suite.
 	var only: String = ""
 	for a: String in OS.get_cmdline_user_args():

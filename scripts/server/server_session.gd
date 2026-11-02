@@ -35,6 +35,7 @@ class PeerState extends RefCounted:
 	var quest_limiter: RateLimiter
 	var craft_limiter: RateLimiter
 	var talent_limiter: RateLimiter ## E6.2
+	var equip_limiter: RateLimiter ## E6.3
 	## E5.6: assinatura do ultimo inventario enviado (so reenvia quando muda) e contagem de envios.
 	var inv_sig: String = ""
 	var inv_sent: int = 0
@@ -62,6 +63,8 @@ var quests: QuestService
 var crafting: CraftingService
 ## E6.2: talentos (criado em setup).
 var talents: TalentService
+## E6.3: equipar/desequipar (criado em setup).
+var equipping: EquipService
 ## E5.6: medicao de snapshots (so com settings.measure_snapshots): maior payload aproximado (var_to_bytes) e contagens.
 ## E5.7: `samples`/`max_bytes`/`over_mtu`/`sum_bytes` contam MENSAGENS (uma parte do compacto = uma mensagem; o legado = 1 por snapshot).
 var snapshot_stats: Dictionary = {"samples": 0, "max_bytes": 0, "max_entities": 0, "over_mtu": 0, "sum_bytes": 0,
@@ -89,6 +92,12 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	talents.loadout_of = _loadout_of_entity
 	talents.peer_of = _peer_id_of_entity
 	talents.character_of = _character_id_of_entity
+	equipping = EquipService.new(world, transport)
+	equipping.loadout_of = _loadout_of_entity
+	equipping.peer_of = _peer_id_of_entity
+	equipping.character_of = _character_id_of_entity
+	equipping.crafting = crafting
+	equipping.talents = talents
 	process_physics_priority = 20 # depois de jogadores/inimigos
 
 
@@ -101,6 +110,9 @@ func attach_backend(p_sync: BackendSync) -> void:
 	quests.sync = p_sync
 	crafting.sync = p_sync
 	talents.sync_backend = p_sync
+	equipping.sync = p_sync
+	world.loot.uid_salt = p_sync.session_id # E6.3: uids de instancias nao repetem entre sessoes (o id so existe apos o registro)
+	p_sync.registered.connect(func(sid: String) -> void: world.loot.uid_salt = sid)
 
 
 func now_msec() -> int:
@@ -159,6 +171,7 @@ func on_peer_connected(peer_id: int) -> void:
 	p.quest_limiter = RateLimiter.new(settings.quest_rate_per_sec, settings.quest_burst)
 	p.craft_limiter = RateLimiter.new(settings.craft_rate_per_sec, settings.craft_burst)
 	p.talent_limiter = RateLimiter.new(settings.talent_rate_per_sec, settings.talent_burst)
+	p.equip_limiter = RateLimiter.new(settings.equip_rate_per_sec, settings.equip_burst)
 	p.caps_limiter = RateLimiter.new(1.0, 3)
 	_peers[peer_id] = p
 	print("[server] peer %d conectou (%d conexoes)" % [peer_id, _peers.size()])
@@ -429,15 +442,20 @@ func _on_player_killed_enemy(killer_id: int, _enemy_id: int, enemy_type: String)
 
 ## E5.4: pickup individual coletado (item JA no inventario em memoria). Quest de coleta + pagamento no backend pelo
 ## caminho idempotente de recompensas com chave ESTAVEL por drop: `loot:<sessao>:<pickup_id>:<personagem>`.
-func _on_pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: int) -> void:
+func _on_pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: int, inst: Dictionary) -> void:
 	quests.on_items_gained(owner_id, [{"item_id": item_id, "qty": qty}])
 	var p: PeerState = _peer_by_entity(owner_id)
 	if p == null:
 		return
-	_send_event_to(p, Protocol.EVENT_PICKUP, {"id": pickup_id, "item_id": item_id, "qty": qty})
+	var ev: Dictionary = {"id": pickup_id, "item_id": item_id, "qty": qty}
+	var line: Dictionary = {"item_id": item_id, "qty": qty}
+	if not inst.is_empty():
+		ev["inst"] = inst # E6.3: instancia completa so ao dono
+		line["inst"] = inst # e no pagamento idempotente (o backend revalida tudo)
+	_send_event_to(p, Protocol.EVENT_PICKUP, ev)
 	if sync != null and not p.character_id.is_empty():
 		var key: String = "loot:%s:%d:%s" % [sync.session_id, pickup_id, p.character_id]
-		sync.enqueue_reward(p.character_id, key, 0, [{"item_id": item_id, "qty": qty}])
+		sync.enqueue_reward(p.character_id, key, 0, [line])
 
 
 ## E5.4: XP de participante (nao matador) na morte de um inimigo; mesma chave estavel por evento e personagem.
@@ -572,6 +590,26 @@ func on_talent_cmd(peer_id: int, req_id: Variant, op: Variant, arg: Variant) -> 
 		_count_invalid(p, String(v["message"]))
 		return
 	talents.cmd_talent(p.entity_id, int(v["req_id"]), int(v["op"]), String(v["arg"]))
+
+
+## E6.3: c_equip_cmd. Payload invalido/rate limit contam como abuso; regra de jogo violada vira s_equip(EQUIP_ERROR) sem punir o peer.
+func on_equip_cmd(peer_id: int, req_id: Variant, op: Variant, index: Variant, item_id: Variant) -> void:
+	var p: PeerState = _peers.get(peer_id) as PeerState
+	if p == null or p.closing:
+		return
+	if not p.welcomed:
+		_reject_and_close(p, Protocol.REJECT_NOT_AUTHENTICATED, "comando antes do welcome")
+		return
+	if not p.equip_limiter.allow(now_msec()):
+		p.dropped_rate += 1
+		_count_invalid(p, "rate limit de equipamento")
+		return
+	var v: Dictionary = Protocol.validate_equip_cmd(req_id, op, index, item_id)
+	if not bool(v["ok"]):
+		p.dropped_invalid += 1
+		_count_invalid(p, String(v["message"]))
+		return
+	equipping.cmd_equip(p.entity_id, int(v["req_id"]), int(v["op"]), int(v["index"]), String(v["item_id"]))
 
 
 ## E5.7: c_caps(caps) — o cliente declara o que entende (hoje: snapshot compacto). Valido so apos o welcome.
@@ -739,6 +777,7 @@ func _drop_peer(peer_id: int, reason: String) -> void:
 		quests.detach(p.entity_id)
 		crafting.detach(p.entity_id)
 		talents.detach(p.entity_id)
+		equipping.detach(p.entity_id)
 		world.remove_player(p.entity_id) # emite player_left para os demais
 		player_left.emit(peer_id, p.entity_id)
 

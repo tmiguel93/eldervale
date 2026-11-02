@@ -58,6 +58,27 @@ static func collect(tree: TalentTree, state: TalentState) -> Dictionary:
 	return {"stats": stats, "skills": skills}
 
 
+## E6.3: soma ao resultado de `collect` os efeitos de itens (affixes e unicos): `stat` soma em `stats`; `skill_mod` entra em
+## `skills[skill]` (skill "*" = todas as habilidades que nao sao esquiva, resolvido em PlayerCombat). Mesmos tipos/parametros dos talentos.
+static func merge_effects(col: Dictionary, effects: Array) -> void:
+	var stats: StatBlock = col["stats"]
+	var skills: Dictionary = col["skills"]
+	for fx: Variant in effects:
+		var d: Dictionary = fx
+		if String(d.get("type", "")) == "stat":
+			var key: String = String(d.get("stat", ""))
+			if key in StatCalculator.CAPS:
+				stats.set(key, float(stats.get(key)) + float(d.get("amount", 0.0)))
+		elif String(d.get("type", "")) == "skill_mod":
+			var m: Dictionary = d.duplicate()
+			m["rank"] = 1
+			m["node"] = "item"
+			var sid: String = String(d.get("skill", "*"))
+			if not skills.has(sid):
+				skills[sid] = []
+			(skills[sid] as Array).append(m)
+
+
 ## Valores efetivos de `skill` com `mods` (Array de collect()["skills"][id]). `ctx`: {hp_ratio, resource_ratio, clock, last_use{id->clock}}.
 static func resolve(skill: SkillData, mods: Array, ctx: Dictionary = {}) -> Resolved:
 	var r: Resolved = Resolved.new()

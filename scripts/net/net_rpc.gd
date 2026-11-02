@@ -28,6 +28,9 @@ signal class_update_received(data: Dictionary)
 ## Extensao aditiva E6.2 (talentos). `talent_cmd_received` NAO valida o conteudo (Protocol.validate_talent_cmd); `talents_update_received`
 ## (so servidor -> dono) tambem nao (Protocol.validate_talents_update).
 signal talent_cmd_received(peer_id: int, req_id: int, op: int, arg: String)
+## Extensao aditiva E6.3 (equipar/desequipar). `equip_cmd_received` NAO valida o conteudo (Protocol.validate_equip_cmd).
+signal equip_cmd_received(peer_id: int, req_id: int, op: int, index: int, item_id: String)
+signal equip_update_received(kind: int, data: Dictionary)
 signal talents_update_received(kind: int, data: Dictionary)
 ## Extensao aditiva E5.7 (snapshot compacto). `caps_received` NAO valida o conteudo (Protocol.validate_caps);
 ## `snapshot_part_received` ja traz tipos basicos conferidos, mas o cabecalho/blob passam por Protocol.validate_snapshot_part.
@@ -159,6 +162,19 @@ func c_talent_cmd(req_id: Variant, op: Variant, arg: Variant) -> void:
 
 
 @rpc("any_peer", "call_remote", "reliable")
+func c_equip_cmd(req_id: Variant, op: Variant, index: Variant, item_id: Variant) -> void:
+	var sender: int = multiplayer.get_remote_sender_id()
+	if not multiplayer.is_server() or sender == 0:
+		return
+	if typeof(req_id) != TYPE_INT or typeof(op) != TYPE_INT or typeof(index) != TYPE_INT or typeof(item_id) != TYPE_STRING:
+		return
+	var iid: String = item_id
+	if iid.length() > MAX_STRING:
+		return
+	equip_cmd_received.emit(sender, int(req_id), int(op), int(index), iid)
+
+
+@rpc("any_peer", "call_remote", "reliable")
 func c_caps(caps: Variant) -> void:
 	var sender: int = multiplayer.get_remote_sender_id()
 	if not multiplayer.is_server() or sender == 0:
@@ -286,6 +302,15 @@ func s_talents(kind: Variant, data: Variant) -> void:
 	talents_update_received.emit(int(kind), data as Dictionary)
 
 
+@rpc("authority", "call_remote", "reliable")
+func s_equip(kind: Variant, data: Variant) -> void:
+	if not _from_server():
+		return
+	if typeof(kind) != TYPE_INT or typeof(data) != TYPE_DICTIONARY:
+		return
+	equip_update_received.emit(int(kind), data as Dictionary)
+
+
 # ---------------------------------------------------------------- envio
 
 func _can_send() -> bool:
@@ -362,6 +387,14 @@ func send_craft_cmd(req_id: int, recipe_id: String) -> void:
 
 func send_talent_cmd(req_id: int, op: int, arg: String) -> void:
 	_send(SERVER_PEER_ID, &"c_talent_cmd", [req_id, op, arg], true)
+
+
+func send_equip_cmd(req_id: int, op: int, index: int, item_id: String) -> void:
+	_send(SERVER_PEER_ID, &"c_equip_cmd", [req_id, op, index, item_id], true)
+
+
+func send_equip_update(peer: int, kind: int, data: Dictionary) -> void:
+	_send(peer, &"s_equip", [kind, data], true)
 
 
 # Servidor -> cliente

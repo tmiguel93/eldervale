@@ -15,11 +15,15 @@ const EQUIP_SLOTS: Array[String] = ["weapon", "armor", "trinket"]
 var complete: bool = false
 var _qty: Dictionary = {}       ## item_id -> qty (estimativa ou estado completo)
 var equipment: Dictionary = {}  ## slot -> item_id (so preenchido por apply_full)
+var equipment_inst: Dictionary = {}  ## E6.3: slot -> instancia (raridade/affixes) do equipado, vinda do servidor
+var _slots: Array[Dictionary] = []  ## E6.3: pilhas na ORDEM do servidor ({item_id, qty, inst?}); o indice e o do comando de equipar
 
 
 func reset() -> void:
 	_qty = {}
 	equipment = {}
+	equipment_inst = {}
+	_slots = []
 	complete = false
 	changed.emit()
 
@@ -57,6 +61,16 @@ func entries() -> Array[Dictionary]:
 	return out
 
 
+## E6.3: pilhas exibidas. Com o estado completo do servidor: na ordem dele (o indice serve a `equip`); antes disso, a estimativa.
+func slot_entries() -> Array[Dictionary]:
+	if not complete:
+		return entries()
+	var out: Array[Dictionary] = []
+	for s: Dictionary in _slots:
+		out.append(s.duplicate(true))
+	return out
+
+
 ## Ganho de item vindo de evento do servidor.
 func on_pickup(data: Dictionary) -> void:
 	add(String(data.get("item_id", "")), int(data.get("qty", 0)))
@@ -82,13 +96,22 @@ func on_quest_reward(items: Array) -> void:
 
 
 ## Estado completo (uso futuro, quando houver mensagem do servidor): slots [{item_id, qty}] e equipamento {slot: item_id}.
-func apply_full(slots: Array, equip: Dictionary) -> void:
+func apply_full(slots: Array, equip: Dictionary, equip_inst: Dictionary = {}) -> void:
 	_qty = {}
+	_slots = []
 	for s: Variant in slots:
 		if s is Dictionary and Protocol.is_content_id((s as Dictionary).get("item_id", null)):
 			var q: int = int((s as Dictionary).get("qty", 0))
 			if q > 0:
 				_qty[String(s["item_id"])] = int(_qty.get(String(s["item_id"]), 0)) + q
+				var e: Dictionary = {"item_id": String(s["item_id"]), "qty": q}
+				if (s as Dictionary).has("inst") and (s as Dictionary)["inst"] is Dictionary:
+					e["inst"] = ((s as Dictionary)["inst"] as Dictionary).duplicate(true)
+				_slots.append(e)
+	equipment_inst = {}
+	for k2: String in EQUIP_SLOTS:
+		if equip_inst.has(k2) and equip_inst[k2] is Dictionary and equip.has(k2):
+			equipment_inst[k2] = (equip_inst[k2] as Dictionary).duplicate(true)
 	equipment = {}
 	for k: String in EQUIP_SLOTS:
 		if equip.has(k) and Protocol.is_content_id(equip[k]):

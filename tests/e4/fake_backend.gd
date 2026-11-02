@@ -148,8 +148,18 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 			if int(body.get("expected_revision", -1)) != int(ch["revision"]):
 				return err(409, "revision_conflict")
 			var st: Dictionary = body["state"]
+			# E6.3: espelha o backend real: instancias so MOVEM/SAEM pelo checkpoint (uid ja conhecido, conteudo igual); nunca nascem aqui.
+			var known: Dictionary = _uids(ch) # estado ANTERIOR ao checkpoint
+			var fresh: Dictionary = _uids({"inventory": st["inventory"], "equipment_inst": st.get("equipment_inst", {})})
+			for u: String in fresh:
+				if not known.has(u) or JSON.stringify(_canon(known[u])) != JSON.stringify(_canon(fresh[u])):
+					return err(422, "invalid_state")
 			for k: String in ["level", "xp", "stats", "inventory", "equipment"]:
 				ch[k] = st[k]
+			if st.has("equipment_inst"):
+				ch["equipment_inst"] = st["equipment_inst"].duplicate(true)
+			else:
+				ch.erase("equipment_inst")
 			if st.has("quests"):
 				ch["quests"] = st["quests"].duplicate(true) # E5.1: quests persistem junto do checkpoint
 			ch["revision"] = int(ch["revision"]) + 1
@@ -181,7 +191,10 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 				claims[key] = true
 				ch["xp"] = int(ch["xp"]) + int(body.get("xp", 0))
 				for it: Variant in body.get("items", []):
-					(ch["inventory"] as Array).append({"slot": (ch["inventory"] as Array).size(), "item_id": (it as Dictionary)["item_id"], "qty": (it as Dictionary)["qty"]})
+					var line: Dictionary = {"slot": (ch["inventory"] as Array).size(), "item_id": (it as Dictionary)["item_id"], "qty": (it as Dictionary)["qty"]}
+					if (it as Dictionary).has("inst"):
+						line["inst"] = (it as Dictionary)["inst"] # E6.3 (o backend real revalida a instancia; aqui so grava)
+					(ch["inventory"] as Array).append(line)
 				if not quest_id.is_empty():
 					(ch["quests"]["active"] as Dictionary).erase(quest_id)
 					(ch["quests"]["completed"] as Array).append(quest_id)
@@ -192,6 +205,36 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 		if path.ends_with("/release"):
 			return ok({"released": true})
 	return err(404, "not_found")
+
+
+## Forma canonica (chaves ordenadas, numeros como float) para comparar instancias que passaram por JSON.
+static func _canon(v: Variant) -> Variant:
+	if typeof(v) == TYPE_DICTIONARY:
+		var out: Dictionary = {}
+		var keys: Array = (v as Dictionary).keys()
+		keys.sort()
+		for k: Variant in keys:
+			out[k] = _canon((v as Dictionary)[k])
+		return out
+	if typeof(v) == TYPE_ARRAY:
+		var arr: Array = []
+		for x: Variant in v:
+			arr.append(_canon(x))
+		return arr
+	if typeof(v) == TYPE_INT or typeof(v) == TYPE_FLOAT:
+		return float(v)
+	return v
+
+
+## E6.3: uid -> instancia (JSON) do inventario + equipment_inst de `ch`.
+func _uids(ch: Dictionary) -> Dictionary:
+	var out: Dictionary = {}
+	for e: Variant in ch.get("inventory", []):
+		if (e as Dictionary).has("inst"):
+			out[String((e as Dictionary)["inst"]["uid"])] = (e as Dictionary)["inst"]
+	for k: Variant in (ch.get("equipment_inst", {}) as Dictionary):
+		out[String(ch["equipment_inst"][k]["uid"])] = ch["equipment_inst"][k]
+	return out
 
 
 func _can_stack(ch: Dictionary, it: Dictionary) -> bool:
@@ -222,7 +265,7 @@ func _craft(cid: String, ch: Dictionary, body: Dictionary) -> Dictionary:
 		var left: int = int(s["qty"])
 		var i: int = work.size() - 1
 		while i >= 0 and left > 0:
-			if work[i]["item_id"] == s["item_id"]:
+			if work[i]["item_id"] == s["item_id"] and not (work[i] as Dictionary).has("inst"): # E6.3: instancias nunca sao ingredientes
 				var take: int = mini(int(work[i]["qty"]), left)
 				work[i]["qty"] = int(work[i]["qty"]) - take
 				left -= take

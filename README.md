@@ -59,7 +59,7 @@ Cliente de jogo (`scenes/client/client_boot.tscn`, ver `docs/E3_CLIENT.md` e `do
 | Espaço | esquiva |
 | **F** | interagir: falar com o NPC ou usar a bancada de crafting próxima (`interact`; E já é a habilidade 2) |
 | **J** | diário de quests |
-| **I** | inventário e equipamento |
+| **I** | inventário e equipamento (E6.3: Enter equipa o item do cursor; 1/2/3 desequipa arma/armadura/amuleto; a cor do nome mostra a raridade e o detalhe lista os affixes) |
 | **K** | talentos: escolher especialização, gastar pontos, resetar (Cima/Baixo navegam, Enter aloca, S especialização, R reset com dois toques) |
 | **M** | mapa grande da zona (o minimapa fica sempre no canto superior direito) |
 | Cima / Baixo, Enter | navegar e confirmar nos painéis (diálogo também aceita 1-9) |
@@ -70,6 +70,8 @@ As **habilidades dependem da classe** do personagem (E6.1: Guerreiro, Mago ou Pa
 valem para todas as classes (Mouse 1 = ataque básico, Q/E = habilidades, Espaço = esquiva/mobilidade); a barra no canto inferior direito mostra as habilidades da classe.
 Servidor de desenvolvimento sem backend: `--default-class mage|ranger|warrior` (padrão `warrior`; só no servidor). Detalhes em [`docs/E6_CLASSES.md`](docs/E6_CLASSES.md).
 A **árvore de talentos** (E6.2, tecla K) dá 1 ponto por nível a partir do 2; o servidor valida tudo e o banco guarda a build. Detalhes em [`docs/E6_TALENTS.md`](docs/E6_TALENTS.md).
+
+**Itens com raridade e affixes** (E6.3): o servidor rola os affixes ao dropar, o banco persiste a instância e itens únicos de teste têm efeito próprio. Detalhes em [`docs/E6_ITEMS.md`](docs/E6_ITEMS.md).
 
 Com um painel aberto o cliente não envia ataque/habilidade/esquiva (clicar em botão não ataca); o movimento continua.
 

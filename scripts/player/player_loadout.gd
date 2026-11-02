@@ -56,7 +56,7 @@ func _ready() -> void:
 		return
 	health = combat.health
 	base_stats = combat.base_stats.copy() if combat.base_stats != null else health.stats.copy()
-	equipment.equipment_changed.connect(func(_slot: int) -> void: recalculate())
+	equipment.equipment_changed.connect(func(_slot: int) -> void: apply_talents()) # E6.3: stats E efeitos de habilidade dos equipados
 	progress.leveled_up.connect(func(_lvl: int, _gained: int) -> void: recalculate())
 	recalculate()
 
@@ -89,6 +89,7 @@ func talent_points_available() -> int:
 func apply_talents() -> void:
 	var tree: TalentTree = talent_tree()
 	var col: Dictionary = SkillMods.collect(tree, talents)
+	SkillMods.merge_effects(col, equipment.get_skill_effects()) # E6.3: affixes/unicos equipados
 	_talent_bonus = col["stats"]
 	if combat != null:
 		combat.set_skill_mods(col["skills"])

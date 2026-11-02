@@ -1,0 +1,138 @@
+{
+  "schema_version": 1,
+  "_comment": "E6.3. Itens unicos de TESTE (placeholder). Cada um tem um ItemData em data/items/<id>.tres (slot, rarity, stat_modifiers fixos) e aqui os efeitos (mesmos tipos de skill_mod/stat dos talentos) e a condicao de obtencao: por fonte (tabela de loot) uma chance independente por rolagem elegivel, com nivel minimo do personagem. Nenhum e obrigatorio para uma build.",
+  "uniques": [
+    {
+      "id": "unique_emberfang",
+      "name": "Presa de Brasa",
+      "description": "Quando sua vida está abaixo de 40%, todas as habilidades causam +25% de dano.",
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "*",
+          "mod": "condition",
+          "when": "self_hp_below",
+          "threshold": 0.4,
+          "damage_pct": 0.25
+        }
+      ],
+      "obtain": {
+        "min_level": 5,
+        "sources": [
+          {
+            "loot_table": "loot_thorn_alpha",
+            "chance": 0.2
+          },
+          {
+            "loot_table": "loot_blight_treant",
+            "chance": 0.3
+          }
+        ]
+      }
+    },
+    {
+      "id": "unique_gravitas_plate",
+      "name": "Couraça da Gravitas",
+      "description": "Habilidades têm +20% de área, mas você se move mais devagar.",
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "*",
+          "mod": "area",
+          "radius_pct": 0.2
+        }
+      ],
+      "obtain": {
+        "min_level": 5,
+        "sources": [
+          {
+            "loot_table": "loot_blight_treant",
+            "chance": 0.25
+          },
+          {
+            "loot_table": "loot_thorn_alpha",
+            "chance": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "id": "unique_featherknot",
+      "name": "Nó de Pluma",
+      "description": "Habilidades custam 20% menos recurso e recarregam 10% mais rápido, ao custo de vida máxima.",
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "*",
+          "mod": "cost",
+          "cost_pct": -0.2,
+          "cooldown_pct": -0.1
+        }
+      ],
+      "obtain": {
+        "min_level": 3,
+        "sources": [
+          {
+            "loot_table": "loot_thorn_alpha",
+            "chance": 0.2
+          },
+          {
+            "loot_table": "loot_bark_brute",
+            "chance": 0.01
+          }
+        ]
+      }
+    },
+    {
+      "id": "unique_twin_quiver",
+      "name": "Aljava Gêmea",
+      "description": "Habilidades de projétil disparam 1 projétil extra em leque (50% do dano).",
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "*",
+          "mod": "extra_projectiles",
+          "count": 1,
+          "spread_deg": 12,
+          "damage_scale": 0.5
+        }
+      ],
+      "obtain": {
+        "min_level": 5,
+        "sources": [
+          {
+            "loot_table": "loot_blight_treant",
+            "chance": 0.25
+          }
+        ]
+      }
+    },
+    {
+      "id": "unique_frostbrand",
+      "name": "Marca Gélida",
+      "description": "Suas habilidades de dano convertem-se em gelo e causam +10% de dano.",
+      "effects": [
+        {
+          "type": "skill_mod",
+          "skill": "*",
+          "mod": "convert",
+          "to": "ice",
+          "damage_pct": 0.1
+        }
+      ],
+      "obtain": {
+        "min_level": 5,
+        "sources": [
+          {
+            "loot_table": "loot_blight_treant",
+            "chance": 0.25
+          },
+          {
+            "loot_table": "loot_thorn_alpha",
+            "chance": 0.1
+          }
+        ]
+      }
+    }
+  ]
+}

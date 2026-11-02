@@ -14,14 +14,15 @@ export function removeItems(inventory: readonly InventoryEntry[], needs: readonl
   const slots = new Map<number, InventoryEntry>();
   for (const e of inventory) slots.set(e.slot, { ...e });
   const missing: RecipeStack[] = [];
+  // E6.3: itens com instancia (affixes) NUNCA servem de ingrediente: so entradas simples contam e sao consumidas.
   for (const { item_id, qty } of needs) {
-    const have = [...slots.values()].filter((e) => e.item_id === item_id).reduce((n, e) => n + e.qty, 0);
+    const have = [...slots.values()].filter((e) => e.item_id === item_id && !e.inst).reduce((n, e) => n + e.qty, 0);
     if (have < qty) missing.push({ item_id, qty: qty - have });
   }
   if (missing.length > 0) return { ok: false, missing };
   for (const { item_id, qty } of needs) {
     let left = qty;
-    for (const e of [...slots.values()].filter((x) => x.item_id === item_id).sort((a, b) => b.slot - a.slot)) {
+    for (const e of [...slots.values()].filter((x) => x.item_id === item_id && !x.inst).sort((a, b) => b.slot - a.slot)) {
       if (left === 0) break;
       const take = Math.min(e.qty, left);
       e.qty -= take;

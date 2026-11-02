@@ -71,6 +71,24 @@ const MAX_CRAFT_RESULTS: int = 4
 ## `{capacity:int 1..MAX_INVENTORY_SLOTS, slots:[{item_id, qty}] (<= capacity entradas, uma por pilha), equipment:{weapon?,armor?,trinket?}}`.
 ## E o estado COMPLETO e autoritativo (substitui o anterior); enviado no welcome e depois so quando muda (coalescido).
 const MAX_INVENTORY_SLOTS: int = 200
+## E6.3 (aditivo, VERSION continua 2): INSTANCIAS DE ITEM (raridade/affixes rolados no SERVIDOR). Uma entrada de `slots` pode ter o campo
+## OPCIONAL `inst = {uid, rarity, ilvl, affixes:[{id, tier, value}]}` (a base continua em `item_id`, qty 1): cliente antigo le item_id/qty e
+## ignora `inst`. `s_inventory.equipment_inst = {slot: inst}` (opcional) traz a instancia dos equipados. EVENT_DROP ganha `rarity` e
+## EVENT_PICKUP ganha `inst` (opcionais, so ao dono). Limite: JSON da instancia <= MAX_INSTANCE_BYTES. O snapshot compacto NAO muda
+## (pickup continua {type=item_id, qty}); a instancia completa so vai em s_inventory/EVENT_PICKUP ao dono.
+const MAX_INSTANCE_BYTES: int = 512
+const MAX_INSTANCE_AFFIXES: int = 8
+const MAX_ILVL: int = 100
+
+## E6.3 (aditivo): equipar/desequipar. c_equip_cmd(req_id, op, index, item_id): op EQUIP_OP_EQUIP => `index` = posicao da pilha em
+## s_inventory.slots e `item_id` = base esperada (o servidor confere: anti-corrida); op EQUIP_OP_UNEQUIP => `index` = 0 weapon, 1 armor,
+## 2 trinket e `item_id` pode ser "". Resposta: s_equip(kind, data) so ao dono: EQUIP_OK `{req_id, op}` | EQUIP_ERROR `{req_id, op, code}`.
+## O resultado real (stats, inventario) chega pelos canais normais (snapshot, s_inventory). Codigos: not_available, duplicate_request,
+## busy, bad_index, item_mismatch, not_equippable, invalid_instance, inventory_full, empty_slot.
+const EQUIP_OP_EQUIP: int = 1
+const EQUIP_OP_UNEQUIP: int = 2
+const EQUIP_OK: int = 1
+const EQUIP_ERROR: int = 2
 const INVENTORY_EQUIP_SLOTS: Array[String] = ["weapon", "armor", "trinket"]
 
 ## E6.1 (aditivo, VERSION continua 2): CLASSE DO PERSONAGEM. s_class(data) (servidor -> SO o dono, reliable): `{class_id: id de conteudo}`.
@@ -374,6 +392,8 @@ static func validate_drop_event(d: Variant) -> bool:
 	var q: Variant = e.get("qty", null)
 	if typeof(q) != TYPE_INT or int(q) < 1 or int(q) > MAX_PICKUP_QTY:
 		return false
+	if e.has("rarity") and not is_content_id(e["rarity"]): # E6.3: raridade do drop (cor do marcador), opcional
+		return false
 	return not e.has("id") or typeof(e["id"]) == TYPE_INT
 
 
@@ -383,6 +403,8 @@ static func validate_pickup_event(d: Variant) -> bool:
 		return false
 	var e: Dictionary = d
 	var q: Variant = e.get("qty", null)
+	if e.has("inst") and not validate_item_instance(e["inst"]): # E6.3: instancia coletada (so ao dono), opcional
+		return false
 	return typeof(e.get("id", null)) == TYPE_INT and is_content_id(e.get("item_id", null)) \
 		and typeof(q) == TYPE_INT and int(q) >= 1 and int(q) <= MAX_PICKUP_QTY
 
@@ -437,6 +459,15 @@ static func validate_inventory_update(d: Variant) -> bool:
 		var q: Variant = (s as Dictionary).get("qty", null)
 		if typeof(q) != TYPE_INT or int(q) < 1 or int(q) > MAX_PICKUP_QTY:
 			return false
+	for s2: Variant in slots:
+		if (s2 as Dictionary).has("inst") and (not validate_item_instance((s2 as Dictionary)["inst"]) or int((s2 as Dictionary)["qty"]) != 1):
+			return false
+	var eqi: Variant = e.get("equipment_inst", {})
+	if typeof(eqi) != TYPE_DICTIONARY or (eqi as Dictionary).size() > INVENTORY_EQUIP_SLOTS.size():
+		return false
+	for k2: Variant in (eqi as Dictionary):
+		if typeof(k2) != TYPE_STRING or not INVENTORY_EQUIP_SLOTS.has(String(k2)) or not validate_item_instance((eqi as Dictionary)[k2]):
+			return false
 	var eq: Variant = e.get("equipment", null)
 	if typeof(eq) != TYPE_DICTIONARY or (eq as Dictionary).size() > INVENTORY_EQUIP_SLOTS.size():
 		return false
@@ -444,6 +475,59 @@ static func validate_inventory_update(d: Variant) -> bool:
 		if typeof(k) != TYPE_STRING or not INVENTORY_EQUIP_SLOTS.has(String(k)) or not is_content_id((eq as Dictionary)[k]):
 			return false
 	return true
+
+
+## E6.3: forma de uma instancia de item no fio/persistencia (estrutural; as regras de raridade/faixas sao do ItemRules/backend).
+## Aceita int ou float integral (JSON). Tamanho do JSON limitado a MAX_INSTANCE_BYTES.
+static func validate_item_instance(v: Variant) -> bool:
+	if typeof(v) != TYPE_DICTIONARY:
+		return false
+	var d: Dictionary = v
+	if d.size() != 4 or not d.has("uid") or not d.has("rarity") or not d.has("ilvl") or not d.has("affixes"):
+		return false
+	if typeof(d["uid"]) != TYPE_STRING or (d["uid"] as String).length() != 16 or not is_content_id(d["rarity"]):
+		return false
+	var ilvl: int = ItemRules.as_int(d["ilvl"])
+	if ilvl < 1 or ilvl > MAX_ILVL or typeof(d["affixes"]) != TYPE_ARRAY or (d["affixes"] as Array).size() > MAX_INSTANCE_AFFIXES:
+		return false
+	for a: Variant in d["affixes"]:
+		if typeof(a) != TYPE_DICTIONARY or (a as Dictionary).size() != 3 or not is_content_id((a as Dictionary).get("id", null)):
+			return false
+		var tier: int = ItemRules.as_int((a as Dictionary).get("tier", null))
+		if tier < 1 or tier > 5 or not is_finite_number((a as Dictionary).get("value", null)):
+			return false
+	return JSON.stringify(d).length() <= MAX_INSTANCE_BYTES
+
+
+## E6.3: c_equip_cmd(req_id, op, index, item_id). Retorna {ok, code, message, req_id, op, index, item_id}. Invalido = abuso.
+static func validate_equip_cmd(req_id: Variant, op: Variant, index: Variant, item_id: Variant) -> Dictionary:
+	if not _valid_req_id(req_id):
+		return _fail(REJECT_INVALID_PAYLOAD, "req_id invalido no comando de equipamento")
+	if typeof(op) != TYPE_INT or typeof(index) != TYPE_INT or typeof(item_id) != TYPE_STRING:
+		return _fail(REJECT_INVALID_PAYLOAD, "tipos invalidos no comando de equipamento")
+	var iid: String = item_id
+	match int(op):
+		EQUIP_OP_EQUIP:
+			if int(index) < 0 or int(index) >= MAX_INVENTORY_SLOTS or not is_content_id(iid):
+				return _fail(REJECT_INVALID_PAYLOAD, "indice/item invalido ao equipar")
+		EQUIP_OP_UNEQUIP:
+			if int(index) < 0 or int(index) >= INVENTORY_EQUIP_SLOTS.size() or (not iid.is_empty() and not is_content_id(iid)):
+				return _fail(REJECT_INVALID_PAYLOAD, "slot/item invalido ao desequipar")
+		_:
+			return _fail(REJECT_INVALID_PAYLOAD, "operacao de equipamento desconhecida")
+	return _ok({"req_id": int(req_id), "op": int(op), "index": int(index), "item_id": iid})
+
+
+## E6.3: s_equip(kind, data) vindo do fio (o cliente descarta o que falhar).
+static func validate_equip_update(kind: Variant, d: Variant) -> bool:
+	if typeof(kind) != TYPE_INT or typeof(d) != TYPE_DICTIONARY:
+		return false
+	var e: Dictionary = d
+	if typeof(e.get("req_id", null)) != TYPE_INT or typeof(e.get("op", null)) != TYPE_INT:
+		return false
+	if int(kind) == EQUIP_ERROR:
+		return typeof(e.get("code", null)) == TYPE_STRING and (e["code"] as String).length() <= MAX_TYPE_LEN
+	return int(kind) == EQUIP_OK
 
 
 ## E6.1: s_class(data) vindo do fio (o cliente descarta o que falhar). Exatamente a chave `class_id` (id de conteudo ate 48 chars).

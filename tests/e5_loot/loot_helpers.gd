@@ -26,6 +26,7 @@ const PEER0: int = 101
 static func make(tree: SceneTree, n: int, world_id: String = "", individual: bool = true, inventories: Array = [], hold: bool = false) -> B.BRig:
 	var rig: B.BRig = B.make(tree, hold, 4, world_id)
 	rig.settings.individual_loot = individual
+	rig.settings.rolled_loot = false # E6.3: estes testes (E5.4) cobrem o loot base; a rolagem de raridade/affixes e testada em tests/e6_items
 	rig.world.loot.base_seed = 777
 	for i: int in n:
 		var inv: Array = inventories[i] if i < inventories.size() else []

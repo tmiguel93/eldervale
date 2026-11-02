@@ -56,6 +56,14 @@ var craft_burst: int = 4
 ## E6.2: c_talent_cmd: token bucket por peer.
 var talent_rate_per_sec: float = 2.0
 var talent_burst: int = 4
+## E6.3: c_equip_cmd: token bucket por peer.
+var equip_rate_per_sec: float = 4.0
+var equip_burst: int = 8
+## E6.3: loot individual rola raridade/affixes para equipamentos (false = comportamento E5.4: itens simples).
+var rolled_loot: bool = true
+## E6.3 SO TESTE (exige ELDERVALE_TEST_MODE=1 no servidor): id de raridade forcado nos equipamentos do loot (e garante um equipamento por
+## rolagem) para a integracao ser deterministica. "" = desligado (padrao; nunca em producao).
+var test_force_rarity: String = ""
 ## E5.6: inventario sincronizado (s_inventory): a cada N ticks o servidor compara o inventario/equipamento de cada jogador
 ## com o ultimo enviado e so manda se mudou (coalesce: no maximo tick_rate/N mensagens por segundo por jogador). 0 desliga.
 var inventory_sync_ticks: int = 6

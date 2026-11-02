@@ -76,8 +76,11 @@ const FAKE_SESSION = "11111111-1111-4111-8111-111111111111";
 const reward = (id: string, body: unknown, session?: string | null) => call(app, "POST", `/internal/characters/${id}/rewards`, { internal: true, body, session });
 
 describe("catalogo", () => {
-  it("carrega do disco com os 7 itens do jogo e dados corretos", () => {
-    expect(catalog.ids().sort()).toEqual(["amulet_vigor", "armor_heavy", "armor_leather", "potion_minor", "scrap_material", "sword_basic", "sword_rare"]);
+  it("carrega do disco com os 12 itens do jogo (7 base + 5 unicos E6.3) e dados corretos", () => {
+    expect(catalog.ids().sort()).toEqual([
+      "amulet_vigor", "armor_heavy", "armor_leather", "potion_minor", "scrap_material", "sword_basic", "sword_rare",
+      "unique_emberfang", "unique_featherknot", "unique_frostbrand", "unique_gravitas_plate", "unique_twin_quiver",
+    ]);
     expect(catalog.get("potion_minor")).toMatchObject({ slot: "none", stackable: true, max_stack: 20 });
     expect(catalog.get("scrap_material")).toMatchObject({ stackable: true, max_stack: 50 });
     expect(catalog.get("sword_basic")).toMatchObject({ slot: "weapon", stackable: false, max_stack: 1 });

@@ -41,6 +41,7 @@ var class_updates: int = 0           # s_class validos recebidos
 var talents_updates: int = 0         # s_talents(STATE) validos recebidos
 var talents_last: Dictionary = {}    # ultimo estado: {spec, ranks, respecs, level, points_*}
 var talents_errors: Array = []       # s_talents(ERROR) recebidos: [{req_id, op, code}]
+var item_bot: Dictionary = {}        # E6.3: medicoes do bot `items` (ItemBot)
 var talent_bot: Dictionary = {}      # medicoes do bot `talents` (TalentBot)
 var max_hp_last: float = -1.0        # vida maxima da propria entidade no ultimo snapshot (efeito dos talentos)
 
@@ -48,6 +49,9 @@ var max_hp_last: float = -1.0        # vida maxima da propria entidade no ultimo
 var inventory_updates: int = 0       # s_inventory validos recebidos
 var inventory: Dictionary = {}       # ultimo inventario sincronizado: item_id -> qty
 var equipment: Dictionary = {}       # slot -> item_id
+var equipment_inst: Dictionary = {}  # E6.3: slot -> instancia (raridade/affixes) do equipado
+var inventory_slots: Array = []      # E6.3: pilhas na ordem do servidor ({item_id, qty, inst?})
+var equip_results: Array = []        # E6.3: respostas s_equip ({ok, op, code})
 var pickups: Dictionary = {}         # item_id -> qty coletada (eventos pickup do servidor)
 var drops_seen: int = 0              # eventos drop recebidos (so os proprios, loot individual)
 var quests: Dictionary = {}          # resumo final do diario: {active:{id:{obj:v}}, completed:[ids], errors:[codes]}
@@ -135,6 +139,8 @@ func on_inventory(data: Dictionary) -> void:
 	for s: Variant in data.get("slots", []):
 		inventory[String(s["item_id"])] = int(inventory.get(String(s["item_id"]), 0)) + int(s["qty"])
 	equipment = (data.get("equipment", {}) as Dictionary).duplicate()
+	equipment_inst = (data.get("equipment_inst", {}) as Dictionary).duplicate(true)
+	inventory_slots = (data.get("slots", []) as Array).duplicate(true)
 
 
 func mark_step(step: String, t_s: float) -> void:
@@ -206,12 +212,13 @@ func to_dict() -> Dictionary:
 		"character_final": character_final,
 		"class_id": class_id,
 		"class_updates": class_updates,
+		"item_bot": item_bot,
 		"talents": {"updates": talents_updates, "last": talents_last, "errors": talents_errors, "bot": talent_bot},
 		"max_hp": max_hp_last,
 		"xp": int(character_final.get("xp", -1)),
 		"level": int(character_final.get("level", -1)),
 		"elapsed_s": elapsed_s,
-		"adventure": {"steps": steps, "inventory": inventory, "equipment": equipment, "inventory_updates": inventory_updates, "pickups": pickups,
+		"adventure": {"steps": steps, "inventory": inventory, "equipment": equipment, "equipment_inst": equipment_inst, "inventory_slots": inventory_slots, "equip_results": equip_results, "inventory_updates": inventory_updates, "pickups": pickups,
 			"drops_seen": drops_seen, "quests": quests, "deaths": deaths, "snapshot_entities_max": snapshot_entities_max, "compact_snapshots": compact_snapshots},
 		"world": {"zones": zones_seen, "puzzle_open": puzzle_open_seen, "respawns": respawns, "boss_states": boss_states, "tour_done": tour_done},
 	}

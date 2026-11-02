@@ -158,10 +158,18 @@ func set_skill_mods(mods: Dictionary) -> void:
 	skill_mods = mods.duplicate(true)
 
 
+## E6.3: mods da habilidade = os dela + os de item com skill "*" (curinga; nao vale para esquivas).
+func mods_for(skill: SkillData) -> Array:
+	var mods: Array = (skill_mods.get(skill.id, []) as Array).duplicate()
+	if skill.kind != SkillData.Kind.DODGE and skill_mods.has("*"):
+		mods.append_array(skill_mods["*"] as Array)
+	return mods
+
+
 ## E6.2: valores efetivos da habilidade AGORA (custo, cooldown, dano, area...) com os modificadores dos talentos. Sem mods devolve o
 ## proprio SkillData. Util para HUD/testes; `try_use` usa exatamente isto.
 func resolve_skill(skill: SkillData) -> SkillMods.Resolved:
-	var mods: Array = skill_mods.get(skill.id, []) as Array
+	var mods: Array = mods_for(skill)
 	if mods.is_empty():
 		var plain: SkillMods.Resolved = SkillMods.Resolved.new()
 		plain.skill = skill

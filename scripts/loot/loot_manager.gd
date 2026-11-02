@@ -22,16 +22,20 @@ class LootPickup extends RefCounted:
 	var pos: Vector3 = Vector3.ZERO
 	var zone_id: String = ""
 	var ttl_left: float = 0.0
+	var inst: Dictionary = {} ## E6.3: instancia rolada (vazio = item simples). So o servidor e o dono a conhecem.
 	var blocked_full: bool = false ## ja tentou coletar e nao coube (informativo/telemetria)
 
 var world: ServerWorld
 var settings: ServerSettings
 ## Semente-base PRIVADA (ver ServerSettings.loot_seed). Definida pelo ServerWorld.
 var base_seed: int = 0
+## E6.3: sal do uid das instancias (a ServerSession usa o id da sessao: uids nao repetem entre execucoes com a mesma semente).
+var uid_salt: String = ""
 ## Opcional: Callable(enemy_id: int, player_id: int) -> RandomNumberGenerator.
 var rng_factory: Callable
 ## Callable() -> int que reserva o proximo id de entidade (ids de pickup nao colidem com jogador/inimigo).
 var alloc_id: Callable
+var _reg: ContentRegistry = null
 var pickups: Dictionary = {} ## id -> LootPickup
 var stats: Dictionary = {"spawned": 0, "collected": 0, "expired": 0, "evicted": 0, "blocked_full": 0, "rolls": 0}
 
@@ -76,12 +80,74 @@ func make_rng(enemy_id: int, player_id: int) -> RandomNumberGenerator:
 	return rng
 
 
-## Rola a tabela do inimigo para UM jogador (sem criar pickups).
-func roll_for(table: LootTable, enemy_id: int, player_id: int) -> Array[LootDrop]:
+## Rola a tabela do inimigo para UM jogador (sem criar pickups). E6.3: com `ilvl > 0` (e `settings.rolled_loot`) cada unidade de
+## equipamento sorteia raridade (Comum = item simples) e affixes no MESMO rng (depois da tabela, entao a tabela rola igual a antes) e os
+## itens unicos elegiveis (`obtain` em _uniques.json: tabela, nivel minimo, chance) rolam por ultimo. `player_level` filtra unicos.
+func roll_for(table: LootTable, enemy_id: int, player_id: int, ilvl: int = 0, enemy_tier: String = "normal", player_level: int = 0) -> Array[LootDrop]:
 	if table == null:
 		return [] as Array[LootDrop]
 	stats["rolls"] = int(stats["rolls"]) + 1
-	return table.roll(make_rng(enemy_id, player_id))
+	var rng: RandomNumberGenerator = make_rng(enemy_id, player_id)
+	var drops: Array[LootDrop] = table.roll(rng)
+	if ilvl > 0 and (settings == null or settings.rolled_loot):
+		drops = expand_rolled(drops, table.id, rng, enemy_id, player_id, ilvl, enemy_tier, player_level)
+	return drops
+
+
+## Transforma os drops da tabela em drops com instancia (equipamentos nao Comuns) + unicos. Puro dado + rng.
+func expand_rolled(drops: Array[LootDrop], table_id: StringName, rng: RandomNumberGenerator, enemy_id: int, player_id: int, ilvl: int, enemy_tier: String, player_level: int) -> Array[LootDrop]:
+	var rules: ItemRules = ItemRules.shared()
+	var reg: ContentRegistry = _registry()
+	var out: Array[LootDrop] = []
+	var n: int = 0
+	var forced: String = settings.test_force_rarity if settings != null else ""
+	if not forced.is_empty():
+		# SO TESTE (ELDERVALE_TEST_MODE): garante um equipamento por rolagem para a integracao ser deterministica.
+		var has_gear: bool = false
+		for d0: LootDrop in drops:
+			var b0: ItemData = reg.get_item(d0.item_id)
+			has_gear = has_gear or (b0 != null and b0.is_equippable() and not rules.is_unique(String(b0.id)))
+		if not has_gear:
+			drops.append(LootDrop.make(&"sword_basic", 1))
+	for d: LootDrop in drops:
+		var base: ItemData = reg.get_item(d.item_id)
+		if base == null or not base.is_equippable() or rules.is_unique(String(base.id)):
+			out.append(d)
+			continue
+		var plain: int = 0
+		for _u: int in d.quantity:
+			n += 1
+			var uid: String = ItemRoller.make_uid("%d|%s" % [base_seed, uid_salt], enemy_id, player_id, n)
+			var inst: Dictionary = ItemRoller.roll_instance(rules, base, forced, ilvl, rng, uid) if not forced.is_empty() else ItemRoller.roll_drop(rules, base, ilvl, enemy_tier, rng, uid)
+			if inst.is_empty():
+				plain += 1
+			else:
+				out.append(LootDrop.make(d.item_id, 1, inst))
+		if plain > 0:
+			out.append(LootDrop.make(d.item_id, plain))
+	var lvl: int = player_level if player_level > 0 else ilvl
+	for uid_id: String in _sorted_keys(rules.uniques):
+		var u: Dictionary = rules.uniques[uid_id]
+		var obtain: Dictionary = u["obtain"]
+		if lvl < int(obtain["min_level"]):
+			continue
+		for src: Variant in obtain["sources"]:
+			if String((src as Dictionary)["loot_table"]) == String(table_id) and rng.randf() < float((src as Dictionary)["chance"]):
+				out.append(LootDrop.make(StringName(uid_id), 1))
+	return out
+
+
+func _registry() -> ContentRegistry:
+	if _reg == null:
+		_reg = ContentRegistry.new()
+		_reg.load_all()
+	return _reg
+
+
+static func _sorted_keys(d: Dictionary) -> Array:
+	var k: Array = d.keys()
+	k.sort()
+	return k
 
 
 # ------------------------------------------------------------------ pickups
@@ -92,13 +158,14 @@ func spawn_for(owner_id: int, drops: Array[LootDrop], center: Vector3, zone_id: 
 	var n: int = drops.size()
 	for i: int in n:
 		var d: LootDrop = drops[i]
-		if d == null or d.quantity < 1 or d.quantity > Protocol.MAX_PICKUP_QTY:
+		if d == null or d.quantity < 1 or d.quantity > Protocol.MAX_PICKUP_QTY or (not d.inst.is_empty() and d.quantity != 1):
 			continue
 		var p: LootPickup = LootPickup.new()
 		p.id = int(alloc_id.call()) if alloc_id.is_valid() else (pickups.size() + 1)
 		p.owner_id = owner_id
 		p.item_id = String(d.item_id)
 		p.qty = d.quantity
+		p.inst = d.inst.duplicate(true)
 		var ang: float = TAU * float(i) / float(maxi(n, 1))
 		p.pos = center + Vector3(cos(ang), 0.0, sin(ang)) * (0.6 if n > 1 else 0.0)
 		p.pos.y = center.y + 0.1
@@ -189,14 +256,18 @@ func step(delta: float) -> Array[LootPickup]:
 		var inv: Inventory = slot.loadout.inventory if slot.loadout != null else null
 		if inv == null:
 			continue
-		if inv.room_for(StringName(p.item_id), p.qty) < p.qty:
+		var fits: bool = inv.free_slots() >= 1 if not p.inst.is_empty() else inv.room_for(StringName(p.item_id), p.qty) >= p.qty
+		if not fits:
 			# Inventario cheio: o pickup PERMANECE (ate expirar). Tudo-ou-nada: nunca coleta parcial.
 			if not p.blocked_full:
 				p.blocked_full = true
 				stats["blocked_full"] = int(stats["blocked_full"]) + 1
 			continue
 		p.blocked_full = false
-		if inv.add(StringName(p.item_id), p.qty) > 0:
+		if not p.inst.is_empty():
+			if not inv.add_instance(StringName(p.item_id), p.inst):
+				continue # defesa: ha slot livre mas o uid ja existe (nao deveria): o pickup fica ate expirar
+		elif inv.add(StringName(p.item_id), p.qty) > 0:
 			continue # defesa: room_for disse que cabia
 		pickups.erase(id) # remove ANTES de avisar: nenhuma segunda coleta do mesmo pickup
 		stats["collected"] = int(stats["collected"]) + 1

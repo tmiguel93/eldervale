@@ -3,7 +3,8 @@ extends Resource
 ## Definicao estatica de item. `id` e estavel (nunca derivar do nome de exibicao).
 
 enum Slot { NONE, WEAPON, ARMOR, TRINKET }
-enum Rarity { COMMON, UNCOMMON, RARE, EPIC, LEGENDARY }
+## E6.3: MYTHIC acrescentado ao fim (valores antigos 0..4 preservados; UNCOMMON = "Magico" no GDD).
+enum Rarity { COMMON, UNCOMMON, RARE, EPIC, LEGENDARY, MYTHIC }
 
 @export var id: StringName = &""
 @export var display_name: String = ""
