@@ -12,6 +12,8 @@ const FLASH_TIME: float = 0.12
 
 var avatars: Dictionary = {}  # id -> Node3D
 var local_id: int = -1
+## Evento de zona recebido antes de local_id ser conhecido (o join chega antes do primeiro frame): reaplicado depois.
+var _pending_zone: Dictionary = {}
 var local_avatar: Node3D = null
 
 var _flash_left: Dictionary = {}   # id -> s
@@ -53,6 +55,10 @@ func _build_ground() -> void:
 ## Atualiza avatares. `samples`: id -> dict do interpolador; `local_pos` (predicao) para o local.
 func update_frame(samples: Dictionary, p_local_id: int, local_pos: Variant, delta: float) -> void:
 	local_id = p_local_id
+	if not _pending_zone.is_empty() and local_id >= 0:
+		var pz: Dictionary = _pending_zone
+		_pending_zone = {}
+		apply_event(Protocol.EVENT_ZONE, pz)
 	for id: Variant in samples:
 		var s: Dictionary = samples[id]
 		var pos: Vector3 = s["pos"]
@@ -183,6 +189,9 @@ func apply_event(kind: int, data: Dictionary) -> void:
 		Protocol.EVENT_DEATH:
 			_play_death(int(data.get("id", -1)))
 		Protocol.EVENT_ZONE:
+			if local_id < 0 and int(data.get("phase", -1)) == Protocol.ZONE_PHASE_ARRIVED:
+				_pending_zone = data
+				return
 			if int(data.get("id", -1)) == local_id and int(data.get("phase", -1)) == Protocol.ZONE_PHASE_ARRIVED:
 				show_zone(String(data.get("zone", "")))
 		Protocol.EVENT_PUZZLE:
