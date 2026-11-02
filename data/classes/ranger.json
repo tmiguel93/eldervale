@@ -61,5 +61,20 @@
       "description": "Projeteis elementais.",
       "planned": true
     }
+  ],
+  "visual_scene": "class.ranger",
+  "visual_height": 1.85,
+  "visual_clips": {
+    "idle": "Idle",
+    "move": "Running_A",
+    "attack": "2H_Ranged_Shoot",
+    "skill": "2H_Ranged_Shoot",
+    "dodge": "Dodge_Forward",
+    "hit": "Hit_A",
+    "death": "Death_A"
+  },
+  "visual_equip": [
+    "2H_Crossbow",
+    "Rogue_Cape"
   ]
 }

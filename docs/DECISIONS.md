@@ -339,3 +339,13 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Status:** PROPOSTA — aguarda revisão jurídica
 - **Escolha provisória:** `docs/legal/` com rascunhos marcados "RASCUNHO — requer revisão jurídica" descrevendo só o que o software coleta (e-mail, hash de senha, personagem, logs, IP); `docs/FEEDBACK.md` com relato manual, sem coleta automática. Nenhum compromisso legal inventado; lacunas marcadas `[a definir]`.
 - **Responsável/aprovação:** Proprietário do projeto; revisão jurídica pendente.
+
+## DEC-0036 — Modelos 3D só no cliente: `visual_*` em dados, `ModelRig` e build sem assets no servidor
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana
+- **Contexto:** E8.1 troca as primitivas por GLB animados (KayKit/Quaternius, CC0) sem mudar autoridade do servidor nem protocolo.
+- **Opções consideradas:** (a) cena `.tscn` por entidade com o GLB; (b) campos `visual_*` nos dados + um `ModelRig` genérico; (c) enviar a classe/modelo no snapshot.
+- **Escolha provisória:** (b). `visual_scene` (alias do manifest, id ou `res://`), `visual_height` (o cliente mede o AABB e normaliza a escala), `visual_tint`, `visual_yaw_offset`, `visual_clips`, `visual_equip`, `visual_placeholder` em `EnemyData`, `data/classes/*.json` e `data/npcs/*.json`; validação no Godot e em `tools/visual_check.mjs` (confere clips/acessórios dentro do próprio `.glb`). `ModelRig` carrega sob demanda com cache de `PackedScene`, não carrega nada em headless/bot/teste e cai nas primitivas se faltar asset. O servidor exclui `assets/*` do `.pck`; o cliente exclui os pacotes ainda não usados. Nenhum campo novo de rede.
+- **Consequências:** aliados remotos aparecem como Cavaleiro (o snapshot não traz a classe; corrigir exige campo aditivo no protocolo); chefe e bruto são o esqueleto guerreiro em escala maior com tintura (PLACEHOLDER); a lista de exclusão do cliente precisa ser mantida a cada pacote novo; `.exe` exportado não foi executado no Windows.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+

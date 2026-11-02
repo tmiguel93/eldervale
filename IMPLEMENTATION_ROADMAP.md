@@ -291,7 +291,7 @@ Trocar os placeholders de primitivas por apresentação 3D estilizada com tema R
 
 ### Tarefas
 - [ ] E8.0: levantar e importar assets gratuitos de licença livre (CC0/MIT/OFL/CC-BY), registrar em `docs/ASSET_CREDITS.md`.
-- [ ] E8.1: suporte `visual_scene` em dados; modelos e animações de jogador (3 classes), inimigos, chefe, NPCs.
+- [x] E8.1: suporte `visual_scene` em dados; modelos e animações de jogador (3 classes), inimigos, chefe, NPCs (ver `docs/E8_MODELS.md`; chefe e bruto são PLACEHOLDER).
 - [ ] E8.2: cenário nórdico (vila, floresta, ruínas), iluminação semi-realista, sombras, névoa, pós-processamento.
 - [ ] E8.3: VFX de ataques, magias, projéteis, impactos e telégrafos (eventos cosméticos aditivos).
 - [ ] E8.4: tema de UI nórdico, fontes, ícones, animações/efeitos de interface.

@@ -56,3 +56,7 @@ windup = 0.55
 attacks = Array[ExtResource("1_nws12")]([SubResource("Resource_e7o0l"), SubResource("Resource_wa21t")])
 visual_shape = &"cone"
 visual_color = Color(0.2, 0.6, 0.5, 1)
+visual_scene = "enemy.skeleton_conjurer"
+visual_height = 2.1
+visual_tint = Color(0.55, 1.0, 0.75, 1)
+visual_clips = {"move": "Walking_A", "attack": "Spellcast_Shoot", "skill": "Spellcast_Summon", "spawn": "Spawn_Ground"}

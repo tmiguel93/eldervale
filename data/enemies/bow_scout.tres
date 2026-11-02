@@ -44,3 +44,7 @@ windup = 0.6
 attacks = Array[ExtResource("1_kqx04")]([SubResource("Resource_w50be")])
 visual_shape = &"cone"
 visual_color = Color(0.3, 0.7, 0.3, 1)
+visual_scene = "enemy.skeleton_archer"
+visual_height = 1.8
+visual_tint = Color(0.85, 1.0, 0.8, 1)
+visual_clips = {"move": "Walking_A", "attack": "1H_Ranged_Shoot", "spawn": "Spawn_Ground"}

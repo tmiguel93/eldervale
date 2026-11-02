@@ -16,6 +16,8 @@ import { buildClassCatalog } from "./gen_classes_catalog.mjs";
 import { buildTalentCatalog } from "./gen_talents_catalog.mjs";
 import { buildRecipeCatalog } from "./gen_recipes_catalog.mjs";
 import { buildQuestCatalog } from "./gen_quests_catalog.mjs";
+import { checkVisualJson, checkVisualTres } from "./visual_check.mjs";
+import { VISUAL_KEYS } from "./gen_classes_catalog.mjs";
 import { parseTres, validateAffixes, validateRarities, validateUniques } from "./gen_items_catalog.mjs";
 
 const DEFAULT_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -79,8 +81,10 @@ export function validateContent(root = DEFAULT_ROOT, opts = {}) {
   stats.tabelas_de_loot = loot.size;
   const enemies = new Map(); // id -> {loot}
   for (const f of listDir(D("enemies"), ".tres")) {
-    const p = parseTresLoose(readFileSync(D("enemies", f), "utf8"));
+    const tresText = readFileSync(D("enemies", f), "utf8");
+    const p = parseTresLoose(tresText);
     if (!p.id) { err(`enemies/${f}: id ausente`); continue; }
+    checkVisualTres(tresText, `enemies/${f}`, root, err); // E8.1: visual_* (alias/arquivo/clips/acessorios existem)
     if (f !== `${p.id}.tres`) err(`enemies/${f}: nome do arquivo difere do id '${p.id}'`);
     checkId(p.id, `enemies/${f}`);
     if (enemies.has(p.id)) err(`inimigos: id duplicado '${p.id}'`);
@@ -115,7 +119,7 @@ export function validateContent(root = DEFAULT_ROOT, opts = {}) {
   const { catalog: classCat, errors: classErr } = buildClassCatalog(root);
   classErr.forEach(err);
   stats.classes = classCat.classes.length;
-  for (const f of jsonFiles(D("classes"))) { try { const c = readJson(D("classes", f)); if (f !== `${c.id}.json`) err(`classes/${f}: nome do arquivo difere do id`); checkId(c.id, `classes/${f}`); } catch { /* ja reportado */ } }
+  for (const f of jsonFiles(D("classes"))) { try { const c = readJson(D("classes", f)); if (f !== `${c.id}.json`) err(`classes/${f}: nome do arquivo difere do id`); checkId(c.id, `classes/${f}`); checkVisualJson(c, `classes/${f}`, root, err, VISUAL_KEYS); } catch { /* ja reportado */ } }
   const talents = buildTalentCatalog(root);
   talents.errors.forEach(err);
   stats.talentos = talents.catalog.trees.reduce((n, t) => n + t.nodes.length, 0);
@@ -154,6 +158,7 @@ export function validateContent(root = DEFAULT_ROOT, opts = {}) {
       if (typeof n.display_name !== "string" || !n.display_name) err(`npc '${n.id}': display_name ausente`);
       if (!isNum(n.interact_radius) || n.interact_radius <= 0 || n.interact_radius > 20) err(`npc '${n.id}': interact_radius fora de (0, 20]`);
       if (!Array.isArray(n.position) || n.position.length !== 3 || !n.position.every(isNum)) err(`npc '${n.id}': position invalida`);
+      checkVisualJson(n, `npcs/${f}`, root, err, VISUAL_KEYS);
       npcs.set(n.id, n);
     } catch (e) { err(`npcs/${f}: JSON invalido`); }
   }

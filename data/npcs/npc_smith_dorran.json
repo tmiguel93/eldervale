@@ -11,5 +11,10 @@
 		0.0,
 		-7.0
 	],
-	"placeholder": false
+	"placeholder": false,
+	"visual_scene": "class.warrior",
+	"visual_height": 1.95,
+	"visual_tint": [1.0, 0.8, 0.6],
+	"visual_clips": {"idle": "Idle"},
+	"visual_equip": ["1H_Axe", "Mug"]
 }

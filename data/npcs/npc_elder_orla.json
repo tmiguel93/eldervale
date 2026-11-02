@@ -7,5 +7,10 @@
 	"dialogue_id": "dlg_elder_orla",
 	"interact_radius": 3.5,
 	"position": [10.0, 0.0, -8.0],
-	"placeholder": false
+	"placeholder": false,
+	"visual_scene": "class.mage",
+	"visual_height": 1.8,
+	"visual_tint": [0.85, 0.9, 1.0],
+	"visual_clips": {"idle": "Idle"},
+	"visual_equip": ["2H_Staff", "Mage_Hat"]
 }

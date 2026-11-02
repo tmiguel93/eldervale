@@ -44,6 +44,26 @@ const TIER_BOSS: StringName = &"boss"
 @export var visual_color: Color = Color(0.0, 0.0, 0.0, 0.0) ## alpha 0 = cor padrao
 @export var visual_scale: float = 1.0
 
+# --- E8.1: apresentacao 3D (SO cliente; o servidor ignora estes campos e nunca carrega assets) ---
+## Alias do manifest (assets/ASSET_MANIFEST.json > aliases / id de asset) ou caminho res://assets/third_party/...glb. "" = primitivas.
+@export var visual_scene: String = ""
+## Altura alvo em metros: o cliente mede o AABB do modelo e normaliza a escala (os pacotes nao compartilham escala).
+@export var visual_height: float = 1.8
+## Multiplicador de cor do albedo; alpha 0 = sem tintura.
+@export var visual_tint: Color = Color(1.0, 1.0, 1.0, 0.0)
+## Giro extra (graus) sobre a orientacao padrao dos modelos.
+@export var visual_yaw_offset: float = 0.0
+## Estado (idle|move|attack|skill|dodge|hit|death|spawn) -> nome do clip (sem prefixo `Armature|`). Ausente = padrao do ClipTable.
+@export var visual_clips: Dictionary = {}
+## Meshes de acessorio (hat, arma, escudo) que ficam visiveis; vazio = nao esconde nada.
+@export var visual_equip: PackedStringArray = PackedStringArray()
+## true = visual provisorio (asset reaproveitado, ex.: chefe = esqueleto grande).
+@export var visual_placeholder: bool = false
+
+
+func visual_spec() -> VisualSpec:
+	return VisualSpec.from_enemy(self)
+
 
 func is_boss() -> bool:
 	return tier == TIER_BOSS or tier == TIER_MINI_BOSS

@@ -60,5 +60,20 @@
       "description": "Manipulacao de energia e controle.",
       "planned": true
     }
+  ],
+  "visual_scene": "class.mage",
+  "visual_height": 1.85,
+  "visual_clips": {
+    "idle": "Idle",
+    "move": "Running_A",
+    "attack": "Spellcast_Shoot",
+    "skill": "Spellcast_Raise",
+    "dodge": "Dodge_Forward",
+    "hit": "Hit_A",
+    "death": "Death_A"
+  },
+  "visual_equip": [
+    "2H_Staff",
+    "Mage_Hat"
   ]
 }

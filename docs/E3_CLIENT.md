@@ -21,3 +21,6 @@ Saida: 0 ok; 1 erro de escrita do JSON; 2 bot desconhecido; 3 nao conectou em 10
 - Predicao sem colisao/gravidade/degraus e sem replay fisico; dodge/skills com deslocamento nao previstos (corrigidos pela reconciliacao). Velocidade 6 m/s duplicada no cliente (`Prediction.BASE_SPEED`).
 - `--bot-seconds` nao e conhecido pelo NetConfig (lido em `client_main`; o aviso do parser e suprimido).
 - Sem reconexao. Conexao a porta sem servidor leva ~10 s ate o timeout no modo bot.
+
+## E8.1 - Modelos 3D no ClientWorld
+Com display, `ClientWorld` instancia um `ModelRig` (GLB animado) por avatar quando os dados trazem `visual_scene` (inimigo/classe/NPC) e o arquivo existe; caso contrario (headless, bots, testes, asset ausente, `use_models = false`) mantem as primitivas. O `state` do snapshot escolhe o clip (`ClipTable.state_from_snapshot`), `EVENT_DAMAGE` toca hit/flash, `EVENT_DEATH` toca a morte no proprio corpo e `EVENT_ENEMY_SPAWN` toca o nascimento. `ClientMain` informa `local_class_id` (do `s_class`) para o modelo do jogador local; aliados remotos usam o Cavaleiro (o snapshot nao traz a classe). Ver `docs/E8_MODELS.md`.

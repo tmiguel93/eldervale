@@ -11,5 +11,10 @@
 		0.0,
 		4.0
 	],
-	"placeholder": false
+	"placeholder": false,
+	"visual_scene": "class.warrior_alt",
+	"visual_height": 1.9,
+	"visual_tint": [0.9, 0.95, 1.0],
+	"visual_clips": {"idle": "Idle"},
+	"visual_equip": ["1H_Sword", "Rectangle_Shield"]
 }

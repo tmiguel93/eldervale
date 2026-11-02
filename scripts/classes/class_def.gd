@@ -25,6 +25,7 @@ var resource_name: String = ""
 var base_stats: StatBlock
 var growth: StatBlock ## bonus por nivel acima do 1
 var skills: Dictionary = {} ## slot (String) -> skill_id (String)
+var visual: VisualSpec = null ## E8.1: modelo 3D (visual_* do JSON); null = primitivas
 var specializations: Array[Dictionary] = [] ## {id, display_name, tags: PackedStringArray, description, planned: bool}
 
 
@@ -86,6 +87,7 @@ static func parse(data: Variant) -> Dictionary:
 		return {"def": null, "errors": ["raiz deve ser objeto"] as Array[String]}
 	var d: Dictionary = data
 	var allowed: Array[String] = ["schema_version", "id", "display_name", "description", "resource", "base_stats", "growth_per_level", "skills", "specializations"]
+	allowed.append_array(VisualSpec.KEYS)
 	for k: Variant in d:
 		if not allowed.has(String(k)):
 			errors.append("campo desconhecido: " + String(k).left(40))
@@ -128,6 +130,10 @@ static func parse(data: Variant) -> Dictionary:
 			seen[String(sid)] = true
 			def.skills[slot] = String(sid)
 	_parse_specs(d.get("specializations", null), def, errors)
+	var verr: Array[String] = []
+	def.visual = VisualSpec.from_dict(d, verr)
+	for e: String in verr:
+		errors.append("visual: " + e)
 	return {"def": def if errors.is_empty() else null, "errors": errors}
 
 

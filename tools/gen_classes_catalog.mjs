@@ -19,6 +19,7 @@ const STAT_KEYS = ["max_health", "max_resource", "resource_regen", "attack_power
 const STAT_MAX = { resistance: 0.75, move_speed: 100 };
 const STAT_DEFAULT_MAX = 100000, MAX_GROWTH = 1000, MAX_TAGS = 8, MAX_SPECS = 6;
 const DEFAULT_CLASS = "warrior";
+export const VISUAL_KEYS = ["visual_scene", "visual_height", "visual_tint", "visual_yaw_offset", "visual_clips", "visual_equip", "visual_placeholder"];
 
 const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
 const jsonFiles = (dir) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith(".json") && !f.startsWith("_")).sort() : []);
@@ -45,7 +46,7 @@ export function validateClass(c, file = "?") {
   const e = [];
   const w = `classe '${c?.id}' (${file})`;
   if (typeof c !== "object" || c === null || Array.isArray(c)) return [`${file}: raiz deve ser objeto`];
-  const allowed = ["schema_version", "id", "display_name", "description", "resource", "base_stats", "growth_per_level", "skills", "specializations"];
+  const allowed = ["schema_version", "id", "display_name", "description", "resource", "base_stats", "growth_per_level", "skills", "specializations", ...VISUAL_KEYS]; // E8.1: visual_* so o cliente usa (validado em tools/visual_check.mjs)
   for (const k of Object.keys(c)) if (!allowed.includes(k)) e.push(`${w}: campo desconhecido '${k.slice(0, 40)}'`);
   if (c.schema_version !== 1) e.push(`${w}: schema_version deve ser 1`);
   if (typeof c.id !== "string" || !ID_RE.test(c.id)) e.push(`${file}: id invalido`);

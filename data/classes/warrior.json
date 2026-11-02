@@ -61,5 +61,20 @@
       "description": "Arma e magia.",
       "planned": true
     }
+  ],
+  "visual_scene": "class.warrior",
+  "visual_height": 1.9,
+  "visual_clips": {
+    "idle": "Idle",
+    "move": "Running_A",
+    "attack": "2H_Melee_Attack_Chop",
+    "skill": "2H_Melee_Attack_Spin",
+    "dodge": "Dodge_Forward",
+    "hit": "Hit_A",
+    "death": "Death_A"
+  },
+  "visual_equip": [
+    "2H_Axe",
+    "Barbarian_Hat"
   ]
 }

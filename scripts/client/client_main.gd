@@ -546,6 +546,7 @@ func _update_presentation(delta: float, now: float) -> void:
 	var local_pos: Variant = null
 	if session.prediction.initialized and samples.has(session.player_id):
 		local_pos = session.prediction.pos
+	_world.local_class_id = session.class_id # E8.1: modelo da classe (o snapshot nao traz a classe)
 	_world.update_frame(samples, session.player_id, local_pos, delta)
 	if _camera != null and _world.local_avatar != null and _camera.target != _world.local_avatar:
 		_camera.set_target(_world.local_avatar)

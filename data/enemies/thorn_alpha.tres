@@ -109,3 +109,7 @@ phases = Array[ExtResource("3_yq6sn")]([SubResource("Resource_wfngw"), SubResour
 visual_shape = &"box"
 visual_color = Color(0.6, 0.25, 0.1, 1)
 visual_scale = 1.7
+visual_scene = "enemy.wolf"
+visual_height = 2.0
+visual_tint = Color(1.0, 0.55, 0.4, 1)
+visual_clips = {"move": "Gallop", "attack": "Attack", "skill": "Attack", "hit": "Idle_HitReact_Left", "death": "Death"}

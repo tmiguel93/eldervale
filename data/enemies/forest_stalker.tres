@@ -40,3 +40,7 @@ attacks = Array[ExtResource("1_aljte")]([SubResource("Resource_8s6qs")])
 visual_shape = &"low"
 visual_color = Color(0.85, 0.55, 0.15, 1)
 visual_scale = 0.9
+visual_scene = "enemy.beast_fox"
+visual_height = 1.1
+visual_tint = Color(1.0, 0.85, 0.7, 1)
+visual_clips = {"move": "Gallop", "attack": "Attack", "hit": "Idle_HitReact_Left", "death": "Death"}

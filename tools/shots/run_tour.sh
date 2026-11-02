@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Uso: tools/shots/run_tour.sh hub|wild|ruins   (requer xvfb-run; Godot Linux em .tools/godot-linux)
+# Uso: [TOUR_CLASS=warrior|mage|ranger] tools/shots/run_tour.sh hub|wild|ruins|chars|wild_close|ruins_close   (requer xvfb-run; Godot Linux em .tools/godot-linux)
+# E8.1: TOUR_CLASS escolhe a classe do jogador (servidor --default-class) e prefixa os prints com "<classe>_".
 set -u
 cd "$(dirname "$0")/../.."
 TOUR="${1:-hub}"
@@ -8,7 +9,8 @@ G=$PWD/.tools/godot-linux/Godot_v4.7.2-stable_linux.x86_64
 export SHOT_DIR=$PWD/.tools/scratch/shots; mkdir -p "$SHOT_DIR"
 PORT=$((24700 + RANDOM % 200))
 EXTRA=""
-if [ "$TOUR" != "hub" ]; then export ELDERVALE_TEST_MODE=1; EXTRA="--test-speed-mult 4"; fi
+case "$TOUR" in hub|chars) ;; *) export ELDERVALE_TEST_MODE=1; EXTRA="--test-speed-mult 4";; esac
+if [ -n "${TOUR_CLASS:-}" ]; then EXTRA="$EXTRA --default-class $TOUR_CLASS"; export SHOT_PREFIX="${TOUR_CLASS}_"; fi
 timeout 150 "$G" --headless --path . res://scenes/server/server_boot.tscn -- --dev-mode 1 --world greenwood --port $PORT $EXTRA > "$SHOT_DIR/server_$TOUR.log" 2>&1 &
 SERVER_PID=$!
 sleep 6

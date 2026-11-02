@@ -9,7 +9,7 @@ const MAX_RADIUS: float = 20.0
 
 static var _shared: NpcDirectory = null
 
-var npcs: Dictionary = {}        ## id -> {id, display_name, dialogue_id, radius, position:Vector3, region}
+var npcs: Dictionary = {}        ## id -> {id, display_name, dialogue_id, radius, position:Vector3, region, visual:VisualSpec|null}
 var load_errors: Array[String] = []
 
 
@@ -58,9 +58,14 @@ func add_dict(raw: Variant) -> String:
 	for c: Variant in pos:
 		if not Protocol.is_finite_number(c):
 			return "position nao finita"
+	var verr: Array[String] = []
+	var visual: VisualSpec = VisualSpec.from_dict(d, verr) # E8.1: apresentacao 3D opcional (so o cliente a usa)
+	if not verr.is_empty():
+		return "visual: " + "; ".join(verr)
 	npcs[id] = {
 		"id": id, "display_name": d["display_name"], "dialogue_id": dlg, "radius": float(radius),
 		"position": Vector3(float(pos[0]), float(pos[1]), float(pos[2])), "region": String(d.get("region", "")),
+		"visual": visual,
 	}
 	return ""
 

@@ -4,17 +4,28 @@ extends Node3D
 ## (remotos) e da predicao (jogador local) e aplica eventos cosmeticos. Nao simula combate, IA,
 ## dano nem loot. Malhas placeholder: jogador local azul (capsula), outros jogadores verdes,
 ## inimigos vermelhos (caixa; o tipo varia o tom).
+## E8.1: com display e asset disponivel, o avatar usa um ModelRig (GLB animado, visual_scene dos dados); sem asset, em modo
+## headless/bot/teste ou com `use_models = false`, continua nas primitivas acima. O servidor nunca ve a arte.
 
 signal notice(text: String)
 
 const HEIGHT_DAMAGE: float = 2.2
 const FLASH_TIME: float = 0.12
+const HEAD_MARGIN: float = 0.4
+const MOVING_EPS_SQ: float = 0.000004
+## Aliado remoto: o snapshot nao informa a classe dos outros jogadores (protocolo inalterado), entao usam o Cavaleiro.
+const ALLY_SCENE: String = "class.warrior_alt"
 
 var avatars: Dictionary = {}  # id -> Node3D
 var local_id: int = -1
 ## Evento de zona recebido antes de local_id ser conhecido (o join chega antes do primeiro frame): reaplicado depois.
 var _pending_zone: Dictionary = {}
 var local_avatar: Node3D = null
+## E8.1: modelos 3D ligados? (desligado em headless/testes: ModelRig.models_enabled()). Classe do jogador local (ClientMain).
+var use_models: bool = true
+var local_class_id: String = ""
+var _rigs: Dictionary = {}          # id -> ModelRig
+var _spawn_pending: Dictionary = {} # id -> true (EVENT_ENEMY_SPAWN antes do avatar existir)
 
 var _flash_left: Dictionary = {}   # id -> s
 var _last_pos: Dictionary = {}     # id -> Vector3 (para o efeito de morte)
@@ -29,6 +40,7 @@ var _puzzle_event: Dictionary = {}
 
 
 func _ready() -> void:
+	use_models = ModelRig.models_enabled()
 	_flash_mat = StandardMaterial3D.new()
 	_flash_mat.albedo_color = Color.WHITE
 	_flash_mat.emission_enabled = true
@@ -63,6 +75,7 @@ func update_frame(samples: Dictionary, p_local_id: int, local_pos: Variant, delt
 		var s: Dictionary = samples[id]
 		var pos: Vector3 = s["pos"]
 		var yaw: float = s["yaw"]
+		var moving: int = -1
 		if int(id) == local_id and local_pos is Vector3:
 			pos = local_pos
 			var step: Vector3 = pos - _prev_local
@@ -71,14 +84,18 @@ func update_frame(samples: Dictionary, p_local_id: int, local_pos: Variant, delt
 				var cur: float = float(_facing.get(id, yaw))
 				_facing[id] = PlayerMotion.smooth_angle(cur, PlayerMotion.facing_yaw(step, cur), 14.0, delta)
 			yaw = float(_facing.get(id, yaw))
+			moving = 1 if step.length_squared() > MOVING_EPS_SQ else 0
 			_prev_local = pos
 		var av: Node3D = avatars.get(id) as Node3D
 		if av == null or not is_instance_valid(av):
 			av = _create_avatar(int(id), s)
 			avatars[id] = av
+		elif String(av.get_meta("vkey", "")) != _visual_key(int(id), s):
+			_rebuild_visual(av, int(id), s)
 		av.position = pos
 		av.rotation.y = yaw
 		_last_pos[id] = pos
+		_drive_rig(int(id), s, yaw, moving, delta)
 		if int(s["kind"]) == Protocol.KIND_ENEMY:
 			_update_enemy_telegraph(av, s)
 	var gone: Array = []
@@ -90,6 +107,8 @@ func update_frame(samples: Dictionary, p_local_id: int, local_pos: Variant, delt
 		if is_instance_valid(a):
 			a.queue_free()
 		avatars.erase(id)
+		_rigs.erase(id)
+		_spawn_pending.erase(id)
 		_flash_left.erase(id)
 		_facing.erase(id)
 		_last_pos.erase(id)
@@ -103,9 +122,74 @@ func _create_avatar(id: int, s: Dictionary) -> Node3D:
 	var vis: Node3D = Node3D.new()
 	vis.name = "Visual"
 	root.add_child(vis)
+	add_child(root)
+	_build_visual(root, id, s)
+	return root
+
+
+## Chave do visual atual (muda quando a classe do jogador local chega depois do avatar, por exemplo).
+func _visual_key(id: int, s: Dictionary) -> String:
+	match int(s["kind"]):
+		Protocol.KIND_ENEMY:
+			return "e:" + String(s["type"])
+		Protocol.KIND_PICKUP:
+			return "k:" + String(s["type"])
+	return "p:" + (_class_of(id) if use_models else "prim")
+
+
+func _class_of(id: int) -> String:
+	if id != local_id:
+		return "ally"
+	return local_class_id if ClassCatalog.shared().has_class(local_class_id) else ClassCatalog.DEFAULT_CLASS_ID
+
+
+## VisualSpec do avatar (null = primitivas). So consultado com use_models.
+func _spec_for(id: int, s: Dictionary) -> VisualSpec:
+	match int(s["kind"]):
+		Protocol.KIND_ENEMY:
+			var ed: EnemyData = EnemyCatalog.data_for(StringName(String(s["type"])))
+			return ed.visual_spec() if ed != null else null
+		Protocol.KIND_PICKUP:
+			var item: String = String(s["type"])
+			if item.begins_with("potion"):
+				return VisualSpec.make("res://assets/third_party/quaternius_rpg_items/Potion1_Filled.glb", 0.5)
+			return VisualSpec.make("prop.chest", 0.55)
+	var cid: String = _class_of(id)
+	if cid == "ally":
+		return VisualSpec.make(ALLY_SCENE, 1.9, Color(1, 1, 1, 0), 0.0, {"move": "Running_A"}, PackedStringArray(["1H_Sword", "Rectangle_Shield"]))
+	var def: ClassDef = ClassCatalog.shared().get_def(cid)
+	return def.visual if def != null else null
+
+
+func _rebuild_visual(root: Node3D, id: int, s: Dictionary) -> void:
+	var vis: Node3D = root.get_node("Visual") as Node3D
+	for c: Node in vis.get_children():
+		vis.remove_child(c)
+		c.queue_free()
+	_rigs.erase(id)
+	vis.scale = Vector3.ONE
+	_build_visual(root, id, s)
+
+
+func _build_visual(root: Node3D, id: int, s: Dictionary) -> void:
+	var vis: Node3D = root.get_node("Visual") as Node3D
+	root.set_meta("vkey", _visual_key(id, s))
+	if use_models:
+		var rig: ModelRig = ModelRig.create(_spec_for(id, s))
+		if rig != null:
+			vis.add_child(rig)
+			_rigs[id] = rig
+			root.set_meta("height", rig.spec.height)
+			if int(s["kind"]) == Protocol.KIND_PICKUP:
+				root.add_child(_pickup_label(s, rig.spec.height + 0.3))
+			if _spawn_pending.has(id):
+				_spawn_pending.erase(id)
+				rig.trigger(&"spawn")
+			return
 	var body: MeshInstance3D = MeshInstance3D.new()
 	body.name = "Body"
 	var mat: StandardMaterial3D = StandardMaterial3D.new()
+	root.set_meta("height", 1.8)
 	if int(s["kind"]) == Protocol.KIND_ENEMY:
 		var bm: BoxMesh = BoxMesh.new()
 		bm.size = Vector3(0.9, 1.2, 0.9)
@@ -126,12 +210,7 @@ func _create_avatar(id: int, s: Dictionary) -> Node3D:
 		body.mesh = pm
 		body.position.y = 0.3
 		mat.albedo_color = Color(1.0, 0.85, 0.2)
-		var tag: Label3D = Label3D.new()
-		tag.text = String(s["type"]) if int(s.get("qty", 1)) <= 1 else "%s x%d" % [String(s["type"]), int(s.get("qty", 1))]
-		tag.position = Vector3(0.0, 0.9, 0.0)
-		tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
-		tag.pixel_size = 0.008
-		root.add_child(tag)
+		root.add_child(_pickup_label(s, 0.9))
 	else:
 		var cm: CapsuleMesh = CapsuleMesh.new()
 		cm.radius = 0.4
@@ -141,8 +220,45 @@ func _create_avatar(id: int, s: Dictionary) -> Node3D:
 		mat.albedo_color = Color(0.25, 0.5, 1.0) if id == local_id else Color(0.3, 0.8, 0.4)
 	body.material_override = mat
 	vis.add_child(body)
-	add_child(root)
-	return root
+
+
+func _pickup_label(s: Dictionary, y: float) -> Label3D:
+	var tag: Label3D = Label3D.new()
+	tag.name = "PickupLabel"
+	tag.text = String(s["type"]) if int(s.get("qty", 1)) <= 1 else "%s x%d" % [String(s["type"]), int(s.get("qty", 1))]
+	tag.position = Vector3(0.0, y, 0.0)
+	tag.billboard = BaseMaterial3D.BILLBOARD_ENABLED
+	tag.pixel_size = 0.008
+	return tag
+
+
+## E8.1: estado do snapshot -> clip. `moving` (0/1) vem da predicao do jogador local; -1 = so o snapshot.
+func _drive_rig(id: int, s: Dictionary, yaw: float, moving: int, delta: float) -> void:
+	var rig: ModelRig = _rigs.get(id) as ModelRig
+	if rig == null or not is_instance_valid(rig):
+		return
+	rig.follow_yaw(yaw, delta)
+	var kind: int = int(s["kind"])
+	if kind == Protocol.KIND_PICKUP:
+		return
+	var is_skill: bool = false
+	var hint: float = 0.0
+	if kind == Protocol.KIND_ENEMY and int(s.get("state", 0)) == int(EnemyAI.State.ATTACK):
+		var atk: EnemyAttack = _attack_of(String(s["type"]), String(s.get("atk", "")))
+		if atk != null:
+			is_skill = atk.kind != EnemyAttack.Kind.MELEE
+			hint = atk.windup + 0.3
+	rig.set_state(ClipTable.state_from_snapshot(kind, int(s.get("state", 0)), moving, is_skill), hint)
+
+
+func _attack_of(type: String, atk_id: String) -> EnemyAttack:
+	var ed: EnemyData = EnemyCatalog.data_for(StringName(type))
+	if ed == null or atk_id.is_empty():
+		return null
+	for a: EnemyAttack in ed.all_attacks():
+		if a != null and String(a.id) == atk_id:
+			return a
+	return null
 
 
 ## E5.2: indicador de chao do telegrafo. O servidor manda `atk` (id) enquanto o inimigo esta em ATTACK;
@@ -184,10 +300,17 @@ func apply_event(kind: int, data: Dictionary) -> void:
 				var label: DamageNumber = DamageNumber.new()
 				label.setup(amount, Color(1.0, 0.8, 0.3) if crit else Color(1.0, 0.9, 0.3))
 				add_child(label)
-				label.global_position = av.global_position + Vector3(randf_range(-0.3, 0.3), HEIGHT_DAMAGE, 0.0)
+				label.global_position = av.global_position + Vector3(randf_range(-0.3, 0.3), float(av.get_meta("height", HEIGHT_DAMAGE - HEAD_MARGIN)) + HEAD_MARGIN, 0.0)
 				_flash(target, av)
 		Protocol.EVENT_DEATH:
 			_play_death(int(data.get("id", -1)))
+		Protocol.EVENT_ENEMY_SPAWN:
+			var sid: int = int(data.get("id", -1))
+			var srig: ModelRig = _rigs.get(sid) as ModelRig
+			if srig != null and is_instance_valid(srig):
+				srig.trigger(&"spawn")
+			elif use_models:
+				_spawn_pending[sid] = true
 		Protocol.EVENT_ZONE:
 			if local_id < 0 and int(data.get("phase", -1)) == Protocol.ZONE_PHASE_ARRIVED:
 				_pending_zone = data
@@ -246,6 +369,11 @@ func _apply_puzzle() -> void:
 
 
 func _flash(id: int, av: Node3D) -> void:
+	var rig: ModelRig = _rigs.get(id) as ModelRig
+	if rig != null and is_instance_valid(rig):
+		rig.flash(FLASH_TIME)
+		rig.trigger(&"hit")
+		return
 	var body: MeshInstance3D = av.get_node_or_null("Visual/Body") as MeshInstance3D
 	if body != null:
 		if not body.has_meta("orig"):
@@ -272,6 +400,10 @@ func _tick_flash(delta: float) -> void:
 ## Efeito de morte reutilizando DeathEffect do E2 em um "fantasma" destacado (a entidade real
 ## some via snapshot). O fantasma se libera sozinho.
 func _play_death(id: int) -> void:
+	var rig: ModelRig = _rigs.get(id) as ModelRig
+	if rig != null and is_instance_valid(rig):
+		rig.set_state(&"death") # E8.1: o corpo toca o clip de morte e some quando o servidor o remove do snapshot
+		return
 	if not _last_pos.has(id):
 		return
 	var ghost: Node3D = Node3D.new()

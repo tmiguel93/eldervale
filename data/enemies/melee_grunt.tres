@@ -22,3 +22,6 @@ xp_reward = 40
 loot_table = ExtResource("1_3o2vn")
 attack_cooldown = 1.4
 placeholder = true
+visual_scene = "enemy.minion"
+visual_height = 1.7
+visual_clips = {"move": "Walking_A", "attack": "1H_Melee_Attack_Stab", "spawn": "Spawn_Ground"}

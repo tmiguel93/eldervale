@@ -12,6 +12,8 @@ const GATE_META: StringName = &"gate_layer"
 const PLATE_OFF: Color = Color(0.35, 0.33, 0.30)
 const PLATE_ON: Color = Color(0.35, 0.85, 0.45)
 const GATE_COLOR: Color = Color(0.55, 0.42, 0.28)
+## E8.1: NPCs com modelo olham para a camera isometrica (yaw da camera = 45 graus -> frente = +X,+Z).
+const NPC_FACE: Vector3 = Vector3(1.0, 0.0, 1.0)
 
 
 static func build_zone(parent: Node, zone: ZoneDef, with_visuals: bool, npcs: NpcDirectory = null) -> Node3D:
@@ -184,19 +186,28 @@ static func _add_npc_marker(root: Node3D, npc: Dictionary) -> void:
 	holder.name = "Npc_%s" % String(npc["id"])
 	holder.position = npc["position"]
 	root.add_child(holder)
-	var body: MeshInstance3D = MeshInstance3D.new()
-	body.name = "Body"
-	var cap: CapsuleMesh = CapsuleMesh.new()
-	cap.radius = 0.4
-	cap.height = 1.8
-	body.mesh = cap
-	body.position = Vector3(0.0, 0.9, 0.0)
-	body.material_override = _plain(Color(0.95, 0.8, 0.3))
-	holder.add_child(body)
+	var label_y: float = 2.4
+	# E8.1: modelo 3D parado em idle (somente cliente com display); sem asset/headless cai na capsula abaixo.
+	var spec: VisualSpec = npc.get("visual") as VisualSpec
+	var rig: ModelRig = ModelRig.create(spec) if spec != null else null
+	if rig != null:
+		holder.add_child(rig)
+		holder.rotation.y = PlayerMotion.facing_yaw(NPC_FACE, 0.0)
+		label_y = spec.height + 0.5
+	else:
+		var body: MeshInstance3D = MeshInstance3D.new()
+		body.name = "Body"
+		var cap: CapsuleMesh = CapsuleMesh.new()
+		cap.radius = 0.4
+		cap.height = 1.8
+		body.mesh = cap
+		body.position = Vector3(0.0, 0.9, 0.0)
+		body.material_override = _plain(Color(0.95, 0.8, 0.3))
+		holder.add_child(body)
 	var label: Label3D = Label3D.new()
 	label.name = "Label"
 	label.text = String(npc["display_name"])
-	label.position = Vector3(0.0, 2.4, 0.0)
+	label.position = Vector3(0.0, label_y, 0.0)
 	label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	label.pixel_size = 0.01
 	holder.add_child(label)

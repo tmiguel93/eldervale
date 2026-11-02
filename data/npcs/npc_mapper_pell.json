@@ -11,5 +11,10 @@
 		0.0,
 		-14.0
 	],
-	"placeholder": false
+	"placeholder": false,
+	"visual_scene": "class.ranger_alt",
+	"visual_height": 1.75,
+	"visual_tint": [1.0, 0.9, 0.7],
+	"visual_clips": {"idle": "Idle"},
+	"visual_equip": ["Throwable"]
 }

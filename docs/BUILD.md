@@ -24,6 +24,12 @@ Execucoes por alvo (`--target`) preservam o outro alvo no `MANIFEST.json` desde 
 | Windows Server | `eldervale_server` | `run/main_scene.eldervale_server` | `build/windows/server/EldervaleServer.exe` (com wrapper de console) |
 Ambos: `embed_pck=false`, inclusao de `build_info.json`, `data/*`, `shared/*`; exclusao de `tests`, `tools`, `docs`, `backend`, `build`, `.tools`, `.git`, `*.md`, `*.py` etc.
 
+## Assets no build (E8.1)
+- **Servidor**: o preset `Windows Server` exclui `assets/*` (`exclude_filter`). A arte e so do cliente e nenhum script do servidor carrega assets. Medido na VM: `EldervaleServer.pck` 1 011 096 B (era 980 200 B antes do E8.0), 0 ocorrencias de `assets/third_party`, `--main-pack ... -- --version` OK.
+- **Cliente**: `include_filter` acrescenta `assets/ASSET_MANIFEST.json` (resolucao de aliases em runtime) e `exclude_filter` lista os pacotes ainda nao usados (dungeon, halloween, hexagon, village, buildings, rts, modular dungeon, nature, survival, knight, mini arena, starter kits, audio Oculus, icones, fontes; Stag/Husky; Frog/Rat/Snake/Wasp). Medido: `Eldervale.pck` 18 240 988 B com KayKit Adventurers/Skeletons, Wolf, Fox, Spider e os itens RPG. **Ao passar a usar um pacote novo (E8.2+), remova-o da lista.** O preset continua `all_resources`: o modo "selected resources" nao foi usado porque scripts/dados carregados por `load()` dinamico nao seriam descobertos.
+- Cada export leva ~2,6 min nesta VM (limite de 180 s por comando): rode `--target client` e `--target server` em chamadas separadas, sempre com `--skip-import --no-zip` e depois zip/hash numa terceira chamada se necessario. Processos em segundo plano nao sobrevivem entre chamadas.
+- Nao verificado: abrir o `.exe` do cliente no Windows e carregar um modelo a partir do `.pck`.
+
 ## Versao e build id
 - Versao do jogo: `BuildInfo.GAME_VERSION` (`scripts/boot/build_info.gd`), atualmente `0.7.0-alpha.1`.
 - Build id: hash curto do commit (`-dirty` se a arvore tem mudancas) e data do commit; escritos em `build_info.json` antes do export e descartados depois (`/build_info.json` esta no `.gitignore`).

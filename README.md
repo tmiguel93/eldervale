@@ -86,7 +86,11 @@ node tools/validate_content.mjs --root <pasta>   # valida outra cópia (usado no
 ```
 Teste automatizado: `cd backend && npx vitest run test/content_validation.test.ts`. Detalhes em [`docs/E6_CONTENT.md`](docs/E6_CONTENT.md).
 
+## Modelos 3D (E8.1)
+O cliente usa modelos GLB animados (KayKit/Quaternius, CC0) para as 3 classes, os 10 inimigos, o chefe e os NPCs, escolhidos por `visual_scene` nos dados (`.tres` do inimigo, `data/classes/*.json`, `data/npcs/*.json`). Só o cliente carrega arte; sem asset ou em modo headless/bot cai nas primitivas. Servidor: `.pck` sem `assets/`. Como adicionar um modelo, schema e tabela de clips em [`docs/E8_MODELS.md`](docs/E8_MODELS.md). Prints de verificação: `tools/shots/run_gallery.sh` e `TOUR_CLASS=mage tools/shots/run_tour.sh chars`.
+
 ## Documentação adicional
+- Modelos 3D animados (E8.1): [`docs/E8_MODELS.md`](docs/E8_MODELS.md)
 - Quests, exploração e validador de conteúdo (E6.4): [`docs/E6_CONTENT.md`](docs/E6_CONTENT.md)
 - Convenções: [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)
 - Decisões: [`docs/DECISIONS.md`](docs/DECISIONS.md)

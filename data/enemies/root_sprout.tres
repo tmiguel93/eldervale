@@ -40,3 +40,7 @@ attacks = Array[ExtResource("1_2mym7")]([SubResource("Resource_e06hj")])
 visual_shape = &"low"
 visual_color = Color(0.3, 0.7, 0.2, 1)
 visual_scale = 0.7
+visual_scene = "enemy.spider"
+visual_height = 0.7
+visual_tint = Color(1.5, 2.2, 1.0, 1)
+visual_clips = {"idle": "Spider_Idle", "move": "Spider_Walk", "attack": "Spider_Attack", "skill": "Spider_Attack", "death": "Spider_Death"}
