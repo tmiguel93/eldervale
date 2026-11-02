@@ -7,6 +7,8 @@ Arte de placeholder deve ser claramente identificada.
 
 **E8.0 (2026-11-02):** pacotes externos adquiridos do GitHub e copiados (sem alteracao, salvo indicado) para `assets/third_party/<pacote>/`, cada um com a licenca ao lado. Lista completa de arquivos: `assets/ASSET_MANIFEST.json` (gerado por `tools/build_asset_manifest.py`). Pesquisa e rejeicoes: `docs/E8_ASSETS.md`.
 
+**E8.2 (2026-11-02):** nenhum asset novo e nenhum arquivo alterado. Passam a ser USADOS no cenário do cliente os pacotes já creditados abaixo: Quaternius Nature, Medieval Village e Survival, KayKit Dungeon Remastered e Halloween Bits (e o cliente deixa de excluí-los do `.pck`). Chão, trilhas e chamas são shaders procedurais próprios. Detalhes: `docs/E8_SCENERY.md`.
+
 **E8.1 (2026-11-02):** nenhum asset novo. Passam a ser USADOS no jogo (cliente): KayKit Adventurers (Barbarian, Knight, Mage, Rogue, Rogue_Hooded: classes e NPCs), KayKit Skeletons (4: inimigos, bruto e chefe PLACEHOLDER), Quaternius animais (Wolf, Fox), Easy Enemies (Spider) e RPG items (Chest_Closed, Potion1_Filled: pickups). Tinturas e escala sao aplicadas em runtime; os arquivos nao foram alterados. Detalhes: `docs/E8_MODELS.md`.
 
 | Asset | Origem (URL/fonte) | Autor | Licenca | Alteracoes | Local no repo |

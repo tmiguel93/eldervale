@@ -349,3 +349,12 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Consequências:** aliados remotos aparecem como Cavaleiro (o snapshot não traz a classe; corrigir exige campo aditivo no protocolo); chefe e bruto são o esqueleto guerreiro em escala maior com tintura (PLACEHOLDER); a lista de exclusão do cliente precisa ser mantida a cada pacote novo; `.exe` exportado não foi executado no Windows.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
 
+
+## DEC-0037 — Cenário 3D e iluminação só no cliente: `SceneryPlan` determinístico, MultiMesh sem colisão e presets de qualidade
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana
+- **Contexto:** E8.2 troca as primitivas dos cenários por arte nórdica e luz semi-realista sem tocar em servidor, protocolo ou física.
+- **Opções consideradas:** (a) cenas `.tscn` por zona montadas à mão; (b) decoração gerada por um plano de dados, instanciada em `MultiMesh`; (c) decoração com colisão.
+- **Escolha provisória:** (b), sem colisão (c fica fora do escopo). `SceneryTheme` (dados) + `SceneryPlan` (colocações por seed FNV-1a de `zona|sal`, filtro de câmera isométrica, exclusões) + `SceneryBuilder` (MultiMesh por asset/célula) + `SceneryEnv` (ambiente, sol ortogonal, humor por região, luzes). Objetos altos só no anel externo (e fora da sombra visual da câmera) para o jogador nunca sumir atrás de parede; paredes primitivas do lado da câmera viram barreiras baixas. Nada carrega em headless/bot/teste (`ModelRig.models_enabled()`). Presets Baixo/Médio/Alto em `QualitySettings` (padrão Médio; `--quality` > `user://settings.cfg` > padrão; F9 alterna); SSAO/SSIL/névoa volumétrica só em Forward+. Exportação: cliente passa a empacotar os 5 pacotes usados; servidor segue com `assets/*` excluído.
+- **Consequências:** decoração atravessável; SSAO e névoa volumétrica não foram vistos (evidência em Compatibility/GL por software); medições de ms não valem para GPU real; sem menu de qualidade; `OcclusionFader` passou a validar instâncias liberadas; a exclusão de pacotes do cliente continua manual.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.

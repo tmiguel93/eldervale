@@ -28,10 +28,16 @@ func _wait(sec: float) -> void:
 		await process_frame
 
 func _shot(name: String) -> void:
+	var t0: int = Time.get_ticks_msec()
 	await _frames(3)
+	var frame_ms: float = float(Time.get_ticks_msec() - t0) / 3.0
 	var img: Image = root.get_texture().get_image()
 	img.save_png(out_dir + "/" + prefix + name + ".png")
 	print("[tour] shot ", name)
+	# E8.2: orcamento de cena no instante do print (frame_ms = tempo de parede por frame; em GL por software NAO representa GPU real)
+	print("[perf] %s frame_ms=%.1f draws=%d objects=%d primitives=%d vram_mb=%.0f" % [name, frame_ms,
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)), int(Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)),
+		int(Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)), float(Performance.get_monitor(Performance.RENDER_VIDEO_MEM_USED)) / 1048576.0])
 
 func _pos() -> Vector2:
 	var p: Vector3 = main.session.prediction.pos
@@ -66,6 +72,10 @@ func _calibrate() -> void:
 
 func _goto(target: Vector2, tol: float = 2.0, timeout: float = 60.0) -> void:
 	var t_end: int = Time.get_ticks_msec() + int(timeout * 1000.0)
+	# E8.2: viagens longas sem desenhar o 3D (GL por software e lento com o cenario completo); volta a desenhar ao chegar
+	var far: bool = (target - _pos()).length() > 12.0
+	if far:
+		root.disable_3d = true
 	while Time.get_ticks_msec() < t_end:
 		var d: Vector2 = target - _pos()
 		if d.length() <= tol:
@@ -76,6 +86,9 @@ func _goto(target: Vector2, tol: float = 2.0, timeout: float = 60.0) -> void:
 		_set_move(a, b)
 		await process_frame
 	_set_move(0.0, 0.0)
+	if far:
+		root.disable_3d = false
+		await _frames(2)
 
 func _set_move(a: float, b: float) -> void:
 	for pair in [["move_forward", maxf(a, 0.0)], ["move_back", maxf(-a, 0.0)], ["move_right", maxf(b, 0.0)], ["move_left", maxf(-b, 0.0)]]:
@@ -117,6 +130,9 @@ func _run() -> void:
 		"wild_close": await _tour_wild_close()
 		"ruins_close": await _tour_ruins_close()
 		"alpha": await _tour_alpha()
+		"scn_hub": await _tour_scn_hub()
+		"scn_wild": await _tour_scn_wild()
+		"scn_ruins": await _tour_scn_ruins()
 	print("[tour] fim")
 	quit()
 
@@ -243,3 +259,53 @@ func _tour_ruins_close() -> void:
 	await _goto(Vector2(425, 0), 5.0, 15.0)
 	await _shot("ruinsc_02_salao")
 	await _fight(6.0, "ruinsc_03_salao_combate")
+
+
+## E8.2: tours de cenario (iluminacao/props por zona). Prefixo s_ nos prints.
+func _tour_scn_hub() -> void:
+	await _zoom(1, 5)
+	await _shot("s_hub_01_praca")
+	await _goto(Vector2(-20, -18), 3.0, 40.0)
+	await _shot("s_hub_02_noroeste")
+	await _goto(Vector2(22, -20), 3.0, 40.0)
+	await _shot("s_hub_03_nordeste")
+	await _goto(Vector2(22, 22), 3.0, 50.0)
+	await _shot("s_hub_04_sudeste")
+	await _goto(Vector2(-4, 4), 2.5, 50.0)
+	await _zoom(-1, 8)
+	await _shot("s_hub_05_perto")
+
+func _tour_scn_wild() -> void:
+	await _goto(Vector2(30, 0), 3.0, 25.0)
+	await _wait(2.0)
+	await _goto(Vector2(166, 6), 4.0, 90.0)
+	await _zoom(1, 3)
+	await _shot("s_wild_01_entrada")
+	await _goto(Vector2(190, 14), 3.0, 40.0)
+	await _shot("s_wild_02_trilha")
+	await _goto(Vector2(232, -20), 3.5, 60.0)
+	await _shot("s_wild_03_toca")
+	await _zoom(-1, 6)
+	await _shot("s_wild_04_perto")
+
+func _tour_scn_ruins() -> void:
+	await _goto(Vector2(30, 0), 3.0, 25.0)
+	await _wait(1.0)
+	await _goto(Vector2(246, 0), 5.0, 40.0)
+	await _wait(1.0)
+	await _goto(Vector2(372, 0), 5.0, 30.0)
+	await _zoom(1, 3)
+	await _shot("s_ruins_01_antecamara")
+	await _goto(Vector2(361, -24), 3.0, 30.0)
+	await _zoom(-1, 7)
+	await _shot("s_ruins_02_parede_norte_zoom")
+	await _goto(Vector2(380, 24), 3.0, 30.0)
+	await _shot("s_ruins_03_parede_sul_zoom")
+	await _zoom(1, 4)
+	await _goto(Vector2(395, 0), 4.0, 30.0)
+	await _shot("s_ruins_04_portao")
+	await _fight(4.0, "s_ruins_05_combate")
+	await _goto(Vector2(425, 0), 5.0, 20.0)
+	await _shot("s_ruins_06_salao_boss")
+	await _zoom(-1, 6)
+	await _fight(5.0, "s_ruins_07_chefe_zoom")

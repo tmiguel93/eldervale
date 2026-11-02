@@ -58,18 +58,22 @@ func refresh_blocked() -> void:
 		if not _faded.has(mesh):
 			_begin_fade(mesh)
 		(_faded[mesh] as FadeState).blocked = true
-	for mesh: MeshInstance3D in _faded:
-		if not blockers.has(mesh):
-			(_faded[mesh] as FadeState).blocked = false
+	# E8.2: a zona pode ser reconstruida (troca de zona/qualidade) com malhas ja esmaecidas: chaves liberadas sao descartadas
+	for key: Variant in _faded.keys():
+		if not is_instance_valid(key):
+			_faded.erase(key)
+		elif not blockers.has(key):
+			(_faded[key] as FadeState).blocked = false
 
 
 ## Avanca os alphas; restaura malhas totalmente liberadas.
 func tick(delta: float) -> void:
 	var done: Array[MeshInstance3D] = []
-	for mesh: MeshInstance3D in _faded:
-		if not is_instance_valid(mesh):
-			done.append(mesh)
+	for key: Variant in _faded.keys():
+		if not is_instance_valid(key):
+			_faded.erase(key)
 			continue
+		var mesh: MeshInstance3D = key as MeshInstance3D
 		var st: FadeState = _faded[mesh]
 		var goal: float = faded_alpha if st.blocked else 1.0
 		st.alpha = move_toward(st.alpha, goal, fade_speed * delta)
@@ -84,8 +88,11 @@ func tick(delta: float) -> void:
 
 
 func restore_all() -> void:
-	for mesh: MeshInstance3D in _faded.keys():
-		_restore(mesh)
+	for key: Variant in _faded.keys():
+		if is_instance_valid(key):
+			_restore(key as MeshInstance3D)
+		else:
+			_faded.erase(key)
 
 
 func faded_count() -> int:

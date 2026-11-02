@@ -244,6 +244,7 @@ func _drop_connection() -> void:
 
 
 func _build_presentation() -> void:
+	QualitySettings.current = QualitySettings.resolve_startup(OS.get_cmdline_user_args()) # E8.2: --quality > settings.cfg > Medio
 	_world = ClientWorld.new()
 	_world.name = "ClientWorld"
 	add_child(_world)
@@ -351,6 +352,16 @@ func _process(delta: float) -> void:
 		_update_presentation(delta, now)
 	if _hud != null:
 		_hud.refresh(session, delta)
+
+
+## E8.2: F9 alterna a qualidade grafica (Baixa/Media/Alta), grava em user://settings.cfg e reconstroi o cenario.
+func _unhandled_key_input(event: InputEvent) -> void:
+	var key: InputEventKey = event as InputEventKey
+	if key != null and key.pressed and not key.echo and key.keycode == KEY_F9 and _world != null:
+		var next: int = QualitySettings.next_preset(QualitySettings.current)
+		_world.set_quality(next)
+		QualitySettings.save(next)
+		_world.notice.emit("Qualidade grafica: %s (F9 alterna)" % QualitySettings.preset_name(next))
 
 
 func _back_to_login() -> void:

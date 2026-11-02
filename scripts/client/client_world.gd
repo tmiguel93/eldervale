@@ -37,6 +37,10 @@ var zone_root: Node3D = null
 var zone_id: String = ""
 var _ground: MeshInstance3D
 var _puzzle_event: Dictionary = {}
+## E8.2: iluminacao/atmosfera e decoracao 3D da zona (so cliente com display; null em headless/bot/teste = fallback de sempre).
+var scenery_env: SceneryEnv = null
+var scenery_info: Dictionary = {}
+var _sun: DirectionalLight3D = null
 
 
 func _ready() -> void:
@@ -46,6 +50,10 @@ func _ready() -> void:
 	_flash_mat.emission_enabled = true
 	_flash_mat.emission = Color.WHITE
 	_build_ground()
+	if SceneryBuilder.enabled():
+		scenery_env = SceneryEnv.new()
+		add_child(scenery_env)
+		scenery_env.set_quality(QualitySettings.current)
 
 
 func _build_ground() -> void:
@@ -62,6 +70,7 @@ func _build_ground() -> void:
 	var sun: DirectionalLight3D = DirectionalLight3D.new()
 	sun.rotation_degrees = Vector3(-55.0, 30.0, 0.0)
 	add_child(sun)
+	_sun = sun
 
 
 ## Atualiza avatares. `samples`: id -> dict do interpolador; `local_pos` (predicao) para o local.
@@ -114,6 +123,8 @@ func update_frame(samples: Dictionary, p_local_id: int, local_pos: Variant, delt
 		_last_pos.erase(id)
 	local_avatar = avatars.get(local_id) as Node3D
 	_tick_flash(delta)
+	if scenery_env != null and local_avatar != null and is_instance_valid(local_avatar):
+		scenery_env.update(delta, local_avatar.position)
 
 
 func _create_avatar(id: int, s: Dictionary) -> Node3D:
@@ -350,11 +361,39 @@ func show_zone(new_zone_id: String, def: WorldDef = null) -> bool:
 		remove_child(zone_root)
 		zone_root.queue_free()
 	zone_root = WorldBuilder.build_zone(self, zone, true, NpcDirectory.shared())
+	var first_zone: bool = zone_id.is_empty()
 	zone_id = new_zone_id
 	if _ground != null:
 		_ground.visible = false
+	_decorate_zone(zone, first_zone)
 	_apply_puzzle()
 	return true
+
+
+## E8.2: cenario 3D + iluminacao da zona (so com display e modelos ligados; sem tema ou sem asset mantem as primitivas).
+func _decorate_zone(zone: ZoneDef, instant: bool) -> void:
+	scenery_info = {}
+	if scenery_env == null or zone_root == null:
+		return
+	scenery_info = SceneryBuilder.decorate(zone_root, zone, QualitySettings.current, NpcDirectory.shared())
+	if scenery_info.is_empty():
+		return
+	if scenery_env.set_zone(zone.id, instant) and _sun != null:
+		_sun.visible = false # o sol do SceneryEnv assume
+	scenery_env.set_lights(scenery_info["lights"] as Array[OmniLight3D])
+
+
+## E8.2: troca o preset de qualidade (Baixa/Media/Alta) e reconstroi o cenario da zona atual (densidade/luzes mudam).
+func set_quality(preset: int) -> void:
+	QualitySettings.current = preset
+	if scenery_env == null:
+		return
+	scenery_env.set_quality(preset)
+	if zone_root != null and not zone_id.is_empty():
+		var again: String = zone_id
+		zone_id = ""
+		show_zone(again)
+		zone_id = again
 
 
 func _apply_puzzle() -> void:

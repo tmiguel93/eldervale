@@ -5,7 +5,7 @@ extends RefCounted
 ## Segredos podem vir por ambiente (ELDERVALE_EMAIL / ELDERVALE_PASSWORD), preferivel a argumentos.
 ## Nada aqui e logado. `errors` nunca contem valores de senha.
 
-const KEYS: PackedStringArray = ["backend-url", "email", "password", "character", "session-id", "bot-seconds", "kill-grace"]
+const KEYS: PackedStringArray = ["backend-url", "email", "password", "character", "session-id", "bot-seconds", "kill-grace", "quality"]
 
 var backend_url: String = ""
 var email: String = ""
@@ -13,6 +13,7 @@ var password: String = ""
 var character: String = ""
 var session_id: String = ""
 var kill_grace_s: float = -1.0   # kill_enemy: espera apos a morte (<0 = padrao)
+var quality: String = ""          # E8.2: --quality low|medium|high (lido por QualitySettings; aqui so para o NetConfig nao reclamar)
 var errors: PackedStringArray = PackedStringArray()
 
 
@@ -65,6 +66,7 @@ static func parse(args: PackedStringArray, env: Dictionary = {}) -> ClientArgs:
 			"password": a.password = val
 			"character": a.character = val.strip_edges()
 			"session-id": a.session_id = val.strip_edges()
+			"quality": a.quality = val.strip_edges()
 			"kill-grace":
 				if val.is_valid_float():
 					a.kill_grace_s = clampf(val.to_float(), 0.0, 3600.0)
