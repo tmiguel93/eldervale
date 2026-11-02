@@ -42,7 +42,7 @@ func _test_zone_contents(ctx: Object) -> void:
 	var hub: ZoneDef = def.get_zone("zone_hub")
 	var wild: ZoneDef = def.get_zone("zone_wild")
 	var ruins: ZoneDef = def.get_zone("zone_ruins")
-	ctx.check(hub.enemies.is_empty() and hub.npcs.size() == 3, "hub: 3 NPCs e nenhum inimigo")
+	ctx.check(hub.enemies.is_empty() and hub.npcs.size() == 5, "hub: 5 NPCs e nenhum inimigo")
 	var counts: Dictionary = _count_types(wild)
 	ctx.check(int(counts.get(&"melee_grunt", 0)) >= 5, "selvagem: >= 5 melee_grunt (quest gw_clear_clearing): %d" % int(counts.get(&"melee_grunt", 0)))
 	ctx.check(int(counts.get(&"thorn_alpha", 0)) == 1, "selvagem: o mini-chefe thorn_alpha (1)")
@@ -84,13 +84,18 @@ func _count_types(z: ZoneDef) -> Dictionary:
 func _test_quest_integration_data(ctx: Object) -> void:
 	var def: WorldDef = _def()
 	var npcs: NpcDirectory = NpcDirectory.shared()
-	var hub: ZoneDef = def.get_zone("zone_hub")
 	var all_in: bool = true
 	for n: String in npcs.ids():
-		if not hub.contains(npcs.get_npc(n)["position"] as Vector3, -1.0):
+		# E6.4: ha um NPC na Mata Selvagem; cada NPC precisa estar na zona que o lista.
+		var in_zone: bool = false
+		for zid: String in def.zone_order:
+			var z: ZoneDef = def.get_zone(zid)
+			if z.npcs.has(n) and z.contains(npcs.get_npc(n)["position"] as Vector3, -1.0):
+				in_zone = true
+		if not in_zone:
 			all_in = false
 		ctx.check(not bool(JsonDir.read_json("res://data/npcs/%s.json" % n)["data"].get("placeholder", true)), "NPC %s: posicao real (placeholder=false)" % n)
-	ctx.check(all_in, "NPCs no hub, com posicoes reais")
+	ctx.check(all_in, "NPCs dentro da zona que os lista (hub/selvagem), com posicoes reais")
 	var areas: AreaSet = AreaSet.shared()
 	var ruins: ZoneDef = def.get_zone("zone_ruins")
 	var gate: Vector3 = areas.areas["area_ruins_gate"]["center"]

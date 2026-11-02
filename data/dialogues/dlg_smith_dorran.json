@@ -1,0 +1,106 @@
+{
+	"schema_version": 1,
+	"id": "dlg_smith_dorran",
+	"npc_id": "npc_smith_dorran",
+	"entries": [
+		{
+			"if": {
+				"quest": "gw_bench_lessons",
+				"state": "ready"
+			},
+			"node": "bench_done"
+		},
+		{
+			"if": {
+				"quest": "gw_bench_lessons",
+				"state": "available"
+			},
+			"node": "bench_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_bench_lessons",
+				"state": "active"
+			},
+			"node": "bench_waiting"
+		},
+		{
+			"if": {
+				"quest": "gw_bench_lessons",
+				"state": "completed"
+			},
+			"node": "after"
+		},
+		{
+			"node": "idle"
+		}
+	],
+	"nodes": {
+		"bench_offer": {
+			"speaker": "npc_smith_dorran",
+			"text": "Orla diz que voce sabe juntar sucata. Saber usar a bancada e outra historia. Prepare duas pocoes menores aqui e eu lhe pago pelo trabalho.",
+			"text_key": "dlg.dlg_smith_dorran.bench_offer",
+			"choices": [
+				{
+					"text": "Vou preparar.",
+					"text_key": "dlg.dlg_smith_dorran.bench_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_bench_lessons"
+						}
+					],
+					"next": "bench_accepted"
+				},
+				{
+					"text": "Agora nao.",
+					"text_key": "dlg.dlg_smith_dorran.bench_offer.c2",
+					"next": null
+				}
+			]
+		},
+		"bench_accepted": {
+			"speaker": "npc_smith_dorran",
+			"text": "A bancada e aquela ali. Tres pecas de sucata por pocao, nem uma a menos.",
+			"text_key": "dlg.dlg_smith_dorran.bench_accepted"
+		},
+		"bench_waiting": {
+			"speaker": "npc_smith_dorran",
+			"text": "Duas pocoes menores, na bancada. Ainda nao as vi.",
+			"text_key": "dlg.dlg_smith_dorran.bench_waiting"
+		},
+		"bench_done": {
+			"speaker": "npc_smith_dorran",
+			"text": "Duas pocoes, e sem derramar nada. Voce tem mao para isso.",
+			"text_key": "dlg.dlg_smith_dorran.bench_done",
+			"choices": [
+				{
+					"text": "Aqui estao.",
+					"text_key": "dlg.dlg_smith_dorran.bench_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_bench_lessons"
+						}
+					],
+					"next": "bench_thanks"
+				}
+			]
+		},
+		"bench_thanks": {
+			"speaker": "npc_smith_dorran",
+			"text": "Fique com a sucata que sobrou. A vila precisa de quem saiba fazer o proprio equipamento.",
+			"text_key": "dlg.dlg_smith_dorran.bench_thanks"
+		},
+		"after": {
+			"speaker": "npc_smith_dorran",
+			"text": "A bancada esta sempre livre para quem trabalha direito.",
+			"text_key": "dlg.dlg_smith_dorran.after"
+		},
+		"idle": {
+			"speaker": "npc_smith_dorran",
+			"text": "Metal bom e raro. Cuide do seu equipamento.",
+			"text_key": "dlg.dlg_smith_dorran.idle"
+		}
+	}
+}

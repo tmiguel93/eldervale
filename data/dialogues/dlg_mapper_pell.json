@@ -1,0 +1,183 @@
+{
+	"schema_version": 1,
+	"id": "dlg_mapper_pell",
+	"npc_id": "npc_mapper_pell",
+	"entries": [
+		{
+			"if": {
+				"quest": "gw_wild_survey",
+				"state": "ready"
+			},
+			"node": "survey_done"
+		},
+		{
+			"if": {
+				"quest": "gw_whispers",
+				"state": "ready"
+			},
+			"node": "whisp_done"
+		},
+		{
+			"if": {
+				"quest": "gw_wild_survey",
+				"state": "available"
+			},
+			"node": "survey_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_wild_survey",
+				"state": "active"
+			},
+			"node": "survey_waiting"
+		},
+		{
+			"if": {
+				"quest": "gw_whispers",
+				"state": "available"
+			},
+			"node": "whisp_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_whispers",
+				"state": "active"
+			},
+			"node": "whisp_waiting"
+		},
+		{
+			"if": {
+				"quest": "gw_whispers",
+				"state": "completed"
+			},
+			"node": "after"
+		},
+		{
+			"node": "idle"
+		}
+	],
+	"nodes": {
+		"survey_offer": {
+			"speaker": "npc_mapper_pell",
+			"text": "Meu mapa da Mata Selvagem esta cheio de buracos. Procure o carvalho tombado e o marco de pedra antigo ao longo da trilha e me diga o que encontrou.",
+			"text_key": "dlg.dlg_mapper_pell.survey_offer",
+			"choices": [
+				{
+					"text": "Vou mapear a trilha.",
+					"text_key": "dlg.dlg_mapper_pell.survey_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_wild_survey"
+						}
+					],
+					"next": "survey_accepted"
+				},
+				{
+					"text": "Agora nao.",
+					"text_key": "dlg.dlg_mapper_pell.survey_offer.c2",
+					"next": null
+				}
+			]
+		},
+		"survey_accepted": {
+			"speaker": "npc_mapper_pell",
+			"text": "Fique atento: marcos como esses nao aparecem no mapa ate alguem passar por perto.",
+			"text_key": "dlg.dlg_mapper_pell.survey_accepted"
+		},
+		"survey_waiting": {
+			"speaker": "npc_mapper_pell",
+			"text": "Ainda faltam marcos no meu mapa. Siga a trilha para leste.",
+			"text_key": "dlg.dlg_mapper_pell.survey_waiting"
+		},
+		"survey_done": {
+			"speaker": "npc_mapper_pell",
+			"text": "Entao e verdade, os dois marcos existem! Deixe-me anotar.",
+			"text_key": "dlg.dlg_mapper_pell.survey_done",
+			"choices": [
+				{
+					"text": "Encontrei os marcos.",
+					"text_key": "dlg.dlg_mapper_pell.survey_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_wild_survey"
+						}
+					],
+					"next": "survey_thanks"
+				}
+			]
+		},
+		"survey_thanks": {
+			"speaker": "npc_mapper_pell",
+			"text": "Agora o mapa faz sentido. Ha mais coisa na trilha, mas isso fica para depois.",
+			"text_key": "dlg.dlg_mapper_pell.survey_thanks"
+		},
+		"whisp_offer": {
+			"speaker": "npc_mapper_pell",
+			"text": "Ouvi dizer que a guardia Lysa viu algo estranho na mata, e Ilmar tem teorias sobre o que corrompe as raizes. Fale com os dois e volte aqui.",
+			"text_key": "dlg.dlg_mapper_pell.whisp_offer",
+			"choices": [
+				{
+					"text": "Falarei com eles.",
+					"text_key": "dlg.dlg_mapper_pell.whisp_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_whispers"
+						}
+					],
+					"next": "whisp_accepted"
+				},
+				{
+					"text": "Agora nao.",
+					"text_key": "dlg.dlg_mapper_pell.whisp_offer.c2",
+					"next": null
+				}
+			]
+		},
+		"whisp_accepted": {
+			"speaker": "npc_mapper_pell",
+			"text": "Lysa fica na entrada da trilha. Ilmar, em casa, a oeste da praca.",
+			"text_key": "dlg.dlg_mapper_pell.whisp_accepted"
+		},
+		"whisp_waiting": {
+			"speaker": "npc_mapper_pell",
+			"text": "Ja falou com Lysa e com Ilmar? Quero ouvir o que eles disseram.",
+			"text_key": "dlg.dlg_mapper_pell.whisp_waiting"
+		},
+		"whisp_done": {
+			"speaker": "npc_mapper_pell",
+			"text": "Entao os dois concordam: algo alimenta a corrupcao desde as raizes.",
+			"text_key": "dlg.dlg_mapper_pell.whisp_done",
+			"choices": [
+				{
+					"text": "Falei com os dois.",
+					"text_key": "dlg.dlg_mapper_pell.whisp_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_whispers"
+						}
+					],
+					"next": "whisp_thanks"
+				}
+			]
+		},
+		"whisp_thanks": {
+			"speaker": "npc_mapper_pell",
+			"text": "Obrigada. Lysa pode precisar de ajuda com o que viu.",
+			"text_key": "dlg.dlg_mapper_pell.whisp_thanks"
+		},
+		"after": {
+			"speaker": "npc_mapper_pell",
+			"text": "Meu mapa nunca esteve tao completo.",
+			"text_key": "dlg.dlg_mapper_pell.after"
+		},
+		"idle": {
+			"speaker": "npc_mapper_pell",
+			"text": "Um mapa e uma promessa de volta para casa.",
+			"text_key": "dlg.dlg_mapper_pell.idle"
+		}
+	}
+}

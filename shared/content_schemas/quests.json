@@ -3,6 +3,32 @@
   "source": "data/quests/*.json (gerado por tools/gen_quests_catalog.mjs)",
   "quests": [
     {
+      "id": "gw_bench_lessons",
+      "prerequisites": {
+        "quests": [
+          "gw_scrap_for_orla"
+        ],
+        "min_level": 1
+      },
+      "objectives": [
+        {
+          "id": "craft_potions",
+          "type": "craft",
+          "target": "potion_minor",
+          "required": 2
+        }
+      ],
+      "rewards": {
+        "xp": 140,
+        "items": [
+          {
+            "item_id": "scrap_material",
+            "qty": 4
+          }
+        ]
+      }
+    },
+    {
       "id": "gw_clear_clearing",
       "prerequisites": {
         "quests": [
@@ -24,6 +50,44 @@
           {
             "item_id": "scrap_material",
             "qty": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_rootsong",
+      "prerequisites": {
+        "quests": [
+          "gw_ruin_guardian",
+          "gw_shaman_roots",
+          "gw_thorn_hunt"
+        ],
+        "min_level": 4
+      },
+      "objectives": [
+        {
+          "id": "report_ilmar",
+          "type": "talk",
+          "target": "npc_scholar_ilmar",
+          "required": 1
+        },
+        {
+          "id": "gather_scrap",
+          "type": "collect",
+          "target": "scrap_material",
+          "required": 4
+        }
+      ],
+      "rewards": {
+        "xp": 700,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 3
+          },
+          {
+            "item_id": "unique_featherknot",
+            "qty": 1
           }
         ]
       }
@@ -60,6 +124,44 @@
           {
             "item_id": "potion_minor",
             "qty": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_ruin_secrets",
+      "prerequisites": {
+        "quests": [
+          "gw_ruins_expedition"
+        ],
+        "min_level": 2
+      },
+      "objectives": [
+        {
+          "id": "find_niche",
+          "type": "discover",
+          "target": "poi_ruins_scribe_niche",
+          "required": 1
+        },
+        {
+          "id": "find_inscription",
+          "type": "discover",
+          "target": "poi_ruins_altar_inscription",
+          "required": 1
+        },
+        {
+          "id": "find_vault",
+          "type": "discover",
+          "target": "poi_ruins_hidden_vault",
+          "required": 1
+        }
+      ],
+      "rewards": {
+        "xp": 280,
+        "items": [
+          {
+            "item_id": "armor_heavy",
+            "qty": 1
           }
         ]
       }
@@ -123,6 +225,74 @@
       }
     },
     {
+      "id": "gw_shaman_roots",
+      "prerequisites": {
+        "quests": [
+          "gw_whispers"
+        ],
+        "min_level": 2
+      },
+      "objectives": [
+        {
+          "id": "kill_shaman",
+          "type": "kill",
+          "target": "grove_shaman",
+          "required": 1
+        },
+        {
+          "id": "kill_lurkers",
+          "type": "kill",
+          "target": "burrow_lurker",
+          "required": 2
+        }
+      ],
+      "rewards": {
+        "xp": 260,
+        "items": [
+          {
+            "item_id": "armor_leather",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_thorn_hunt",
+      "prerequisites": {
+        "quests": [
+          "gw_clear_clearing"
+        ],
+        "min_level": 3
+      },
+      "objectives": [
+        {
+          "id": "kill_scouts",
+          "type": "kill",
+          "target": "bow_scout",
+          "required": 2
+        },
+        {
+          "id": "kill_alpha",
+          "type": "kill",
+          "target": "thorn_alpha",
+          "required": 1
+        }
+      ],
+      "rewards": {
+        "xp": 320,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 2
+          },
+          {
+            "item_id": "sword_rare",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
       "id": "gw_welcome",
       "prerequisites": {
         "quests": [],
@@ -138,6 +308,74 @@
       ],
       "rewards": {
         "xp": 60,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_whispers",
+      "prerequisites": {
+        "quests": [
+          "gw_wild_survey"
+        ],
+        "min_level": 1
+      },
+      "objectives": [
+        {
+          "id": "talk_lysa",
+          "type": "talk",
+          "target": "npc_warden_lysa",
+          "required": 1
+        },
+        {
+          "id": "talk_ilmar",
+          "type": "talk",
+          "target": "npc_scholar_ilmar",
+          "required": 1
+        }
+      ],
+      "rewards": {
+        "xp": 160,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 2
+          },
+          {
+            "item_id": "scrap_material",
+            "qty": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "gw_wild_survey",
+      "prerequisites": {
+        "quests": [
+          "gw_welcome"
+        ],
+        "min_level": 1
+      },
+      "objectives": [
+        {
+          "id": "find_oak",
+          "type": "discover",
+          "target": "poi_wild_fallen_oak",
+          "required": 1
+        },
+        {
+          "id": "find_milestone",
+          "type": "discover",
+          "target": "poi_wild_old_milestone",
+          "required": 1
+        }
+      ],
+      "rewards": {
+        "xp": 180,
         "items": [
           {
             "item_id": "potion_minor",

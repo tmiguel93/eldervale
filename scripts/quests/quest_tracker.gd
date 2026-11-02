@@ -118,9 +118,12 @@ func accept(quest_id: String, level: int) -> Dictionary:
 		return _fail("quest_log_full")
 	var objs: Dictionary = {}
 	for o: QuestDef.Objective in def.objectives:
-		objs[o.id] = 0
+		# E6.4: um ponto ja descoberto conta ao aceitar (a descoberta e unica e nao repete; senao a quest travaria).
+		objs[o.id] = 1 if (o.type == QuestDef.OBJ_DISCOVER and state.is_discovered(o.target)) else 0
 	state.active[quest_id] = objs
 	quest_accepted.emit(quest_id)
+	if is_ready(quest_id):
+		quest_ready.emit(quest_id)
 	return _ok()
 
 
@@ -209,3 +212,18 @@ func on_area_entered(area_id: String) -> int:
 
 func on_npc_talked(npc_id: String) -> int:
 	return _advance(QuestDef.OBJ_TALK, npc_id, 1)
+
+
+## E6.4: item produzido pelo crafting (resultado confirmado). Soma `qty` aos objetivos `craft` ativos.
+func on_item_crafted(item_id: String, qty: int) -> int:
+	return _advance(QuestDef.OBJ_CRAFT, item_id, qty)
+
+
+## E6.4: ponto de exploracao descoberto. Marca como descoberto (uma vez) e avanca objetivos `discover` ativos.
+## Devolve false se ja estava descoberto (nada muda: recompensa unica).
+func on_poi_discovered(poi_id: String) -> bool:
+	if state.is_discovered(poi_id):
+		return false
+	state.discovered.append(poi_id)
+	_advance(QuestDef.OBJ_DISCOVER, poi_id, 1)
+	return true

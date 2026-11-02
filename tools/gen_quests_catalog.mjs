@@ -14,7 +14,9 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 const OUT = join(ROOT, "shared", "content_schemas", "quests.json");
 const ID_RE = /^[a-z][a-z0-9_]{0,47}$/;
 const TYPES = ["main", "side", "exploration", "hunt", "gather", "dungeon", "story", "coop", "hidden"];
-const OBJ_TYPES = ["kill", "collect", "reach_area", "talk"];
+const OBJ_TYPES = ["kill", "collect", "reach_area", "talk", "craft", "discover"];
+const POI_KINDS = ["landmark", "chest", "secret"];
+const OUT_EXPLORATION = join(ROOT, "shared", "content_schemas", "exploration.json");
 const MAX_OBJECTIVES = 6, MAX_REQUIRED = 999, MAX_XP = 100000, MAX_REWARD_ITEMS = 8, MAX_QTY = 99, MAX_LEVEL = 50;
 
 const readJson = (p) => JSON.parse(readFileSync(p, "utf8"));
@@ -68,7 +70,7 @@ export function validateQuest(q, file = "?") {
       if (!OBJ_TYPES.includes(o?.type)) e.push(`${ow}: type invalido`);
       if (typeof o?.target !== "string" || !ID_RE.test(o.target)) e.push(`${ow}: target invalido`);
       if (!isInt(o?.required) || o.required < 1 || o.required > MAX_REQUIRED) e.push(`${ow}: required fora de 1..${MAX_REQUIRED}`);
-      if ((o?.type === "reach_area" || o?.type === "talk") && o.required !== 1) e.push(`${ow}: ${o.type} exige required = 1`);
+      if ((o?.type === "reach_area" || o?.type === "talk" || o?.type === "discover") && o.required !== 1) e.push(`${ow}: ${o.type} exige required = 1`);
       if (typeof o?.text !== "string" || !o.text || typeof o?.text_key !== "string" || !o.text_key) e.push(`${ow}: text/text_key ausentes`);
     }
   }
@@ -90,6 +92,52 @@ export function validateQuest(q, file = "?") {
     if (xp === 0 && items.length === 0) e.push(`${w}: recompensa vazia`);
   }
   return e;
+}
+
+/** E6.4: valida data/exploration/*.json e devolve {catalog, errors}; `questIds` = ids de quests (requires_quests). */
+export function buildExploration(root = ROOT, items = new Set(), questIds = new Set()) {
+  const errors = [];
+  const dir = join(root, "data", "exploration");
+  const out = [];
+  const seen = new Set();
+  for (const f of jsonFiles(dir)) {
+    let d;
+    try { d = readJson(join(dir, f)); } catch { errors.push(`${f}: JSON invalido`); continue; }
+    if (!Array.isArray(d?.points)) { errors.push(`${f}: 'points' ausente`); continue; }
+    for (const p of d.points) {
+      const w = `ponto '${p?.id}' (${f})`;
+      if (typeof p?.id !== "string" || !ID_RE.test(p.id)) { errors.push(`${f}: id de ponto invalido`); continue; }
+      if (seen.has(p.id)) errors.push(`${w}: id duplicado`);
+      seen.add(p.id);
+      if (!POI_KINDS.includes(p.kind)) errors.push(`${w}: kind invalido`);
+      if (typeof p.zone !== "string" || !ID_RE.test(p.zone)) errors.push(`${w}: zone invalida`);
+      for (const k of ["display_name", "text"]) if (typeof p[k] !== "string" || !p[k].trim() || p[k].length > 200) errors.push(`${w}: '${k}' ausente/vazio/longo demais`);
+      if (!Array.isArray(p.center) || p.center.length !== 3 || p.center.some((v) => !Number.isFinite(v))) errors.push(`${w}: center invalido`);
+      if (!Number.isFinite(p.radius) || p.radius <= 0 || p.radius > 20) errors.push(`${w}: radius fora de (0, 20]`);
+      if (p.height !== undefined && (!Number.isFinite(p.height) || p.height <= 0 || p.height > 20)) errors.push(`${w}: height fora de (0, 20]`);
+      const ml = p.min_level ?? 1;
+      if (!isInt(ml) || ml < 1 || ml > MAX_LEVEL) errors.push(`${w}: min_level fora de 1..${MAX_LEVEL}`);
+      const rq = p.requires_quests ?? [];
+      if (!Array.isArray(rq) || new Set(rq).size !== rq.length || rq.some((q) => typeof q !== "string" || (questIds.size > 0 && !questIds.has(q)))) errors.push(`${w}: requires_quests invalido/inexistente`);
+      const xp = p.rewards?.xp ?? 0;
+      const its = p.rewards?.items ?? [];
+      if (!isInt(xp) || xp < 0 || xp > 5000) errors.push(`${w}: rewards.xp fora de 0..5000`);
+      const ids = new Set();
+      if (!Array.isArray(its) || its.length > 4) errors.push(`${w}: rewards.items invalido`);
+      else for (const it of its) {
+        if (typeof it?.item_id !== "string" || !ID_RE.test(it.item_id) || !isInt(it.qty) || it.qty < 1 || it.qty > 20) errors.push(`${w}: item de recompensa invalido`);
+        else if (ids.has(it.item_id)) errors.push(`${w}: item de recompensa repetido`);
+        else { ids.add(it.item_id); if (items.size > 0 && !items.has(it.item_id)) errors.push(`${w}: item '${it.item_id}' inexistente`); }
+      }
+      if (xp === 0 && its.length === 0) errors.push(`${w}: recompensa vazia`);
+      out.push({
+        id: p.id, zone: p.zone, min_level: ml, requires_quests: [...(Array.isArray(rq) ? rq : [])].sort(),
+        rewards: { xp, items: (Array.isArray(its) ? its : []).map((i) => ({ item_id: i.item_id, qty: i.qty })).sort((a, b) => (a.item_id < b.item_id ? -1 : 1)) },
+      });
+    }
+  }
+  out.sort((a, b) => (a.id < b.id ? -1 : 1));
+  return { catalog: { schema_version: 1, source: "data/exploration/*.json (gerado por tools/gen_quests_catalog.mjs)", points: out }, errors };
 }
 
 /** Le data/**, valida tudo e devolve {catalog, errors}. */
@@ -116,6 +164,9 @@ export function buildQuestCatalog(root = ROOT) {
   const pending = existsSync(pendingPath) ? readJson(pendingPath) : {};
   const enemies = new Set([...enemyIds(root), ...(pending.enemies ?? [])]);
   const pendingItems = new Set(pending.items ?? []);
+  const expl = buildExploration(root, items, ids);
+  errors.push(...expl.errors);
+  const pois = new Set(expl.catalog.points.map((p) => p.id));
 
   for (const q of quests) {
     if (typeof q?.id !== "string") continue;
@@ -127,6 +178,8 @@ export function buildQuestCatalog(root = ROOT) {
       if (o.type === "collect" && items.size > 0 && !items.has(o.target) && !pendingItems.has(o.target)) errors.push(`${w}: item '${o.target}' inexistente`);
       if (o.type === "reach_area" && areas.size > 0 && !areas.has(o.target)) errors.push(`${w}: area '${o.target}' inexistente`);
       if (o.type === "talk" && npcs.size > 0 && !npcs.has(o.target)) errors.push(`${w}: npc '${o.target}' inexistente`);
+      if (o.type === "craft" && items.size > 0 && !items.has(o.target)) errors.push(`${w}: item '${o.target}' (craft) inexistente`);
+      if (o.type === "discover" && !pois.has(o.target)) errors.push(`${w}: ponto de exploracao '${o.target}' inexistente`);
     }
     for (const it of q.rewards?.items ?? []) if (items.size > 0 && !items.has(it.item_id)) errors.push(`${w}: item de recompensa '${it.item_id}' inexistente no catalogo de itens (backend o recusaria)`);
   }
@@ -154,25 +207,28 @@ export function buildQuestCatalog(root = ROOT) {
         items: [...(q.rewards.items ?? [])].map((i) => ({ item_id: i.item_id, qty: i.qty })).sort((a, b) => (a.item_id < b.item_id ? -1 : 1)),
       },
     }));
-  return { catalog: { schema_version: 1, source: "data/quests/*.json (gerado por tools/gen_quests_catalog.mjs)", quests: out }, errors };
+  return { catalog: { schema_version: 1, source: "data/quests/*.json (gerado por tools/gen_quests_catalog.mjs)", quests: out }, exploration: expl.catalog, errors };
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) {
-  const { catalog, errors } = buildQuestCatalog();
+  const { catalog, exploration, errors } = buildQuestCatalog();
   if (errors.length) {
     console.error("quests invalidas:\n - " + errors.join("\n - "));
     process.exit(1);
   }
   const text = JSON.stringify(catalog, null, 2) + "\n";
+  const textE = JSON.stringify(exploration, null, 2) + "\n";
   if (process.argv.includes("--check")) {
     const cur = existsSync(OUT) ? readFileSync(OUT, "utf8") : "";
-    if (cur !== text) {
-      console.error("shared/content_schemas/quests.json desatualizado: rode node tools/gen_quests_catalog.mjs");
+    const curE = existsSync(OUT_EXPLORATION) ? readFileSync(OUT_EXPLORATION, "utf8") : "";
+    if (cur !== text || curE !== textE) {
+      console.error("shared/content_schemas/quests.json ou exploration.json desatualizado: rode node tools/gen_quests_catalog.mjs");
       process.exit(1);
     }
-    console.log("quests.json em dia");
+    console.log("quests.json e exploration.json em dia");
   } else {
     writeFileSync(OUT, text);
-    console.log(`escrito ${OUT}`);
+    writeFileSync(OUT_EXPLORATION, textE);
+    console.log(`escrito ${OUT} e ${OUT_EXPLORATION}`);
   }
 }

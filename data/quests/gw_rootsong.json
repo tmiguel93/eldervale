@@ -1,0 +1,52 @@
+{
+	"schema_version": 1,
+	"id": "gw_rootsong",
+	"type": "main",
+	"region": "greenwood",
+	"title": "Cancao das Raizes",
+	"title_key": "quest.gw_rootsong.title",
+	"description": "Com o guardiao, a matriarca e o xama derrotados, a Ancia Orla quer ouvir o relato do estudioso e reunir sucata para selar as raizes.",
+	"description_key": "quest.gw_rootsong.description",
+	"giver_npc": "npc_elder_orla",
+	"turn_in_npc": "npc_elder_orla",
+	"prerequisites": {
+		"quests": [
+			"gw_ruin_guardian",
+			"gw_shaman_roots",
+			"gw_thorn_hunt"
+		],
+		"min_level": 4
+	},
+	"objectives": [
+		{
+			"id": "report_ilmar",
+			"type": "talk",
+			"target": "npc_scholar_ilmar",
+			"required": 1,
+			"text": "Ouca o relato de Ilmar",
+			"text_key": "quest.gw_rootsong.obj.report_ilmar"
+		},
+		{
+			"id": "gather_scrap",
+			"type": "collect",
+			"target": "scrap_material",
+			"required": 4,
+			"text": "Colete sucata para selar as raizes",
+			"text_key": "quest.gw_rootsong.obj.gather_scrap"
+		}
+	],
+	"rewards": {
+		"xp": 700,
+		"items": [
+			{
+				"item_id": "unique_featherknot",
+				"qty": 1
+			},
+			{
+				"item_id": "potion_minor",
+				"qty": 3
+			}
+		]
+	},
+	"abandonable": true
+}

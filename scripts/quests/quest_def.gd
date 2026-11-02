@@ -10,7 +10,9 @@ const OBJ_KILL: String = "kill"
 const OBJ_COLLECT: String = "collect"
 const OBJ_REACH_AREA: String = "reach_area"
 const OBJ_TALK: String = "talk"
-const OBJECTIVE_TYPES: Array[String] = [OBJ_KILL, OBJ_COLLECT, OBJ_REACH_AREA, OBJ_TALK]
+const OBJ_CRAFT: String = "craft"       ## E6.4: item produzido na bancada (alvo = id do item resultante; soma a quantidade)
+const OBJ_DISCOVER: String = "discover" ## E6.4: ponto de exploracao descoberto (alvo = id do ponto; required = 1)
+const OBJECTIVE_TYPES: Array[String] = [OBJ_KILL, OBJ_COLLECT, OBJ_REACH_AREA, OBJ_TALK, OBJ_CRAFT, OBJ_DISCOVER]
 const MAX_OBJECTIVES: int = 6
 const MAX_REQUIRED: int = 999
 const MAX_REWARD_XP: int = 100000
@@ -162,7 +164,7 @@ static func parse(raw: Variant) -> Dictionary:
 				errors.append("%s: required fora de 1..%d" % [ow, MAX_REQUIRED])
 			else:
 				o.required = int(req)
-			if (o.type == OBJ_REACH_AREA or o.type == OBJ_TALK) and o.required != 1:
+			if (o.type == OBJ_REACH_AREA or o.type == OBJ_TALK or o.type == OBJ_DISCOVER) and o.required != 1:
 				errors.append("%s: objetivos %s exigem required = 1" % [ow, o.type])
 			o.text = _str(od, "text", errors, ow, 120)
 			o.text_key = _str(od, "text_key", errors, ow, 96)

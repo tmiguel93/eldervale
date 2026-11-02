@@ -1,0 +1,15 @@
+{
+	"schema_version": 1,
+	"id": "npc_warden_lysa",
+	"display_name": "Guardia Lysa [PLACEHOLDER]",
+	"display_name_key": "npc.npc_warden_lysa.name",
+	"region": "greenwood",
+	"dialogue_id": "dlg_warden_lysa",
+	"interact_radius": 3.5,
+	"position": [
+		166.0,
+		0.0,
+		4.0
+	],
+	"placeholder": false
+}

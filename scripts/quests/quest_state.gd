@@ -7,6 +7,8 @@ extends RefCounted
 
 var active: Dictionary = {}          ## quest_id -> {objective_id -> int}
 var completed: Array[String] = []    ## ordem de conclusao
+## E6.4: pontos de exploracao ja descobertos (recompensa unica por personagem). SOMENTE-SERVIDOR: so entra por `QuestService`.
+var discovered: Array[String] = []
 
 
 func is_active(quest_id: String) -> bool:
@@ -23,9 +25,14 @@ func progress_of(quest_id: String, objective_id: String) -> int:
 	return int((active[quest_id] as Dictionary).get(objective_id, 0))
 
 
+func is_discovered(poi_id: String) -> bool:
+	return discovered.has(poi_id)
+
+
 func clear() -> void:
 	active = {}
 	completed = []
+	discovered = []
 
 
 ## Serializacao deterministica (chaves ordenadas; `completed` em ordem alfabetica, como o backend).
@@ -43,7 +50,12 @@ func to_dict() -> Dictionary:
 		act[String(qid)] = {"objectives": o}
 	var done: Array = completed.duplicate()
 	done.sort()
-	return {"active": act, "completed": done}
+	var out: Dictionary = {"active": act, "completed": done}
+	if not discovered.is_empty(): # E6.4: so presente quando ha descobertas (formato antigo intacto)
+		var disc: Array = discovered.duplicate()
+		disc.sort()
+		out["discovered"] = disc
+	return out
 
 
 ## Erro de FORMA do dicionario recebido ("" = ok). Nao consulta o catalogo (ids desconhecidos sao
@@ -68,6 +80,12 @@ static func shape_error(d: Variant) -> String:
 	for c: Variant in (done as Array):
 		if typeof(c) != TYPE_STRING or not Protocol.is_content_id(c):
 			return "quests.completed: id invalido"
+	var disc: Variant = dd.get("discovered", [])
+	if typeof(disc) != TYPE_ARRAY or (disc as Array).size() > 500:
+		return "quests.discovered invalido"
+	for p: Variant in (disc as Array):
+		if typeof(p) != TYPE_STRING or not Protocol.is_content_id(p):
+			return "quests.discovered: id invalido"
 	return ""
 
 
@@ -88,6 +106,13 @@ func restore(d: Variant, catalog: QuestCatalog) -> Array[String]:
 			warnings.append("quest concluida desconhecida descartada: " + cid)
 		elif not completed.has(cid):
 			completed.append(cid)
+	var exploration: ExplorationCatalog = ExplorationCatalog.shared()
+	for pv: Variant in (dd.get("discovered", []) as Array):
+		var pid: String = pv
+		if not exploration.has_point(pid):
+			warnings.append("ponto descoberto desconhecido descartado: " + pid)
+		elif not discovered.has(pid):
+			discovered.append(pid)
 	for qid: Variant in (dd.get("active", {}) as Dictionary):
 		var id: String = qid
 		var def: QuestDef = catalog.get_quest(id) if catalog != null else null

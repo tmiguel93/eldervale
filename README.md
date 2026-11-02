@@ -75,7 +75,17 @@ A **árvore de talentos** (E6.2, tecla K) dá 1 ponto por nível a partir do 2; 
 
 Com um painel aberto o cliente não envia ataque/habilidade/esquiva (clicar em botão não ataca); o movimento continua.
 
+## Validação de conteúdo (E6.4)
+Valida TODO o conteúdo de `data/` (classes, talentos, itens/affixes/únicos, receitas, quests, diálogos, NPCs, áreas/zonas, inimigos, loot, exploração): ids únicos e estáveis, referências cruzadas, ciclos e quests inalcançáveis, faixas e catálogos gerados em dia. Node, sem dependências:
+```
+node tools/validate_content.mjs            # relatório; saída 0 = sem erros, 1 = há erros
+node tools/validate_content.mjs --json     # mesmo resultado em JSON
+node tools/validate_content.mjs --root <pasta>   # valida outra cópia (usado nos testes negativos)
+```
+Teste automatizado: `cd backend && npx vitest run test/content_validation.test.ts`. Detalhes em [`docs/E6_CONTENT.md`](docs/E6_CONTENT.md).
+
 ## Documentação adicional
+- Quests, exploração e validador de conteúdo (E6.4): [`docs/E6_CONTENT.md`](docs/E6_CONTENT.md)
 - Convenções: [`docs/CONVENTIONS.md`](docs/CONVENTIONS.md)
 - Decisões: [`docs/DECISIONS.md`](docs/DECISIONS.md)
 - Créditos de assets: [`docs/ASSET_CREDITS.md`](docs/ASSET_CREDITS.md)

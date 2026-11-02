@@ -36,7 +36,7 @@
         "required": ["id", "type", "target", "required", "text", "text_key"],
         "properties": {
           "id": { "$ref": "#/$defs/id" },
-          "type": { "enum": ["kill", "collect", "reach_area", "talk"], "description": "kill: id de inimigo; collect: id de item; reach_area: id de area; talk: id de NPC" },
+          "type": { "enum": ["kill", "collect", "reach_area", "talk", "craft", "discover"], "description": "kill: id de inimigo; collect: id de item; reach_area: id de area; talk: id de NPC; craft: id do item produzido; discover: id de POI (required=1)" },
           "target": { "$ref": "#/$defs/id" },
           "required": { "type": "integer", "minimum": 1, "maximum": 999, "description": "reach_area e talk exigem 1" },
           "text": { "type": "string", "minLength": 1, "maxLength": 120 },

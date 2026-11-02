@@ -3,13 +3,79 @@
 	"id": "dlg_elder_orla",
 	"npc_id": "npc_elder_orla",
 	"entries": [
-		{"if": {"quest": "gw_welcome", "state": "ready"}, "node": "welcome_done"},
-		{"if": {"quest": "gw_scrap_for_orla", "state": "ready"}, "node": "scrap_done"},
-		{"if": {"quest": "gw_welcome", "state": "available"}, "node": "welcome_offer"},
-		{"if": {"quest": "gw_welcome", "state": "active"}, "node": "welcome_waiting"},
-		{"if": {"quest": "gw_scrap_for_orla", "state": "available"}, "node": "scrap_offer"},
-		{"if": {"quest": "gw_scrap_for_orla", "state": "active"}, "node": "scrap_waiting"},
-		{"node": "idle"}
+		{
+			"if": {
+				"quest": "gw_rootsong",
+				"state": "ready"
+			},
+			"node": "song_done"
+		},
+		{
+			"if": {
+				"quest": "gw_welcome",
+				"state": "ready"
+			},
+			"node": "welcome_done"
+		},
+		{
+			"if": {
+				"quest": "gw_scrap_for_orla",
+				"state": "ready"
+			},
+			"node": "scrap_done"
+		},
+		{
+			"if": {
+				"quest": "gw_welcome",
+				"state": "available"
+			},
+			"node": "welcome_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_welcome",
+				"state": "active"
+			},
+			"node": "welcome_waiting"
+		},
+		{
+			"if": {
+				"quest": "gw_scrap_for_orla",
+				"state": "available"
+			},
+			"node": "scrap_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_scrap_for_orla",
+				"state": "active"
+			},
+			"node": "scrap_waiting"
+		},
+		{
+			"if": {
+				"quest": "gw_rootsong",
+				"state": "available"
+			},
+			"node": "song_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_rootsong",
+				"state": "active"
+			},
+			"node": "song_waiting"
+		},
+		{
+			"if": {
+				"quest": "gw_rootsong",
+				"state": "completed"
+			},
+			"node": "epilogue"
+		},
+		{
+			"node": "idle"
+		}
 	],
 	"nodes": {
 		"welcome_offer": {
@@ -17,8 +83,22 @@
 			"text": "Forasteiro, a floresta de Greenwood adoece. Antes de qualquer coisa, converse com Brannoch, o cacador. Ele conhece os caminhos.",
 			"text_key": "dlg.dlg_elder_orla.welcome_offer",
 			"choices": [
-				{"text": "Eu falarei com ele.", "text_key": "dlg.dlg_elder_orla.welcome_offer.c1", "effects": [{"type": "accept_quest", "quest_id": "gw_welcome"}], "next": "welcome_accepted"},
-				{"text": "Talvez depois.", "text_key": "dlg.dlg_elder_orla.welcome_offer.c2", "next": null}
+				{
+					"text": "Eu falarei com ele.",
+					"text_key": "dlg.dlg_elder_orla.welcome_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_welcome"
+						}
+					],
+					"next": "welcome_accepted"
+				},
+				{
+					"text": "Talvez depois.",
+					"text_key": "dlg.dlg_elder_orla.welcome_offer.c2",
+					"next": null
+				}
 			]
 		},
 		"welcome_accepted": {
@@ -36,7 +116,17 @@
 			"text": "Entao ele ja o conhece. Aceite esta pequena ajuda pelo seu tempo.",
 			"text_key": "dlg.dlg_elder_orla.welcome_done",
 			"choices": [
-				{"text": "Obrigado.", "text_key": "dlg.dlg_elder_orla.welcome_done.c1", "effects": [{"type": "turn_in_quest", "quest_id": "gw_welcome"}], "next": "welcome_thanks"}
+				{
+					"text": "Obrigado.",
+					"text_key": "dlg.dlg_elder_orla.welcome_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_welcome"
+						}
+					],
+					"next": "welcome_thanks"
+				}
 			]
 		},
 		"welcome_thanks": {
@@ -49,8 +139,22 @@
 			"text": "A palicada precisa de reparos. Se trouxer seis pecas de sucata dos saqueadores, eu o recompensarei.",
 			"text_key": "dlg.dlg_elder_orla.scrap_offer",
 			"choices": [
-				{"text": "Conte comigo.", "text_key": "dlg.dlg_elder_orla.scrap_offer.c1", "effects": [{"type": "accept_quest", "quest_id": "gw_scrap_for_orla"}], "next": "scrap_accepted"},
-				{"text": "Nao agora.", "text_key": "dlg.dlg_elder_orla.scrap_offer.c2", "next": null}
+				{
+					"text": "Conte comigo.",
+					"text_key": "dlg.dlg_elder_orla.scrap_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_scrap_for_orla"
+						}
+					],
+					"next": "scrap_accepted"
+				},
+				{
+					"text": "Nao agora.",
+					"text_key": "dlg.dlg_elder_orla.scrap_offer.c2",
+					"next": null
+				}
 			]
 		},
 		"scrap_accepted": {
@@ -68,7 +172,17 @@
 			"text": "Isso servira. A vila agradece.",
 			"text_key": "dlg.dlg_elder_orla.scrap_done",
 			"choices": [
-				{"text": "Entregar a sucata.", "text_key": "dlg.dlg_elder_orla.scrap_done.c1", "effects": [{"type": "turn_in_quest", "quest_id": "gw_scrap_for_orla"}], "next": "scrap_thanks"}
+				{
+					"text": "Entregar a sucata.",
+					"text_key": "dlg.dlg_elder_orla.scrap_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_scrap_for_orla"
+						}
+					],
+					"next": "scrap_thanks"
+				}
 			]
 		},
 		"scrap_thanks": {
@@ -80,6 +194,67 @@
 			"speaker": "npc_elder_orla",
 			"text": "As arvores sussurram, mas por ora a vila esta em paz.",
 			"text_key": "dlg.dlg_elder_orla.idle"
+		},
+		"song_offer": {
+			"speaker": "npc_elder_orla",
+			"text": "Voce derrotou o guardiao, a matriarca e o xama. Falta selar as raizes. Escute o relato de Ilmar e traga sucata para as ataduras.",
+			"text_key": "dlg.dlg_elder_orla.song_offer",
+			"choices": [
+				{
+					"text": "Vou ouvir Ilmar.",
+					"text_key": "dlg.dlg_elder_orla.song_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_rootsong"
+						}
+					],
+					"next": "song_accepted"
+				},
+				{
+					"text": "Agora nao.",
+					"text_key": "dlg.dlg_elder_orla.song_offer.c2",
+					"next": null
+				}
+			]
+		},
+		"song_accepted": {
+			"speaker": "npc_elder_orla",
+			"text": "Ilmar sabe o que fazer. Traga sucata, mesmo que pouca.",
+			"text_key": "dlg.dlg_elder_orla.song_accepted"
+		},
+		"song_waiting": {
+			"speaker": "npc_elder_orla",
+			"text": "As raizes ainda esperam. Ilmar e a sucata, nessa ordem.",
+			"text_key": "dlg.dlg_elder_orla.song_waiting"
+		},
+		"song_done": {
+			"speaker": "npc_elder_orla",
+			"text": "Entao e hora. Que as raizes antigas guardem o que restou.",
+			"text_key": "dlg.dlg_elder_orla.song_done",
+			"choices": [
+				{
+					"text": "Selar as raizes.",
+					"text_key": "dlg.dlg_elder_orla.song_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_rootsong"
+						}
+					],
+					"next": "song_thanks"
+				}
+			]
+		},
+		"song_thanks": {
+			"speaker": "npc_elder_orla",
+			"text": "Greenwood se lembrara de voce enquanto houver floresta. Leve este presente dos antigos.",
+			"text_key": "dlg.dlg_elder_orla.song_thanks"
+		},
+		"epilogue": {
+			"speaker": "npc_elder_orla",
+			"text": "As raizes cantam baixo agora. Greenwood dorme em paz, gracas a voce.",
+			"text_key": "dlg.dlg_elder_orla.epilogue"
 		}
 	}
 }

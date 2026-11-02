@@ -10,10 +10,12 @@ signal objective_progressed(quest_id: String, objective_id: String, value: int, 
 signal quest_ready(quest_id: String)
 signal quest_completed(quest_id: String, xp: int, items: Array)
 signal quest_abandoned(quest_id: String)
+signal poi_discovered(poi_id: String, xp: int, items: Array) ## E6.4
 signal quest_error(req_id: int, op: int, quest_id: String, code: String)
 
 var active: Dictionary = {}        ## quest_id -> {objective_id: int}
 var completed: Array[String] = []
+var discovered: Array[String] = [] ## E6.4: pontos de exploracao descobertos
 var ready: Dictionary = {}         ## quest_id -> true (pronta para entregar)
 var statuses: Dictionary = {}      ## quest_id -> "unavailable"|"available"|"active"|"ready"|"completed" (ultimo sync)
 var updates_ignored: int = 0
@@ -63,6 +65,14 @@ func apply(kind: int, data: Dictionary) -> bool:
 			active.erase(q5)
 			ready.erase(q5)
 			quest_abandoned.emit(q5)
+		Protocol.QUEST_DISCOVERED:
+			if not Protocol.validate_poi_discovered(data):
+				return _ignore()
+			var pid: Variant = data["poi_id"]
+			if not discovered.has(String(pid)):
+				discovered.append(String(pid))
+			var pitems: Array = data.get("items", []) if typeof(data.get("items", [])) == TYPE_ARRAY else []
+			poi_discovered.emit(String(pid), int(data.get("xp", 0)) if Protocol.is_finite_number(data.get("xp", 0)) else 0, pitems)
 		Protocol.QUEST_ERROR:
 			if not Protocol.is_finite_number(data.get("req_id", null)) or typeof(data.get("code", null)) != TYPE_STRING:
 				return _ignore()
@@ -109,6 +119,7 @@ func _apply_sync(data: Dictionary) -> bool:
 	state.restore(q, QuestCatalog.shared())
 	active = state.active.duplicate(true)
 	completed = state.completed.duplicate()
+	discovered = state.discovered.duplicate()
 	ready = {}
 	var cat: QuestCatalog = QuestCatalog.shared()
 	for qid: String in active:

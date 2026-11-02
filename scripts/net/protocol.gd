@@ -133,6 +133,7 @@ const QUEST_READY: int = 4      ## {quest_id}
 const QUEST_COMPLETED: int = 5  ## {quest_id, xp, items:[{item_id, qty}]}
 const QUEST_ABANDONED: int = 6  ## {quest_id}
 const QUEST_ERROR: int = 7      ## {req_id, op, quest_id, code}
+const QUEST_DISCOVERED: int = 8 ## E6.4 {poi_id, xp, items:[{item_id, qty}]} ponto de exploracao descoberto (so ao dono)
 ## s_dialogue: tipos.
 const DIALOGUE_VIEW: int = 1    ## {npc_id, dialogue_id, node_id, speaker, text, text_key, choices:[{index,text,text_key}], terminal}
 const DIALOGUE_END: int = 2     ## {npc_id}
@@ -275,6 +276,22 @@ static func validate_quest_cmd(req_id: Variant, op: Variant, quest_id: Variant) 
 	if not is_content_id(quest_id):
 		return _fail(REJECT_INVALID_PAYLOAD, "quest_id invalido")
 	return _ok({"req_id": int(req_id), "op": o, "quest_id": String(quest_id)})
+
+
+## E6.4: payload de s_quest(QUEST_DISCOVERED) {poi_id, xp, items:[{item_id, qty}]} (o cliente nao confia nos tipos do fio).
+static func validate_poi_discovered(data: Variant) -> bool:
+	if typeof(data) != TYPE_DICTIONARY:
+		return false
+	var d: Dictionary = data
+	if not is_content_id(d.get("poi_id", null)) or not is_finite_number(d.get("xp", null)) or float(d["xp"]) < 0.0 or float(d["xp"]) > 100000.0:
+		return false
+	var items: Variant = d.get("items", [])
+	if typeof(items) != TYPE_ARRAY or (items as Array).size() > 8:
+		return false
+	for it: Variant in items:
+		if typeof(it) != TYPE_DICTIONARY or not is_content_id((it as Dictionary).get("item_id", null)) or not is_finite_number((it as Dictionary).get("qty", null)):
+			return false
+	return true
 
 
 ## c_dialogue_cmd(req_id, op, npc_id, choice). `npc_id` so vale em OPEN (vazio nas outras ops);

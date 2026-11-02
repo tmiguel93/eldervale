@@ -106,3 +106,6 @@ Nao ha migracao 0004. Os itens coletados e os crafts reutilizam `reward_claims` 
 em `idempotency_key`, ja `UNIQUE` por personagem) e as tabelas `character_inventory`/`characters` existentes.
 Nada a desfazer em rollback de schema; para reverter o codigo basta o deploy anterior (chaves `craft:`/`loot:`
 ja gravadas em `reward_claims` ficam inertes).
+
+### E6.4 (exploração): sem migração 0007
+As descobertas de pontos de exploração ficam em `characters.quests` (jsonb da migração 0003) na chave opcional `discovered: ["<poi_id>", ...]` (ausente quando vazia; saves antigos continuam válidos e inalterados). Não há DDL novo, portanto não há SQL de desfazer: reverter o CÓDIGO é seguro (o código anterior rejeitaria um estado com o campo `discovered` no checkpoint, mas o servidor anterior nunca o envia; o campo extra já gravado é preservado como está e ignorado). Chaves `explore:<poi_id>:<personagem>` ficam em `reward_claims` (sem migração) e são inofensivas após o rollback. Para "apagar" descobertas de um personagem de teste: `UPDATE characters SET quests = quests - 'discovered' WHERE id = '<uuid>';` (as chaves em `reward_claims` precisam ser removidas junto, senão o replay devolve o resultado antigo sem reaplicar).

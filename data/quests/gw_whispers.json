@@ -1,0 +1,50 @@
+{
+	"schema_version": 1,
+	"id": "gw_whispers",
+	"type": "story",
+	"region": "greenwood",
+	"title": "Sussurros da Trilha",
+	"title_key": "quest.gw_whispers.title",
+	"description": "Pell ouviu rumores sobre a mata. Fale com a guardia Lysa, na entrada da trilha, e depois com o estudioso Ilmar.",
+	"description_key": "quest.gw_whispers.description",
+	"giver_npc": "npc_mapper_pell",
+	"turn_in_npc": "npc_mapper_pell",
+	"prerequisites": {
+		"quests": [
+			"gw_wild_survey"
+		],
+		"min_level": 1
+	},
+	"objectives": [
+		{
+			"id": "talk_lysa",
+			"type": "talk",
+			"target": "npc_warden_lysa",
+			"required": 1,
+			"text": "Fale com a guardia Lysa",
+			"text_key": "quest.gw_whispers.obj.talk_lysa"
+		},
+		{
+			"id": "talk_ilmar",
+			"type": "talk",
+			"target": "npc_scholar_ilmar",
+			"required": 1,
+			"text": "Fale com o estudioso Ilmar",
+			"text_key": "quest.gw_whispers.obj.talk_ilmar"
+		}
+	],
+	"rewards": {
+		"xp": 160,
+		"items": [
+			{
+				"item_id": "potion_minor",
+				"qty": 2
+			},
+			{
+				"item_id": "scrap_material",
+				"qty": 2
+			}
+		]
+	},
+	"abandonable": true
+}

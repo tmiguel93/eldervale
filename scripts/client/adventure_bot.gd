@@ -7,6 +7,7 @@ extends RefCounted
 ##   adv_hub_wild   hub + selvagem: falar com NPCs, aceitar/entregar quests, abater, coletar, craftar, replay de entrega
 ##   adv_ruins      hub -> selvagem (mini-chefe) -> ruinas (puzzle, conjuradores, chefe) [-> volta ao hub e entrega]
 ##   adv_party      igual ao ruins, enxuto, para 4 jogadores (cada um com o proprio personagem)
+##   adv_e6         E6.4: 2 quests novas (gw_wild_survey, gw_whispers) + 4 pontos de exploracao (hub e selvagem), com backend real
 ##   adv_prep       aceita/entrega quests no hub e fica parado (cenarios de falha: queda do servidor / do backend)
 ##   adv_zone_drop  anda ate o portal e DERRUBA a conexao no meio da transicao de zona
 ##   adv_check      so conecta, olha o estado sincronizado e fica parado (verifica o que foi persistido)
@@ -107,6 +108,27 @@ static func steps_for(bot: String) -> Array[Dictionary]:
 				s.append({"type": "zone", "to": "zone_hub", "name": "zone:hub_return"})
 				s.append(_q("turn_in", "gw_ruins_expedition", ilmar))
 			s.append({"type": "wait", "secs": 1.0, "name": "settle"})
+		"adv_e6":
+			var pell: String = "npc_mapper_pell"
+			var lysa: String = "npc_warden_lysa"
+			s.append(_q("accept", "gw_welcome", orla))
+			s.append({"type": "talk", "npc": brannoch, "choose": [], "name": "talk:brannoch"})
+			s.append(_q("turn_in", "gw_welcome", orla))
+			s.append({"type": "poi", "poi": "poi_hub_hollow_stump", "name": "poi:stump"})
+			s.append(_q("accept", "gw_wild_survey", pell))
+			s.append({"type": "zone", "to": "zone_wild", "name": "zone:wild"})
+			s.append({"type": "poi", "poi": "poi_wild_fallen_oak", "name": "poi:oak"})
+			s.append({"type": "poi", "poi": "poi_wild_old_milestone", "name": "poi:milestone"})
+			s.append({"type": "poi", "poi": "poi_wild_hunter_cache", "name": "poi:cache"})
+			s.append({"type": "zone", "to": "zone_hub", "name": "zone:hub"})
+			s.append(_q("turn_in", "gw_wild_survey", pell))
+			s.append(_q("accept", "gw_whispers", pell))
+			s.append({"type": "talk", "npc": ilmar, "choose": [], "name": "talk:ilmar"})
+			s.append({"type": "zone", "to": "zone_wild", "name": "zone:wild2"})
+			s.append({"type": "talk", "npc": lysa, "choose": [], "name": "talk:lysa"})
+			s.append({"type": "zone", "to": "zone_hub", "name": "zone:hub2"})
+			s.append(_q("turn_in", "gw_whispers", pell))
+			s.append({"type": "wait", "secs": 1.0, "name": "settle"})
 		"adv_prep":
 			s.append(_q("accept", "gw_welcome", orla))
 			s.append({"type": "talk", "npc": brannoch, "choose": [], "name": "talk:brannoch"})
@@ -197,6 +219,8 @@ func _run(st: Dictionary, pos: Vector3, t: float, out: Array[Dictionary]) -> boo
 			return _run_craft(st, pos, t, out)
 		"puzzle":
 			return _run_puzzle(pos, t, out)
+		"poi":
+			return _run_poi(st, pos, t, out)
 	return true
 
 
@@ -432,6 +456,17 @@ func _run_craft(st: Dictionary, pos: Vector3, t: float, out: Array[Dictionary]) 
 	return craft_results.size() > int(_memo["n0"]) or t - float(_memo["sent"]) > 6.0
 
 
+## E6.4: anda ate o centro do ponto de exploracao (pelos DADOS) e espera o servidor descobri-lo (so ele decide).
+func _run_poi(st: Dictionary, pos: Vector3, t: float, out: Array[Dictionary]) -> bool:
+	var poi: String = String(st["poi"])
+	if _s.quest_log.discovered.has(poi):
+		out.append(_in(Vector2.ZERO, 0))
+		return true
+	var c: Vector3 = ExplorationCatalog.shared().get_point(poi).get("center", pos)
+	var near: bool = _walk(pos, c, 0.8, t, out)
+	return near and t - _step_t0 > 600.0 # (so sai por `discovered` ou pelo timeout do passo)
+
+
 func _run_puzzle(pos: Vector3, _t: float, out: Array[Dictionary]) -> bool:
 	var r: Dictionary = BotScript.world_tour_step(pos, _memo)
 	for it: Dictionary in r["items"]:
@@ -447,4 +482,4 @@ static func _in(move: Vector2, actions: int) -> Dictionary:
 func quest_summary() -> Dictionary:
 	var log: ClientQuestLog = _s.quest_log
 	return {"active": log.active.duplicate(true), "completed": log.completed.duplicate(), "ready": log.ready.keys(), "errors": quest_errors.duplicate(),
-		"kills": kills.duplicate(), "timeouts": timeouts.duplicate(), "crafts": craft_results.duplicate(true), "step": current_step_name(), "plan_done": done}
+		"kills": kills.duplicate(), "timeouts": timeouts.duplicate(), "crafts": craft_results.duplicate(true), "discovered": log.discovered.duplicate(), "step": current_step_name(), "plan_done": done}

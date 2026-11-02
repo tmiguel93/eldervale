@@ -162,3 +162,17 @@ Resposta/abuso: comando inválido e rate limit (`equip_rate_per_sec=4`, `equip_b
 **Snapshot compacto inalterado**: o pickup continua `{type=item_id, qty}`; a instância completa só vai em `s_inventory`/`EVENT_PICKUP` ao dono (testado: pickup com e sem instância ocupam os mesmos bytes). `s_inventory` é uma mensagem reliable própria (fora do orçamento de MTU do snapshot compacto); o tamanho de um inventário cheio de instâncias (até 24 × 512 bytes) **não foi medido contra o MTU** — o ENet fragmenta mensagens reliable, mas vale medir antes de aumentar capacidade ou limite.
 Compatibilidade: como nas extensões anteriores, o RPC de alto nível do Godot exige o mesmo conjunto de métodos nos dois lados; servidor e cliente devem ser atualizados juntos.
 
+
+## Extensão E6.4 — Exploração e segredos (aditiva; `VERSION` continua 2)
+Nenhum RPC novo e nenhuma mensagem existente mudou: a exploração reutiliza `s_quest(kind, data)` (reliable, SÓ ao dono) com **um `kind` novo** e um campo opcional no sync. O cliente **não tem comando** para descobrir nada: a descoberta é decidida pelo servidor a partir da posição autoritativa do jogador (cilindro `center/radius/height` de `data/exploration/*.json`, nível mínimo e quests exigidas), uma única vez por personagem.
+
+| Item | Direção | Payload |
+|---|---|---|
+| `s_quest(QUEST_DISCOVERED=8, data)` | servidor -> SÓ o dono | `{poi_id:id, xp:número 0..100000, items:[{item_id:id, qty}] (<= 8)}` — recompensa já aplicada pelo servidor |
+| `s_quest(QUEST_SYNC).quests.discovered` | servidor -> dono | opcional: lista de `poi_id` já descobertos (ausente = nenhum; clientes antigos ignoram) |
+| `s_quest(QUEST_ERROR).quest_id = <poi_id>`, `code = "inventory_full"` | servidor -> dono | descoberta adiada por inventário cheio (avisa uma vez até o jogador sair do raio) |
+
+Objetivos de quest novos (dados, não rede): `craft` (alvo = item produzido na bancada; soma a quantidade) e `discover` (alvo = `poi_id`; `required` = 1). Um ponto já descoberto ao aceitar a quest conta na hora (a descoberta é única).
+Validação: `Protocol.validate_poi_discovered` (tipos estritos, id de conteúdo, `xp` finito 0..100000, no máximo 8 itens); `ClientQuestLog` ignora e conta (`updates_ignored`) payload malformado. Snapshots (compacto e legado) **inalterados**: nenhum byte novo por entidade.
+Persistência/anti-duplicação: `POST /internal/characters/:id/rewards` aceita `poi_id` (mutuamente exclusivo com `quest_id`) com `idempotency_key = explore:<poi_id>:<character_id>` e xp/itens **idênticos** ao catálogo (`shared/content_schemas/exploration.json`). Erros: `unknown_poi` (400), `poi_reward_mismatch` (400), `invalid_idempotency_key` (400; inclui `explore:` sem `poi_id`), `poi_already_discovered` (409), `poi_level_too_low` (409), `poi_prereq_missing` (409), `inventory_full` (409, nada aplicado). O estado fica em `characters.quests.discovered` (jsonb existente, sem migração); o checkpoint **nunca** cria nem apaga `discovered` (somente-servidor, como `completed`).
+Compatibilidade: como nas extensões anteriores, servidor e cliente devem ser atualizados juntos.

@@ -251,6 +251,8 @@ export interface RewardRequest {
   idempotency_key: string;
   /** E5.1: recompensa de quest (chave estavel `quest:<quest_id>:<character_id>`, xp/itens iguais ao catalogo). */
   quest_id?: string;
+  /** E6.4: recompensa de exploracao (chave estavel `explore:<poi_id>:<character_id>`, xp/itens iguais ao catalogo). */
+  poi_id?: string;
   xp: number;
   items: { item_id: string; qty: number; inst?: ItemInstance }[];
 }
@@ -258,7 +260,7 @@ export interface RewardRequest {
 export function validateRewardRequest(body: unknown, catalog: Catalog, limits: CharacterLimits, quests: QuestCatalog = EMPTY_QUESTS, characterId = ""): RewardRequest {
   const bad = (m: string, code = "invalid_reward") => Errors.badRequest(m, code);
   if (!isObj(body)) throw bad("corpo deve ser um objeto");
-  for (const k of Object.keys(body)) if (!["idempotency_key", "xp", "items", "quest_id"].includes(k)) throw bad(`campo desconhecido "${k.slice(0, 40)}"`);
+  for (const k of Object.keys(body)) if (!["idempotency_key", "xp", "items", "quest_id", "poi_id"].includes(k)) throw bad(`campo desconhecido "${k.slice(0, 40)}"`);
   const key = body.idempotency_key;
   if (typeof key !== "string" || !REWARD_KEY_RE.test(key)) throw bad("idempotency_key deve ter 8..128 chars [A-Za-z0-9._:-]", "invalid_idempotency_key");
   let xp = 0;
@@ -293,6 +295,20 @@ export function validateRewardRequest(body: unknown, catalog: Catalog, limits: C
   }
   const items: RewardRequest["items"] = [...merged.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([item_id, qty]) => ({ item_id, qty }));
   items.push(...rolled);
+  if (body.poi_id !== undefined) {
+    if (body.quest_id !== undefined) throw bad("quest_id e poi_id sao mutuamente exclusivos");
+    const pid = body.poi_id;
+    if (typeof pid !== "string" || !/^[a-z][a-z0-9_]{0,47}$/.test(pid)) throw bad("poi_id invalido", "invalid_reward");
+    const poi = quests.poi(pid);
+    if (!poi) throw bad("ponto de exploracao desconhecido", "unknown_poi");
+    if (key !== `explore:${pid}:${characterId}`) throw bad("idempotency_key de exploracao deve ser explore:<poi_id>:<character_id>", "invalid_idempotency_key");
+    if (rolled.length > 0) throw bad("instancia nao e aceita em recompensa de exploracao", "invalid_instance");
+    if (xp !== poi.rewards.xp || JSON.stringify(items) !== JSON.stringify(poi.rewards.items)) {
+      throw bad("recompensa diverge do catalogo do ponto", "poi_reward_mismatch");
+    }
+    return { idempotency_key: key, poi_id: pid, xp, items };
+  }
+  if (key.startsWith("explore:")) throw bad("prefixo explore: e reservado a recompensas com poi_id", "invalid_idempotency_key");
   if (body.quest_id !== undefined) {
     const qid = body.quest_id;
     if (typeof qid !== "string" || !/^[a-z][a-z0-9_]{0,47}$/.test(qid)) throw bad("quest_id invalido", "invalid_reward");

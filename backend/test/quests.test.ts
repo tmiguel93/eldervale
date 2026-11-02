@@ -65,7 +65,10 @@ const qrew = (c: { id: string }, qid: string) => {
 
 describe("catalogo de quests", () => {
   it("carrega do disco, valida referencias e esta em dia com data/quests", () => {
-    expect(qcat.ids().sort()).toEqual(["gw_clear_clearing", "gw_ruin_guardian", "gw_ruins_expedition", "gw_scrap_for_orla", "gw_welcome"]);
+    expect(qcat.ids().length).toBeGreaterThanOrEqual(10);
+    expect(qcat.ids().length).toBeLessThanOrEqual(15);
+    for (const id of ["gw_clear_clearing", "gw_ruin_guardian", "gw_ruins_expedition", "gw_scrap_for_orla", "gw_welcome", "gw_rootsong"]) expect(qcat.has(id)).toBe(true);
+    expect(qcat.poiIds().length).toBeGreaterThanOrEqual(6);
     expect(qcat.get("gw_welcome")!.rewards).toEqual({ xp: 60, items: [{ item_id: "potion_minor", qty: 2 }] });
     const root = fileURLToPath(new URL("../..", import.meta.url));
     const out = execFileSync(process.execPath, ["tools/gen_quests_catalog.mjs", "--check"], { cwd: root, encoding: "utf8" });

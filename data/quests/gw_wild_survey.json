@@ -1,0 +1,46 @@
+{
+	"schema_version": 1,
+	"id": "gw_wild_survey",
+	"type": "exploration",
+	"region": "greenwood",
+	"title": "Marcos da Mata",
+	"title_key": "quest.gw_wild_survey.title",
+	"description": "A cartografa Pell refaz o mapa da Mata Selvagem. Encontre o carvalho tombado e o marco de pedra antigo ao longo da trilha.",
+	"description_key": "quest.gw_wild_survey.description",
+	"giver_npc": "npc_mapper_pell",
+	"turn_in_npc": "npc_mapper_pell",
+	"prerequisites": {
+		"quests": [
+			"gw_welcome"
+		],
+		"min_level": 1
+	},
+	"objectives": [
+		{
+			"id": "find_oak",
+			"type": "discover",
+			"target": "poi_wild_fallen_oak",
+			"required": 1,
+			"text": "Encontre o carvalho tombado",
+			"text_key": "quest.gw_wild_survey.obj.find_oak"
+		},
+		{
+			"id": "find_milestone",
+			"type": "discover",
+			"target": "poi_wild_old_milestone",
+			"required": 1,
+			"text": "Encontre o marco de pedra antigo",
+			"text_key": "quest.gw_wild_survey.obj.find_milestone"
+		}
+	],
+	"rewards": {
+		"xp": 180,
+		"items": [
+			{
+				"item_id": "potion_minor",
+				"qty": 2
+			}
+		]
+	},
+	"abandonable": true
+}

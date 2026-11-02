@@ -1,0 +1,15 @@
+{
+	"schema_version": 1,
+	"id": "npc_smith_dorran",
+	"display_name": "Artifice Dorran [PLACEHOLDER]",
+	"display_name_key": "npc.npc_smith_dorran.name",
+	"region": "greenwood",
+	"dialogue_id": "dlg_smith_dorran",
+	"interact_radius": 3.5,
+	"position": [
+		4.0,
+		0.0,
+		-7.0
+	],
+	"placeholder": false
+}

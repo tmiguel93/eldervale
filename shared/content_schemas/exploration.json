@@ -1,0 +1,144 @@
+{
+  "schema_version": 1,
+  "source": "data/exploration/*.json (gerado por tools/gen_quests_catalog.mjs)",
+  "points": [
+    {
+      "id": "poi_hub_hollow_stump",
+      "zone": "zone_hub",
+      "min_level": 1,
+      "requires_quests": [],
+      "rewards": {
+        "xp": 25,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 1
+          },
+          {
+            "item_id": "scrap_material",
+            "qty": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "poi_ruins_altar_inscription",
+      "zone": "zone_ruins",
+      "min_level": 1,
+      "requires_quests": [],
+      "rewards": {
+        "xp": 80,
+        "items": []
+      }
+    },
+    {
+      "id": "poi_ruins_hidden_vault",
+      "zone": "zone_ruins",
+      "min_level": 2,
+      "requires_quests": [],
+      "rewards": {
+        "xp": 150,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 3
+          },
+          {
+            "item_id": "scrap_material",
+            "qty": 4
+          }
+        ]
+      }
+    },
+    {
+      "id": "poi_ruins_pillar_cache",
+      "zone": "zone_ruins",
+      "min_level": 1,
+      "requires_quests": [],
+      "rewards": {
+        "xp": 50,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 2
+          },
+          {
+            "item_id": "scrap_material",
+            "qty": 2
+          }
+        ]
+      }
+    },
+    {
+      "id": "poi_ruins_scribe_niche",
+      "zone": "zone_ruins",
+      "min_level": 1,
+      "requires_quests": [],
+      "rewards": {
+        "xp": 60,
+        "items": []
+      }
+    },
+    {
+      "id": "poi_wild_fallen_oak",
+      "zone": "zone_wild",
+      "min_level": 1,
+      "requires_quests": [],
+      "rewards": {
+        "xp": 40,
+        "items": []
+      }
+    },
+    {
+      "id": "poi_wild_hunter_cache",
+      "zone": "zone_wild",
+      "min_level": 1,
+      "requires_quests": [
+        "gw_welcome"
+      ],
+      "rewards": {
+        "xp": 30,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 2
+          },
+          {
+            "item_id": "scrap_material",
+            "qty": 3
+          }
+        ]
+      }
+    },
+    {
+      "id": "poi_wild_old_milestone",
+      "zone": "zone_wild",
+      "min_level": 1,
+      "requires_quests": [],
+      "rewards": {
+        "xp": 40,
+        "items": [
+          {
+            "item_id": "potion_minor",
+            "qty": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "poi_wild_thorn_relic",
+      "zone": "zone_wild",
+      "min_level": 3,
+      "requires_quests": [],
+      "rewards": {
+        "xp": 100,
+        "items": [
+          {
+            "item_id": "amulet_vigor",
+            "qty": 1
+          }
+        ]
+      }
+    }
+  ]
+}

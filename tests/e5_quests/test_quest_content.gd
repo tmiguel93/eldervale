@@ -81,7 +81,7 @@ func _test_quest_parse_negative(ctx: Object) -> void:
 		["sem objetivos", func(d: Dictionary) -> void: d["objectives"] = []],
 		["objetivo required 0", func(d: Dictionary) -> void: d["objectives"][0]["required"] = 0],
 		["objetivo required enorme", func(d: Dictionary) -> void: d["objectives"][0]["required"] = 100000],
-		["objetivo tipo invalido", func(d: Dictionary) -> void: d["objectives"][0]["type"] = "craft"],
+		["objetivo tipo invalido", func(d: Dictionary) -> void: d["objectives"][0]["type"] = "pvp_duel"],
 		["talk com required 2", func(d: Dictionary) -> void: d["objectives"][0]["type"] = "talk"],
 		["objetivos duplicados", func(d: Dictionary) -> void: d["objectives"].append(d["objectives"][0].duplicate())],
 		["recompensa vazia", func(d: Dictionary) -> void: d["rewards"] = {"xp": 0, "items": []}],

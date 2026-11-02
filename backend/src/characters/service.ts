@@ -12,7 +12,7 @@ import {
 import { applyXp, xpToNext } from "./progression.ts";
 import { EMPTY_QUESTS, type QuestCatalog } from "../quests/catalog.ts";
 import { normalizeStoredTalents, type TalentsState } from "../talents/rules.ts";
-import { completeQuest, emptyQuests, mergeCheckpointQuests, normalizeStoredQuests } from "../quests/state.ts";
+import { completeQuest, discoverPoi, emptyQuests, mergeCheckpointQuests, normalizeStoredQuests } from "../quests/state.ts";
 
 export interface ServiceCtx {
   catalog: Catalog;
@@ -227,7 +227,7 @@ export interface RewardResult {
 }
 
 export async function grantReward(db: Db, ctx: ServiceCtx, id: string, req: RewardRequest): Promise<{ replayed: boolean; result: RewardResult; character: CharacterRecord }> {
-  const canonical = JSON.stringify(req.quest_id ? { xp: req.xp, items: req.items, quest_id: req.quest_id } : { xp: req.xp, items: req.items });
+  const canonical = JSON.stringify(req.quest_id ? { xp: req.xp, items: req.items, quest_id: req.quest_id } : req.poi_id ? { xp: req.xp, items: req.items, poi_id: req.poi_id } : { xp: req.xp, items: req.items });
   return db.tx(async (tx) => {
     // Trava a linha: requests concorrentes do mesmo personagem (e da mesma chave) serializam aqui.
     const cur = await loadRecord(tx, id, { forUpdate: true });
@@ -247,6 +247,14 @@ export async function grantReward(db: Db, ctx: ServiceCtx, id: string, req: Rewa
     if (req.quest_id && curQuests.completed.includes(req.quest_id)) {
       throw Errors.conflict("quest ja concluida", "quest_already_completed");
     }
+    if (req.poi_id) {
+      // E6.4: a descoberta e unica por personagem. A chave ja cobre o replay; isto cobre uma chave diferente para o mesmo ponto.
+      if ((curQuests.discovered ?? []).includes(req.poi_id)) throw Errors.conflict("ponto ja descoberto", "poi_already_discovered");
+      const poi = ctx.quests?.poi(req.poi_id);
+      if (!poi) throw Errors.badRequest("ponto de exploracao desconhecido", "unknown_poi");
+      if (cur.state.level < poi.min_level) throw Errors.conflict("nivel insuficiente para este ponto", "poi_level_too_low");
+      for (const rq of poi.requires_quests) if (!curQuests.completed.includes(rq)) throw Errors.conflict("quest exigida nao concluida", "poi_prereq_missing");
+    }
     const xpRes = applyXp(cur.state.xp, req.xp);
     let inventory = cur.state.inventory;
     const held = instancesOf(cur.state);
@@ -264,7 +272,7 @@ export async function grantReward(db: Db, ctx: ServiceCtx, id: string, req: Rewa
       }
       inventory = add.inventory;
     }
-    const next: CharacterState = { ...cur.state, xp: xpRes.xp, level: xpRes.level, inventory, quests: req.quest_id ? completeQuest(curQuests, req.quest_id) : curQuests };
+    const next: CharacterState = { ...cur.state, xp: xpRes.xp, level: xpRes.level, inventory, quests: req.quest_id ? completeQuest(curQuests, req.quest_id) : req.poi_id ? discoverPoi(curQuests, req.poi_id) : curQuests };
     const revision = await writeState(tx, ctx, id, cur.revision, next);
     const result: RewardResult = {
       xp_granted: xpRes.xp - cur.state.xp,

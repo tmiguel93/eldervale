@@ -85,7 +85,7 @@ static func load_pending_refs(path: String = PENDING_REFS_PATH) -> Dictionary:
 
 ## Referencias cruzadas. `pending` = resultado de load_pending_refs (ids aceitos mesmo sem existir).
 ## Devolve a lista de erros (vazia = consistente). Detecta ciclos de prerequisitos.
-func validate_refs(registry: ContentRegistry, npcs: NpcDirectory, areas: AreaSet, pending: Dictionary) -> Array[String]:
+func validate_refs(registry: ContentRegistry, npcs: NpcDirectory, areas: AreaSet, pending: Dictionary, exploration: ExplorationCatalog = null) -> Array[String]:
 	var errors: Array[String] = []
 	errors.append_array(load_errors)
 	var pending_enemies: Array = pending.get("enemies", [])
@@ -117,6 +117,12 @@ func validate_refs(registry: ContentRegistry, npcs: NpcDirectory, areas: AreaSet
 				QuestDef.OBJ_TALK:
 					if not npcs.has_npc(o.target):
 						errors.append("%s: npc '%s' inexistente" % [ow, o.target])
+				QuestDef.OBJ_CRAFT:
+					if not registry.items.has(StringName(o.target)):
+						errors.append("%s: item '%s' (craft) inexistente" % [ow, o.target])
+				QuestDef.OBJ_DISCOVER:
+					if exploration != null and not exploration.has_point(o.target):
+						errors.append("%s: ponto de exploracao '%s' inexistente" % [ow, o.target])
 		for it: Dictionary in q.reward_items:
 			if not registry.items.has(StringName(it["item_id"])) and not pending_items.has(it["item_id"]):
 				errors.append("%s: item de recompensa '%s' inexistente" % [w, it["item_id"]])

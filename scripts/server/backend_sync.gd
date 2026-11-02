@@ -265,11 +265,11 @@ func enqueue_checkpoint(character_id: String, state: Dictionary, coalesce: bool)
 	return true
 
 
-func enqueue_reward(character_id: String, idempotency_key: String, xp: int, items: Array, quest_id: String = "") -> bool:
+func enqueue_reward(character_id: String, idempotency_key: String, xp: int, items: Array, quest_id: String = "", poi_id: String = "") -> bool:
 	var cs: CharSync = char_sync(character_id)
 	if cs == null:
 		return false
-	_enqueue(cs, {"kind": "reward", "key": idempotency_key, "xp": xp, "items": items, "quest_id": quest_id})
+	_enqueue(cs, {"kind": "reward", "key": idempotency_key, "xp": xp, "items": items, "quest_id": quest_id, "poi_id": poi_id})
 	return true
 
 
@@ -359,7 +359,7 @@ func _run_op(cs: CharSync, op: Dictionary) -> void:
 		"checkpoint":
 			client.checkpoint(cid, cs.revision, op["state"], _op_checkpoint_done.bind(cs, op))
 		"reward":
-			client.rewards(cid, String(op["key"]), int(op["xp"]), op["items"], _op_reward_done.bind(cs, op), String(op.get("quest_id", "")))
+			client.rewards(cid, String(op["key"]), int(op["xp"]), op["items"], _op_reward_done.bind(cs, op), String(op.get("quest_id", "")), String(op.get("poi_id", "")))
 		"craft":
 			client.craft(cid, String(op["key"]), String(op["recipe_id"]), _op_craft_done.bind(cs, op))
 		"talent":

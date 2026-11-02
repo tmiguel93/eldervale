@@ -1,0 +1,50 @@
+{
+	"schema_version": 1,
+	"id": "gw_thorn_hunt",
+	"type": "hunt",
+	"region": "greenwood",
+	"title": "A Matriarca dos Espinhos",
+	"title_key": "quest.gw_thorn_hunt.title",
+	"description": "Brannoch rastreou a toca da matriarca dos espinhos. Derrube-a e os arqueiros que a protegem.",
+	"description_key": "quest.gw_thorn_hunt.description",
+	"giver_npc": "npc_hunter_brannoch",
+	"turn_in_npc": "npc_hunter_brannoch",
+	"prerequisites": {
+		"quests": [
+			"gw_clear_clearing"
+		],
+		"min_level": 3
+	},
+	"objectives": [
+		{
+			"id": "kill_scouts",
+			"type": "kill",
+			"target": "bow_scout",
+			"required": 2,
+			"text": "Derrote batedores arqueiros",
+			"text_key": "quest.gw_thorn_hunt.obj.kill_scouts"
+		},
+		{
+			"id": "kill_alpha",
+			"type": "kill",
+			"target": "thorn_alpha",
+			"required": 1,
+			"text": "Derrote a matriarca dos espinhos",
+			"text_key": "quest.gw_thorn_hunt.obj.kill_alpha"
+		}
+	],
+	"rewards": {
+		"xp": 320,
+		"items": [
+			{
+				"item_id": "sword_rare",
+				"qty": 1
+			},
+			{
+				"item_id": "potion_minor",
+				"qty": 2
+			}
+		]
+	},
+	"abandonable": true
+}

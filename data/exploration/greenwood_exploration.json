@@ -1,0 +1,253 @@
+{
+	"schema_version": 1,
+	"region": "greenwood",
+	"note": "E6.4. Pontos de exploracao (marcos, baus e segredos). Descoberta automatica por PROXIMIDADE verificada no servidor (posicao autoritativa), uma vez por personagem; recompensa unica e idempotente (chave explore:<poi_id>:<personagem>). O catalogo que o backend usa e gerado por tools/gen_quests_catalog.mjs.",
+	"points": [
+		{
+			"id": "poi_hub_hollow_stump",
+			"kind": "secret",
+			"zone": "zone_hub",
+			"display_name": "Toco Oco da Vila",
+			"display_name_key": "poi.poi_hub_hollow_stump.name",
+			"text": "Alguem escondeu algumas coisas num toco oco, ao fundo da vila.",
+			"text_key": "poi.poi_hub_hollow_stump.text",
+			"center": [
+				-24,
+				0,
+				-16
+			],
+			"radius": 2.5,
+			"height": 4.0,
+			"min_level": 1,
+			"requires_quests": [],
+			"rewards": {
+				"xp": 25,
+				"items": [
+					{
+						"item_id": "scrap_material",
+						"qty": 2
+					},
+					{
+						"item_id": "potion_minor",
+						"qty": 1
+					}
+				]
+			}
+		},
+		{
+			"id": "poi_wild_fallen_oak",
+			"kind": "landmark",
+			"zone": "zone_wild",
+			"display_name": "Carvalho Tombado",
+			"display_name_key": "poi.poi_wild_fallen_oak.name",
+			"text": "Um carvalho imenso tombou ao lado da trilha, ha muito tempo.",
+			"text_key": "poi.poi_wild_fallen_oak.text",
+			"center": [
+				182,
+				0,
+				8
+			],
+			"radius": 4.0,
+			"height": 4.0,
+			"min_level": 1,
+			"requires_quests": [],
+			"rewards": {
+				"xp": 40,
+				"items": []
+			}
+		},
+		{
+			"id": "poi_wild_old_milestone",
+			"kind": "landmark",
+			"zone": "zone_wild",
+			"display_name": "Marco de Pedra Antigo",
+			"display_name_key": "poi.poi_wild_old_milestone.name",
+			"text": "Um marco de pedra coberto de musgo, mais antigo que a vila.",
+			"text_key": "poi.poi_wild_old_milestone.text",
+			"center": [
+				222,
+				0,
+				6
+			],
+			"radius": 4.0,
+			"height": 4.0,
+			"min_level": 1,
+			"requires_quests": [],
+			"rewards": {
+				"xp": 40,
+				"items": [
+					{
+						"item_id": "potion_minor",
+						"qty": 1
+					}
+				]
+			}
+		},
+		{
+			"id": "poi_wild_hunter_cache",
+			"kind": "chest",
+			"zone": "zone_wild",
+			"display_name": "Esconderijo do Cacador",
+			"display_name_key": "poi.poi_wild_hunter_cache.name",
+			"text": "Um bau discreto, com a marca de Brannoch.",
+			"text_key": "poi.poi_wild_hunter_cache.text",
+			"center": [
+				166,
+				0,
+				-14
+			],
+			"radius": 2.5,
+			"height": 4.0,
+			"min_level": 1,
+			"requires_quests": [
+				"gw_welcome"
+			],
+			"rewards": {
+				"xp": 30,
+				"items": [
+					{
+						"item_id": "potion_minor",
+						"qty": 2
+					},
+					{
+						"item_id": "scrap_material",
+						"qty": 3
+					}
+				]
+			}
+		},
+		{
+			"id": "poi_wild_thorn_relic",
+			"kind": "secret",
+			"zone": "zone_wild",
+			"display_name": "Reliquia da Toca",
+			"display_name_key": "poi.poi_wild_thorn_relic.name",
+			"text": "Atras das pedras da toca, algo brilha entre os espinhos.",
+			"text_key": "poi.poi_wild_thorn_relic.text",
+			"center": [
+				228,
+				0,
+				-38
+			],
+			"radius": 3.0,
+			"height": 4.0,
+			"min_level": 3,
+			"requires_quests": [],
+			"rewards": {
+				"xp": 100,
+				"items": [
+					{
+						"item_id": "amulet_vigor",
+						"qty": 1
+					}
+				]
+			}
+		},
+		{
+			"id": "poi_ruins_scribe_niche",
+			"kind": "landmark",
+			"zone": "zone_ruins",
+			"display_name": "Nicho do Escriba",
+			"display_name_key": "poi.poi_ruins_scribe_niche.name",
+			"text": "Um nicho na parede guarda restos de tabuas de escrita.",
+			"text_key": "poi.poi_ruins_scribe_niche.text",
+			"center": [
+				368,
+				0,
+				-12
+			],
+			"radius": 3.0,
+			"height": 4.0,
+			"min_level": 1,
+			"requires_quests": [],
+			"rewards": {
+				"xp": 60,
+				"items": []
+			}
+		},
+		{
+			"id": "poi_ruins_pillar_cache",
+			"kind": "chest",
+			"zone": "zone_ruins",
+			"display_name": "Cache do Pilar",
+			"display_name_key": "poi.poi_ruins_pillar_cache.name",
+			"text": "Entre os escombros do pilar, uma caixa lacrada.",
+			"text_key": "poi.poi_ruins_pillar_cache.text",
+			"center": [
+				384,
+				0,
+				17
+			],
+			"radius": 2.5,
+			"height": 4.0,
+			"min_level": 1,
+			"requires_quests": [],
+			"rewards": {
+				"xp": 50,
+				"items": [
+					{
+						"item_id": "potion_minor",
+						"qty": 2
+					},
+					{
+						"item_id": "scrap_material",
+						"qty": 2
+					}
+				]
+			}
+		},
+		{
+			"id": "poi_ruins_altar_inscription",
+			"kind": "landmark",
+			"zone": "zone_ruins",
+			"display_name": "Inscricao do Altar",
+			"display_name_key": "poi.poi_ruins_altar_inscription.name",
+			"text": "Uma inscricao quase apagada corre pela lateral do altar.",
+			"text_key": "poi.poi_ruins_altar_inscription.text",
+			"center": [
+				436,
+				0,
+				8
+			],
+			"radius": 4.0,
+			"height": 4.0,
+			"min_level": 1,
+			"requires_quests": [],
+			"rewards": {
+				"xp": 80,
+				"items": []
+			}
+		},
+		{
+			"id": "poi_ruins_hidden_vault",
+			"kind": "secret",
+			"zone": "zone_ruins",
+			"display_name": "Cofre Oculto",
+			"display_name_key": "poi.poi_ruins_hidden_vault.name",
+			"text": "Uma laje solta esconde um pequeno cofre atras do salao.",
+			"text_key": "poi.poi_ruins_hidden_vault.text",
+			"center": [
+				438,
+				0,
+				-24
+			],
+			"radius": 2.5,
+			"height": 4.0,
+			"min_level": 2,
+			"requires_quests": [],
+			"rewards": {
+				"xp": 150,
+				"items": [
+					{
+						"item_id": "potion_minor",
+						"qty": 3
+					},
+					{
+						"item_id": "scrap_material",
+						"qty": 4
+					}
+				]
+			}
+		}
+	]
+}

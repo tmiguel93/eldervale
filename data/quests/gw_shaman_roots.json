@@ -1,0 +1,46 @@
+{
+	"schema_version": 1,
+	"id": "gw_shaman_roots",
+	"type": "hunt",
+	"region": "greenwood",
+	"title": "Raizes do Xama",
+	"title_key": "quest.gw_shaman_roots.title",
+	"description": "Lysa viu um xama do bosque alimentando a corrupcao. Abata-o e os escavadores que protegem suas raizes.",
+	"description_key": "quest.gw_shaman_roots.description",
+	"giver_npc": "npc_warden_lysa",
+	"turn_in_npc": "npc_warden_lysa",
+	"prerequisites": {
+		"quests": [
+			"gw_whispers"
+		],
+		"min_level": 2
+	},
+	"objectives": [
+		{
+			"id": "kill_shaman",
+			"type": "kill",
+			"target": "grove_shaman",
+			"required": 1,
+			"text": "Derrote o xama do bosque",
+			"text_key": "quest.gw_shaman_roots.obj.kill_shaman"
+		},
+		{
+			"id": "kill_lurkers",
+			"type": "kill",
+			"target": "burrow_lurker",
+			"required": 2,
+			"text": "Derrote escavadores",
+			"text_key": "quest.gw_shaman_roots.obj.kill_lurkers"
+		}
+	],
+	"rewards": {
+		"xp": 260,
+		"items": [
+			{
+				"item_id": "armor_leather",
+				"qty": 1
+			}
+		]
+	},
+	"abandonable": true
+}

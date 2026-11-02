@@ -1,0 +1,38 @@
+{
+	"schema_version": 1,
+	"id": "gw_bench_lessons",
+	"type": "side",
+	"region": "greenwood",
+	"title": "Licoes da Bancada",
+	"title_key": "quest.gw_bench_lessons.title",
+	"description": "O artifice Dorran quer ver se voce sabe usar a bancada da vila: prepare duas pocoes menores com a sucata que juntou.",
+	"description_key": "quest.gw_bench_lessons.description",
+	"giver_npc": "npc_smith_dorran",
+	"turn_in_npc": "npc_smith_dorran",
+	"prerequisites": {
+		"quests": [
+			"gw_scrap_for_orla"
+		],
+		"min_level": 1
+	},
+	"objectives": [
+		{
+			"id": "craft_potions",
+			"type": "craft",
+			"target": "potion_minor",
+			"required": 2,
+			"text": "Prepare pocoes menores na bancada",
+			"text_key": "quest.gw_bench_lessons.obj.craft_potions"
+		}
+	],
+	"rewards": {
+		"xp": 140,
+		"items": [
+			{
+				"item_id": "scrap_material",
+				"qty": 4
+			}
+		]
+	},
+	"abandonable": true
+}

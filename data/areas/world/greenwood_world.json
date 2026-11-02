@@ -20,7 +20,7 @@
 			"portals": [
 				{"id": "hub_to_wild", "pos": [27, 0, 0], "radius": 2.5, "to_zone": "zone_wild", "to_spawn": "from_hub", "label": "Trilha da Floresta"}
 			],
-			"npcs": ["npc_elder_orla", "npc_hunter_brannoch", "npc_scholar_ilmar"],
+			"npcs": ["npc_elder_orla", "npc_hunter_brannoch", "npc_scholar_ilmar", "npc_smith_dorran", "npc_mapper_pell"],
 			"stations": [
 				{"id": "station_greenwood_workbench", "display_name": "Bancada de Greenwood", "pos": [6, 0, -4], "radius": 3.5}
 			],
@@ -61,7 +61,7 @@
 				{"id": "wild_to_hub", "pos": [153, 0, 0], "radius": 2.5, "to_zone": "zone_hub", "to_spawn": "from_wild", "label": "Vila"},
 				{"id": "wild_to_ruins", "pos": [247, 0, 0], "radius": 2.5, "to_zone": "zone_ruins", "to_spawn": "from_wild", "label": "Ruinas Antigas"}
 			],
-			"npcs": [],
+			"npcs": ["npc_warden_lysa"],
 			"props": [
 				{"kind": "box", "name": "Trail", "pos": [200, 0.02, 0], "size": [92, 0.04, 6], "color": "#8a7a58", "collide": false},
 				{"kind": "box", "name": "Log1", "pos": [185, 0.4, 12], "size": [4, 0.8, 0.9], "color": "#6a4a2c"},

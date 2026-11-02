@@ -231,3 +231,30 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Consequências:** a integração valida a rolagem real (orçamento/faixas), mas não a distribuição de raridade (coberta pelo teste unitário).
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
 
+
+## DEC-0021 — Descobertas de exploração no jsonb `characters.quests` (sem migração 0007)
+- **Contexto:** E6.4 precisa persistir pontos descobertos por personagem.
+- **Opções consideradas:** (a) tabela nova (migração 0007); (b) lista opcional `discovered` no jsonb `quests` existente.
+- **Escolha provisória:** (b). Somente-servidor (checkpoint não cria/remove), saves antigos válidos, sem DDL. A unicidade vem de `reward_claims` (`explore:<poi>:<personagem>`).
+- **Consequências:** sem consulta relacional por POI; se isso for necessário, migrar depois (0007) com rollback documentado.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0022 — Descoberta automática por proximidade, decidida só no servidor
+- **Opções consideradas:** (a) RPC do cliente "descobrir"; (b) varredura no tick pela posição autoritativa.
+- **Escolha provisória:** (b): sem novo RPC, sem superfície de forja; protocolo aditivo (`QUEST_DISCOVERED=8`, `VERSION` continua 2).
+- **Consequências:** custo O(pontos da zona) por jogador por tick (9 pontos no total, desprezível); interação ativa (apertar E) fica para futuro.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0023 — Objetivos `craft` e `discover`
+- **Escolha provisória:** `craft` soma a quantidade produzida do item alvo enquanto a quest está ativa; `discover` exige `required` = 1 e já conta se o ponto foi descoberto antes de aceitar.
+- **Consequências:** o gerador de catálogos e o backend validam os dois tipos; quests antigas não mudam.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0024 — Validador de conteúdo em Node sem dependências
+- **Escolha provisória:** `tools/validate_content.mjs` reutiliza os geradores `tools/gen_*_catalog.mjs`; saída 0/1/2; testado por vitest com corrupções (negativos). Roda sem Godot/banco.
+- **Consequências:** regras de conteúdo novas devem ser acrescentadas ao validador; não substitui os testes Godot.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0025 — Recompensas únicas/raras do arco E6.4
+- **Escolha provisória:** `gw_thorn_hunt` concede `sword_rare` e `gw_rootsong` concede `unique_featherknot` (únicos por personagem pela chave `quest:<id>:<personagem>`); `poi_wild_thorn_relic` concede `amulet_vigor`. Os valores de xp são provisórios de balanceamento.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.

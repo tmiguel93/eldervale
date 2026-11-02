@@ -426,7 +426,7 @@ func _test_map_view(ctx: Object) -> void:
 	var ft: Array[String] = []
 	for it: Dictionary in fm.build_draw_list():
 		ft.append(String(it["type"]))
-	ctx.check(ft.count("portal") == 1 and ft.count("npc") == 3 and ft.count("station") == 1, "mapa grande: portal, 3 NPCs, bancada")
+	ctx.check(ft.count("portal") == 1 and ft.count("npc") == 5 and ft.count("station") == 1, "mapa grande: portal, 5 NPCs, bancada")
 	var north: Vector2 = fm.project(zone.center + Vector3(0, 0, -10))
 	var south: Vector2 = fm.project(zone.center + Vector3(0, 0, 10))
 	ctx.check(north.y < south.y and fm.project(zone.center).is_equal_approx(Vector2(270, 250)), "mapa grande: norte (-Z) em cima, zona centralizada")

@@ -1,0 +1,118 @@
+{
+	"schema_version": 1,
+	"id": "dlg_warden_lysa",
+	"npc_id": "npc_warden_lysa",
+	"entries": [
+		{
+			"if": {
+				"quest": "gw_shaman_roots",
+				"state": "ready"
+			},
+			"node": "roots_done"
+		},
+		{
+			"if": {
+				"quest": "gw_shaman_roots",
+				"state": "available"
+			},
+			"node": "roots_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_shaman_roots",
+				"state": "active"
+			},
+			"node": "roots_waiting"
+		},
+		{
+			"if": {
+				"quest": "gw_whispers",
+				"state": "active"
+			},
+			"node": "whisp_talk"
+		},
+		{
+			"if": {
+				"quest": "gw_shaman_roots",
+				"state": "completed"
+			},
+			"node": "after"
+		},
+		{
+			"node": "idle"
+		}
+	],
+	"nodes": {
+		"roots_offer": {
+			"speaker": "npc_warden_lysa",
+			"text": "Um xama do bosque canta para as raizes e elas respondem com corrupcao. Derrube-o, e aos escavadores que guardam o ninho dele.",
+			"text_key": "dlg.dlg_warden_lysa.roots_offer",
+			"choices": [
+				{
+					"text": "Cuidarei disso.",
+					"text_key": "dlg.dlg_warden_lysa.roots_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_shaman_roots"
+						}
+					],
+					"next": "roots_accepted"
+				},
+				{
+					"text": "Agora nao.",
+					"text_key": "dlg.dlg_warden_lysa.roots_offer.c2",
+					"next": null
+				}
+			]
+		},
+		"roots_accepted": {
+			"speaker": "npc_warden_lysa",
+			"text": "Os escavadores ficam sob a terra mole. Ouca antes de pisar.",
+			"text_key": "dlg.dlg_warden_lysa.roots_accepted"
+		},
+		"roots_waiting": {
+			"speaker": "npc_warden_lysa",
+			"text": "O xama ainda canta. Posso ouvi-lo daqui.",
+			"text_key": "dlg.dlg_warden_lysa.roots_waiting"
+		},
+		"roots_done": {
+			"speaker": "npc_warden_lysa",
+			"text": "A cancao parou. As raizes estao quietas, por ora.",
+			"text_key": "dlg.dlg_warden_lysa.roots_done",
+			"choices": [
+				{
+					"text": "O xama caiu.",
+					"text_key": "dlg.dlg_warden_lysa.roots_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_shaman_roots"
+						}
+					],
+					"next": "roots_thanks"
+				}
+			]
+		},
+		"roots_thanks": {
+			"speaker": "npc_warden_lysa",
+			"text": "Greenwood tem uma divida com voce. Aceite esta armadura, e curta o suficiente para correr.",
+			"text_key": "dlg.dlg_warden_lysa.roots_thanks"
+		},
+		"whisp_talk": {
+			"speaker": "npc_warden_lysa",
+			"text": "Pell mandou voce? Digo o que vi: as raizes ao leste escurecem a cada noite. Leve isso a Ilmar.",
+			"text_key": "dlg.dlg_warden_lysa.whisp_talk"
+		},
+		"after": {
+			"speaker": "npc_warden_lysa",
+			"text": "A trilha esta mais calma. Mantenho os olhos abertos.",
+			"text_key": "dlg.dlg_warden_lysa.after"
+		},
+		"idle": {
+			"speaker": "npc_warden_lysa",
+			"text": "Eu guardo a entrada da trilha. Passe sempre que precisar.",
+			"text_key": "dlg.dlg_warden_lysa.idle"
+		}
+	}
+}

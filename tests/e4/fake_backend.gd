@@ -161,7 +161,12 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 			else:
 				ch.erase("equipment_inst")
 			if st.has("quests"):
+				var old_disc: Variant = (ch.get("quests", {}) as Dictionary).get("discovered", null)
 				ch["quests"] = st["quests"].duplicate(true) # E5.1: quests persistem junto do checkpoint
+				# E6.4: `discovered` e somente-servidor (como no backend real): o checkpoint nunca o cria nem o apaga.
+				ch["quests"].erase("discovered")
+				if old_disc != null:
+					ch["quests"]["discovered"] = old_disc
 			ch["revision"] = int(ch["revision"]) + 1
 			return ok({"character": ch})
 		if path.ends_with("/craft"):
@@ -187,6 +192,15 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 					return err(400, "invalid_reward")
 				if not replay and (ch["quests"]["completed"] as Array).has(quest_id):
 					return err(409, "quest_already_completed")
+			var poi_id: String = String(body.get("poi_id", ""))
+			if not poi_id.is_empty():
+				# E6.4: espelha o backend real: chave estavel explore:<poi_id>:<personagem>; ponto ja descoberto (sem replay) = 409.
+				if key != "explore:%s:%s" % [poi_id, cid]:
+					return err(400, "invalid_idempotency_key")
+				if not replay and ((ch["quests"] as Dictionary).get("discovered", []) as Array).has(poi_id):
+					return err(409, "poi_already_discovered")
+			elif key.begins_with("explore:"):
+				return err(400, "invalid_idempotency_key")
 			if not replay:
 				claims[key] = true
 				ch["xp"] = int(ch["xp"]) + int(body.get("xp", 0))
@@ -198,6 +212,10 @@ func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 				if not quest_id.is_empty():
 					(ch["quests"]["active"] as Dictionary).erase(quest_id)
 					(ch["quests"]["completed"] as Array).append(quest_id)
+				if not poi_id.is_empty():
+					if not (ch["quests"] as Dictionary).has("discovered"):
+						ch["quests"]["discovered"] = []
+					(ch["quests"]["discovered"] as Array).append(poi_id)
 				ch["revision"] = int(ch["revision"]) + 1
 			return ok({"replayed": replay, "result": {}, "character": ch})
 		if path.ends_with("/disconnect"):

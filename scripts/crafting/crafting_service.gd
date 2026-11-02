@@ -14,6 +14,9 @@ extends RefCounted
 ##    (remove o resultado, devolve os ingredientes; se nao der, recarrega o personagem do banco) e `CRAFT_ERROR`.
 ##    Resultado DESCONHECIDO (rede/5xx esgotados) -> recarrega do banco (o banco e a verdade; a chave garante replay).
 
+## E6.4: emitido quando um craft e CONFIRMADO (apos o backend, se houver). Alimenta o objetivo `craft` das quests.
+signal crafted(entity_id: int, results: Array)
+
 var world: ServerWorld
 var transport: ServerTransport
 var sync: BackendSync = null
@@ -173,6 +176,7 @@ func _on_backend_done(r: Dictionary, entity_id: int, req_id: int, def: RecipeDef
 
 func _ok(pc: PlayerCtx, req_id: int, def: RecipeDef) -> Dictionary:
 	stats["ok"] = int(stats["ok"]) + 1
+	crafted.emit(pc.entity_id, def.results_payload())
 	_send(pc, Protocol.CRAFT_OK, {"req_id": req_id, "recipe_id": def.id, "results": def.results_payload()})
 	return {"ok": true, "code": ""}
 

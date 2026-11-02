@@ -3,11 +3,58 @@
 	"id": "dlg_hunter_brannoch",
 	"npc_id": "npc_hunter_brannoch",
 	"entries": [
-		{"if": {"quest": "gw_clear_clearing", "state": "ready"}, "node": "clear_done"},
-		{"if": {"quest": "gw_clear_clearing", "state": "available"}, "node": "clear_offer"},
-		{"if": {"quest": "gw_clear_clearing", "state": "active"}, "node": "clear_waiting"},
-		{"if": {"quest": "gw_welcome", "state": "active"}, "node": "greet_new"},
-		{"node": "idle"}
+		{
+			"if": {
+				"quest": "gw_thorn_hunt",
+				"state": "ready"
+			},
+			"node": "thorn_done"
+		},
+		{
+			"if": {
+				"quest": "gw_clear_clearing",
+				"state": "ready"
+			},
+			"node": "clear_done"
+		},
+		{
+			"if": {
+				"quest": "gw_clear_clearing",
+				"state": "available"
+			},
+			"node": "clear_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_clear_clearing",
+				"state": "active"
+			},
+			"node": "clear_waiting"
+		},
+		{
+			"if": {
+				"quest": "gw_welcome",
+				"state": "active"
+			},
+			"node": "greet_new"
+		},
+		{
+			"if": {
+				"quest": "gw_thorn_hunt",
+				"state": "available"
+			},
+			"node": "thorn_offer"
+		},
+		{
+			"if": {
+				"quest": "gw_thorn_hunt",
+				"state": "active"
+			},
+			"node": "thorn_waiting"
+		},
+		{
+			"node": "idle"
+		}
 	],
 	"nodes": {
 		"greet_new": {
@@ -20,8 +67,22 @@
 			"text": "Criaturas corrompidas tomaram a clareira. Derrube cinco delas e a trilha ficara segura.",
 			"text_key": "dlg.dlg_hunter_brannoch.clear_offer",
 			"choices": [
-				{"text": "Eu cuido disso.", "text_key": "dlg.dlg_hunter_brannoch.clear_offer.c1", "effects": [{"type": "accept_quest", "quest_id": "gw_clear_clearing"}], "next": "clear_accepted"},
-				{"text": "Ainda nao estou pronto.", "text_key": "dlg.dlg_hunter_brannoch.clear_offer.c2", "next": null}
+				{
+					"text": "Eu cuido disso.",
+					"text_key": "dlg.dlg_hunter_brannoch.clear_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_clear_clearing"
+						}
+					],
+					"next": "clear_accepted"
+				},
+				{
+					"text": "Ainda nao estou pronto.",
+					"text_key": "dlg.dlg_hunter_brannoch.clear_offer.c2",
+					"next": null
+				}
 			]
 		},
 		"clear_accepted": {
@@ -39,7 +100,17 @@
 			"text": "Bom trabalho. A trilha esta livre.",
 			"text_key": "dlg.dlg_hunter_brannoch.clear_done",
 			"choices": [
-				{"text": "Receber a recompensa.", "text_key": "dlg.dlg_hunter_brannoch.clear_done.c1", "effects": [{"type": "turn_in_quest", "quest_id": "gw_clear_clearing"}], "next": "clear_thanks"}
+				{
+					"text": "Receber a recompensa.",
+					"text_key": "dlg.dlg_hunter_brannoch.clear_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_clear_clearing"
+						}
+					],
+					"next": "clear_thanks"
+				}
 			]
 		},
 		"clear_thanks": {
@@ -51,6 +122,62 @@
 			"speaker": "npc_hunter_brannoch",
 			"text": "Ande com cuidado pela floresta.",
 			"text_key": "dlg.dlg_hunter_brannoch.idle"
+		},
+		"thorn_offer": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Achei a toca da matriarca dos espinhos, ao nordeste da trilha. Ela e forte, e tem arqueiros por perto. Aceita derruba-la?",
+			"text_key": "dlg.dlg_hunter_brannoch.thorn_offer",
+			"choices": [
+				{
+					"text": "Eu cuido disso.",
+					"text_key": "dlg.dlg_hunter_brannoch.thorn_offer.c1",
+					"effects": [
+						{
+							"type": "accept_quest",
+							"quest_id": "gw_thorn_hunt"
+						}
+					],
+					"next": "thorn_accepted"
+				},
+				{
+					"text": "Agora nao.",
+					"text_key": "dlg.dlg_hunter_brannoch.thorn_offer.c2",
+					"next": null
+				}
+			]
+		},
+		"thorn_accepted": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Leve pocoes. Os espinhos dela doem mais do que parecem.",
+			"text_key": "dlg.dlg_hunter_brannoch.thorn_accepted"
+		},
+		"thorn_waiting": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "A matriarca ainda esta de pe. Os batedores tambem.",
+			"text_key": "dlg.dlg_hunter_brannoch.thorn_waiting"
+		},
+		"thorn_done": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Ela caiu? Entao as trilhas voltam a ser nossas.",
+			"text_key": "dlg.dlg_hunter_brannoch.thorn_done",
+			"choices": [
+				{
+					"text": "Esta feito.",
+					"text_key": "dlg.dlg_hunter_brannoch.thorn_done.c1",
+					"effects": [
+						{
+							"type": "turn_in_quest",
+							"quest_id": "gw_thorn_hunt"
+						}
+					],
+					"next": "thorn_thanks"
+				}
+			]
+		},
+		"thorn_thanks": {
+			"speaker": "npc_hunter_brannoch",
+			"text": "Fique com esta espada. Ja salvou minha pele mais de uma vez.",
+			"text_key": "dlg.dlg_hunter_brannoch.thorn_thanks"
 		}
 	}
 }

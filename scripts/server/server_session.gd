@@ -88,6 +88,7 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	crafting.loadout_of = _loadout_of_entity
 	crafting.peer_of = _peer_id_of_entity
 	crafting.character_of = _character_id_of_entity
+	crafting.crafted.connect(func(eid: int, results: Array) -> void: quests.on_crafted(eid, results)) # E6.4: objetivo `craft`
 	talents = TalentService.new(world, transport)
 	talents.loadout_of = _loadout_of_entity
 	talents.peer_of = _peer_id_of_entity

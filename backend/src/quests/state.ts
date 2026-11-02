@@ -5,6 +5,8 @@ import { EMPTY_QUESTS, type QuestCatalog } from "./catalog.ts";
 export interface QuestsState {
   active: Record<string, { objectives: Record<string, number> }>;
   completed: string[];
+  /** E6.4: pontos de exploracao descobertos (somente-servidor; ausente quando vazio, mantendo o formato antigo). */
+  discovered?: string[];
 }
 
 export const emptyQuests = (): QuestsState => ({ active: {}, completed: [] });
@@ -25,6 +27,10 @@ export function normalizeStoredQuests(raw: unknown): QuestsState {
     }
   }
   if (Array.isArray(raw.completed)) out.completed = [...new Set(raw.completed.filter((x): x is string => typeof x === "string"))].sort();
+  if (Array.isArray(raw.discovered)) {
+    const d = [...new Set(raw.discovered.filter((x): x is string => typeof x === "string"))].sort();
+    if (d.length > 0) out.discovered = d;
+  }
   return out;
 }
 
@@ -35,7 +41,7 @@ export function normalizeStoredQuests(raw: unknown): QuestsState {
  */
 export function validateQuestsState(input: unknown, catalog: QuestCatalog = EMPTY_QUESTS, maxActive = 10): QuestsState {
   if (!isObj(input)) throw bad("quests deve ser um objeto");
-  for (const k of Object.keys(input)) if (k !== "active" && k !== "completed") throw bad(`quests: campo desconhecido "${k.slice(0, 40)}"`);
+  for (const k of Object.keys(input)) if (k !== "active" && k !== "completed" && k !== "discovered") throw bad(`quests: campo desconhecido "${k.slice(0, 40)}"`);
   const active: QuestsState["active"] = {};
   const rawActive = input.active ?? {};
   if (!isObj(rawActive)) throw bad("quests.active deve ser objeto");
@@ -44,6 +50,15 @@ export function validateQuestsState(input: unknown, catalog: QuestCatalog = EMPT
   const rawDone = input.completed ?? [];
   if (!Array.isArray(rawDone)) throw bad("quests.completed deve ser lista");
   if (rawDone.length > 1000) throw bad("quests.completed grande demais");
+  const rawDisc = input.discovered ?? [];
+  if (!Array.isArray(rawDisc) || rawDisc.length > 500) throw bad("quests.discovered deve ser lista");
+  const discovered = new Set<string>();
+  for (const d of rawDisc as unknown[]) {
+    if (typeof d !== "string" || !ID_RE.test(d)) throw bad("quests.discovered: id invalido");
+    if (!catalog.hasPoi(d)) throw bad(`quests.discovered: ponto desconhecido "${d.slice(0, 48)}"`);
+    if (discovered.has(d)) throw bad("quests.discovered: id duplicado");
+    discovered.add(d);
+  }
   const completed = new Set<string>();
   for (const c of rawDone as unknown[]) {
     if (typeof c !== "string" || !ID_RE.test(c)) throw bad("quests.completed: id invalido");
@@ -68,7 +83,7 @@ export function validateQuestsState(input: unknown, catalog: QuestCatalog = EMPT
     }
     active[qid] = { objectives: objs };
   }
-  return { active, completed: [...completed].sort() };
+  return { active, completed: [...completed].sort(), ...(discovered.size > 0 ? { discovered: [...discovered].sort() } : {}) };
 }
 
 /**
@@ -80,12 +95,18 @@ export function mergeCheckpointQuests(stored: QuestsState, incoming: QuestsState
   const done = new Set(stored.completed);
   const active: QuestsState["active"] = {};
   for (const [qid, e] of Object.entries(incoming.active)) if (!done.has(qid)) active[qid] = e;
-  return { active, completed: [...stored.completed].sort() };
+  // E6.4: `discovered` tambem e somente-servidor (so a recompensa explore: o altera): o do checkpoint e ignorado.
+  return { active, completed: [...stored.completed].sort(), ...(stored.discovered && stored.discovered.length > 0 ? { discovered: [...stored.discovered].sort() } : {}) };
 }
 
 /** Conclui `questId` (puro): remove de ativas e acrescenta a concluidas. */
 export function completeQuest(q: QuestsState, questId: string): QuestsState {
   const active = { ...q.active };
   delete active[questId];
-  return { active, completed: [...new Set([...q.completed, questId])].sort() };
+  return { ...q, active, completed: [...new Set([...q.completed, questId])].sort() };
+}
+
+/** E6.4: registra a descoberta de um ponto (puro). */
+export function discoverPoi(q: QuestsState, poiId: string): QuestsState {
+  return { ...q, discovered: [...new Set([...(q.discovered ?? []), poiId])].sort() };
 }

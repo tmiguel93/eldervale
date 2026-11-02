@@ -14,6 +14,8 @@ var catalog: QuestCatalog
 var npcs: NpcDirectory
 var dialogues: DialogueCatalog
 var areas: AreaSet
+## E6.4: pontos de exploracao (descoberta por proximidade, posicao autoritativa do servidor).
+var exploration: ExplorationCatalog
 ## Opcional (null = modo dev: nada persiste).
 var sync: BackendSync = null
 ## false desliga a checagem de distancia ao NPC (testes/mundo sem NPCs posicionados).
@@ -36,6 +38,7 @@ class PlayerCtx extends RefCounted:
 	var watcher: AreaWatcher
 	var runner: DialogueRunner = null
 	var dialogue_npc: String = ""
+	var blocked_pois: Dictionary = {} ## poi_id -> true: descoberta recusada por inventario cheio (avisa uma vez ate sair do raio)
 	var req_id: int = 0 ## req_id do comando em andamento (para erros)
 	var op: int = 0
 
@@ -46,6 +49,7 @@ func _init(p_transport: ServerTransport = null) -> void:
 	npcs = NpcDirectory.shared()
 	dialogues = DialogueCatalog.shared()
 	areas = AreaSet.shared()
+	exploration = ExplorationCatalog.shared()
 
 
 # ------------------------------------------------------------------ ciclo de vida
@@ -132,6 +136,68 @@ func tick() -> void:
 			continue
 		for area_id: String in pc.watcher.update(pos as Vector3):
 			pc.tracker.on_area_entered(area_id)
+		_scan_exploration(pc, pos as Vector3)
+
+
+## E6.4: item produzido pelo crafting (apos a confirmacao do servidor/backend). `results`: [{item_id, qty}].
+func on_crafted(entity_id: int, results: Array) -> void:
+	var pc: PlayerCtx = _players.get(entity_id) as PlayerCtx
+	if pc == null:
+		return
+	for r: Variant in results:
+		if typeof(r) == TYPE_DICTIONARY:
+			pc.tracker.on_item_crafted(String((r as Dictionary).get("item_id", "")), int((r as Dictionary).get("qty", 0)))
+
+
+# ------------------------------------------------------------------ exploracao (E6.4)
+
+## Descobre os pontos ao alcance de `pos` (posicao do SERVIDOR). Cada ponto paga uma unica vez por personagem.
+func _scan_exploration(pc: PlayerCtx, pos: Vector3) -> void:
+	for poi_id: String in exploration.ids():
+		if pc.tracker.state.is_discovered(poi_id):
+			continue
+		if not exploration.contains(poi_id, pos):
+			pc.blocked_pois.erase(poi_id)
+			continue
+		_try_discover(pc, poi_id)
+
+
+func _try_discover(pc: PlayerCtx, poi_id: String) -> Dictionary:
+	var p: Dictionary = exploration.get_point(poi_id)
+	if p.is_empty():
+		return {"ok": false, "code": "unknown_poi"}
+	if pc.tracker.state.is_discovered(poi_id):
+		return {"ok": false, "code": "already_discovered"}
+	if _level(pc) < int(p["min_level"]):
+		return {"ok": false, "code": "level_too_low"}
+	for q: String in (p["requires_quests"] as Array):
+		if not pc.tracker.state.is_completed(q):
+			return {"ok": false, "code": "prereq_missing"}
+	# Itens: tudo-ou-nada. Sem espaco => nada muda; avisa uma vez e tenta de novo quando o jogador sair e voltar.
+	var inv: Inventory = pc.loadout.inventory
+	var snap: Array[ItemStack] = inv.snapshot()
+	for it: Dictionary in (p["items"] as Array):
+		if inv.add(StringName(it["item_id"]), int(it["qty"])) > 0:
+			inv.restore(snap)
+			if not pc.blocked_pois.has(poi_id):
+				pc.blocked_pois[poi_id] = true
+				pc.req_id = 0
+				pc.op = 0
+				_send_quest_error(pc, poi_id, "inventory_full")
+			return {"ok": false, "code": "inventory_full"}
+	if int(p["xp"]) > 0:
+		pc.loadout.grant_xp(int(p["xp"]))
+	pc.tracker.on_poi_discovered(poi_id) # marca (unica vez) e avanca objetivos `discover`
+	pc.blocked_pois.erase(poi_id)
+	_send_quest(pc, Protocol.QUEST_DISCOVERED, {"poi_id": poi_id, "xp": int(p["xp"]), "items": (p["items"] as Array).duplicate(true)})
+	if sync != null and not pc.character_id.is_empty():
+		# Chave ESTAVEL: retry/replay/reconexao reenviam a mesma; o backend nao duplica e marca o ponto como descoberto na mesma transacao.
+		sync.enqueue_reward(pc.character_id, explore_key(poi_id, pc.character_id), int(p["xp"]), (p["items"] as Array).duplicate(true), "", poi_id)
+	return {"ok": true, "code": ""}
+
+
+static func explore_key(poi_id: String, character_id: String) -> String:
+	return "explore:%s:%s" % [poi_id, character_id]
 
 
 # ------------------------------------------------------------------ comandos de quest
