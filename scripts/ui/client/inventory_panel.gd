@@ -11,54 +11,75 @@ signal equip_requested(index: int, item_id: String)
 signal unequip_requested(slot_index: int)
 
 const COLUMNS: int = 5
-const SLOT_SIZE: Vector2 = Vector2(86, 58)
+const SLOT_SIZE: Vector2 = ItemSlot.SLOT_SIZE
 
 var banner: Label
 var grid: GridContainer
 var detail: Label
-var equip_row: HBoxContainer
+var equip_row: VBoxContainer
 var cursor: int = 0
 var slot_buttons: Array[Button] = []
 var equip_labels: Dictionary = {}
+var equip_boxes: Dictionary = {}   ## slot -> {box: PanelContainer, icon: Control (holder)}
 var _inv: ClientInventory = null
 var _slot_data: Array[Dictionary] = []  ## por slot: {} ou {item_id, qty, inst?}
 
 
 func _init() -> void:
-	super._init("Inventario", Vector2(520, 540))
+	super._init("Inventário", Vector2(720, 470), "ᛒ", UiIcons.ref("ui", "inventory"))
 	banner = UiStyle.label("", UiStyle.ACCENT, 13, true)
 	body.add_child(banner)
-	body.add_child(UiStyle.label("Equipamento", UiStyle.INFO, 13))
-	equip_row = HBoxContainer.new()
-	equip_row.add_theme_constant_override("separation", 6)
-	body.add_child(equip_row)
+	var main: HBoxContainer = HBoxContainer.new()
+	main.add_theme_constant_override("separation", 18)
+	main.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	body.add_child(main)
+	var left: VBoxContainer = VBoxContainer.new()
+	left.add_theme_constant_override("separation", 4)
+	main.add_child(left)
+	var right: VBoxContainer = VBoxContainer.new()
+	right.add_theme_constant_override("separation", 4)
+	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main.add_child(right)
+	right.add_child(UiStyle.heading("Equipamento", UiStyle.INFO, 15))
+	equip_row = VBoxContainer.new()
+	equip_row.add_theme_constant_override("separation", 5)
+	right.add_child(equip_row)
 	for slot: String in ClientInventory.EQUIP_SLOTS:
 		var pc: PanelContainer = PanelContainer.new()
-		pc.add_theme_stylebox_override("panel", UiStyle.box(UiStyle.BG_SOFT, UiStyle.BORDER, 1, 4))
-		pc.custom_minimum_size = Vector2(150, 34)
+		pc.add_theme_stylebox_override("panel", UiArt.slot(NorseTheme.GOLD_DIM))
+		pc.custom_minimum_size = Vector2(0, 44)
+		var hb: HBoxContainer = HBoxContainer.new()
+		hb.add_theme_constant_override("separation", 6)
+		pc.add_child(hb)
+		var holder: Control = Control.new()
+		holder.custom_minimum_size = Vector2(30, 30)
+		holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		hb.add_child(holder)
 		var l: Label = UiStyle.label("", UiStyle.TEXT, 13)
 		l.clip_text = true
-		pc.add_child(l)
+		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		l.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hb.add_child(l)
 		equip_row.add_child(pc)
 		equip_labels[slot] = l
-	body.add_child(UiStyle.label("Mochila", UiStyle.INFO, 13))
+		equip_boxes[slot] = {"box": pc, "icon": holder}
+		_set_equip_icon(slot, "", {})
+	left.add_child(UiStyle.heading("Mochila", UiStyle.INFO, 15))
 	grid = GridContainer.new()
 	grid.columns = COLUMNS
-	grid.add_theme_constant_override("h_separation", 4)
-	grid.add_theme_constant_override("v_separation", 4)
-	body.add_child(grid)
+	grid.add_theme_constant_override("h_separation", 5)
+	grid.add_theme_constant_override("v_separation", 5)
+	left.add_child(grid)
 	for i: int in ClientInventory.SLOT_COUNT:
-		var b: Button = UiStyle.button("")
+		var b: ItemSlot = ItemSlot.new()
 		b.name = "Slot%d" % i
-		b.custom_minimum_size = SLOT_SIZE
-		b.clip_text = true
-		b.alignment = HORIZONTAL_ALIGNMENT_CENTER
 		b.pressed.connect(_set_cursor.bind(i))
 		b.mouse_entered.connect(_set_cursor.bind(i))
 		grid.add_child(b)
 		slot_buttons.append(b)
 	detail = UiStyle.label("", UiStyle.TEXT, 0, true)
-	body.add_child(detail)
+	detail.custom_minimum_size = Vector2(230, 0)
+	right.add_child(detail)
 	hint_label.text = "I abre/fecha | Setas movem | Enter equipa | 1/2/3 desequipa | Esc fecha"
 	refresh(null)
 
@@ -79,10 +100,12 @@ func refresh(inv: ClientInventory) -> void:
 			var inst: Dictionary = ents[i].get("inst", {}) as Dictionary
 			slot_buttons[i].text = slot_label(String(ents[i]["item_id"]), int(ents[i]["qty"])) if inst.is_empty() else UiText.item_display(String(ents[i]["item_id"]), inst)
 			slot_buttons[i].tooltip_text = UiText.item_tooltip(String(ents[i]["item_id"]), int(ents[i]["qty"]), inst)
+			(slot_buttons[i] as ItemSlot).show_item(String(ents[i]["item_id"]), int(ents[i]["qty"]), UiText.rarity_of(String(ents[i]["item_id"]), inst), UiText.item_display(String(ents[i]["item_id"]), inst))
 		else:
 			_slot_data.append({})
 			slot_buttons[i].text = ""
 			slot_buttons[i].tooltip_text = ""
+			(slot_buttons[i] as ItemSlot).show_item("", 0, "common", "")
 	var complete: bool = _inv != null and _inv.complete
 	banner.text = "" if complete else "Estimativa desta sessao: aguardando o inventario do servidor."
 	banner.visible = not complete
@@ -94,6 +117,7 @@ func refresh(inv: ClientInventory) -> void:
 		l.text = "%s: %s" % [slot_name, UiText.item_display(eq, einst) if not eq.is_empty() else ("-" if complete else "?")]
 		l.add_theme_color_override("font_color", UiText.rarity_color(eq, einst) if not eq.is_empty() else UiStyle.TEXT)
 		l.tooltip_text = UiText.item_tooltip(eq, 1, einst) if not eq.is_empty() else ""
+		_set_equip_icon(slot, eq, einst)
 	if ents.is_empty():
 		set_status("Mochila vazia." if complete else "Nenhum item obtido nesta sessao ainda.")
 	else:
@@ -104,9 +128,7 @@ func refresh(inv: ClientInventory) -> void:
 func _set_cursor(i: int) -> void:
 	cursor = clampi(i, 0, ClientInventory.SLOT_COUNT - 1)
 	for k: int in slot_buttons.size():
-		var kd: Dictionary = _slot_data[k] if k < _slot_data.size() else {}
-		var base_col: Color = UiText.rarity_color(String(kd["item_id"]), kd.get("inst", {}) as Dictionary) if not kd.is_empty() else UiStyle.TEXT
-		slot_buttons[k].add_theme_color_override("font_color", UiStyle.ACCENT if k == cursor else base_col)
+		(slot_buttons[k] as ItemSlot).set_selected(k == cursor)
 	var d: Dictionary = _slot_data[cursor] if cursor < _slot_data.size() else {}
 	if d.is_empty():
 		detail.text = "Slot %d: vazio" % (cursor + 1)
@@ -123,6 +145,26 @@ func _set_cursor(i: int) -> void:
 		var cur: String = String(_inv.equipment.get(sn, ""))
 		rest.append("Equipado: %s" % (UiText.item_display(cur, _inv.equipment_inst.get(sn, {}) as Dictionary) if not cur.is_empty() else "nada"))
 	detail.text = "\n".join(rest)
+
+
+## E8.4: icone/borda do slot de equipamento (item equipado = icone na cor da raridade; vazio = icone do tipo, apagado).
+func _set_equip_icon(slot: String, item_id: String, inst: Dictionary) -> void:
+	var rec: Dictionary = equip_boxes.get(slot, {}) as Dictionary
+	if rec.is_empty():
+		return
+	var holder: Control = rec["icon"]
+	for ch: Node in holder.get_children():
+		holder.remove_child(ch)
+		ch.queue_free()
+	var box: PanelContainer = rec["box"]
+	if item_id.is_empty():
+		holder.add_child(UiIcons.make(UiIcons.ref("equip_slots", slot), 28.0, Color(1, 1, 1, 0.28), slot))
+		box.add_theme_stylebox_override("panel", UiArt.slot(NorseTheme.GOLD_DIM))
+	else:
+		var rid: String = UiText.rarity_of(item_id, inst)
+		var col: Color = NorseTheme.rarity_color(rid)
+		holder.add_child(UiIcons.make(UiIcons.item_ref(item_id), 28.0, col if rid != "common" else Color("#e6dcc6"), UiText.item_name(item_id)))
+		box.add_theme_stylebox_override("panel", UiArt.slot(col, float(NorseTheme.RARITY_GLOW.get(rid, 0.0))))
 
 
 ## Texto exibido em um slot (para testes).

@@ -38,7 +38,7 @@ var _catalog: TalentCatalog = null
 
 
 func _init() -> void:
-	super._init("Talentos", Vector2(760, 470))
+	super._init("Talentos", Vector2(760, 470), "ᚦ", UiIcons.ref("ui", "talents"))
 	header = UiStyle.label("", UiStyle.ACCENT, 15)
 	header.name = "Header"
 	body.add_child(header)
@@ -47,7 +47,7 @@ func _init() -> void:
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(split)
 	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(330, 300)
+	scroll.custom_minimum_size = Vector2(330, 370)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	split.add_child(scroll)
 	list_box = VBoxContainer.new()
@@ -195,11 +195,12 @@ func _rebuild_rows() -> void:
 		if g != last_group:
 			last_group = g
 			var title: String = "Geral da classe" if g == "" else "Especializacao: " + _spec_name(g)
-			list_box.add_child(UiStyle.label(title, UiStyle.INFO, 14))
+			list_box.add_child(UiStyle.heading(title, UiStyle.INFO, 15))
 		var b: Button = UiStyle.button("")
 		b.name = "Node_" + order[i]
 		b.clip_text = true
 		b.pressed.connect(_select.bind(i))
+		set_row_icon(b, UiIcons.talent_ref(n), 24)
 		list_box.add_child(b)
 		_rows.append(b)
 
@@ -238,7 +239,7 @@ func _refresh() -> void:
 			col = UiStyle.TEXT
 		if i == selected:
 			col = col.lightened(0.25)
-		_rows[i].add_theme_color_override("font_color", col)
+		mark_row(_rows[i], i == selected, col)
 	_show_detail()
 	_refresh_buttons()
 

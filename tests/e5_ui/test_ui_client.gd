@@ -39,7 +39,9 @@ func _test_build_and_inputs(ctx: Object, tree: SceneTree) -> void:
 	ctx.check(ui.handle_input(U.key(KEY_M)) and ui.open_panel_names().is_empty() and not ui.blocks_game_actions(), "M de novo fecha")
 	ui.handle_input(U.key(KEY_I))
 	ctx.check(ui.handle_input(U.key(KEY_ESCAPE)) and not ui.inventory_panel.is_open(), "Esc fecha o painel aberto")
-	ctx.check(not ui.handle_input(U.key(KEY_ESCAPE)), "Esc sem painel nao e consumido")
+	# E8.4: Esc sem painel aberto abre o Menu (antes nao era consumido); outro Esc o fecha
+	ctx.check(ui.handle_input(U.key(KEY_ESCAPE)) and ui.menu.is_open() and ui.blocks_game_actions(), "Esc sem painel abre o Menu (E8.4)")
+	ui.handle_input(U.key(KEY_ESCAPE))
 	ctx.check(not ui.handle_input(U.key(KEY_W)), "tecla de jogo (W) nao e consumida")
 	ui.handle_input(U.key(KEY_J))
 	ctx.check(ui.handle_input(U.key(KEY_DOWN)) or ui.quests.entries.is_empty(), "setas vao para o painel aberto")

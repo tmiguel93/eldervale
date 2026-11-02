@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "_comment": "E8.4. Mapeamento id de jogo -> icone game-icons.net (CC BY 3.0, 'autor/nome' = assets/third_party/game_icons/<autor>/<nome>.svg). Validado por tools/validate_content.mjs e pelo UiIcons.validate(). Falta de icone => fallback (letra/primitiva), nunca erro.",
+  "skills": {
+    "basic_attack": "lorc/sword-slice",
+    "heavy_strike": "lorc/hammer-drop",
+    "whirlwind": "lorc/sword-spin",
+    "dodge": "lorc/sprint",
+    "arcane_bolt": "delapouite/bolt-spell-cast",
+    "fireball": "delapouite/fire-spell-cast",
+    "frost_nova": "lorc/icicles-aura",
+    "blink": "lorc/teleport",
+    "quick_shot": "lorc/rapidshare-arrow",
+    "piercing_arrow": "lorc/heavy-arrow",
+    "arrow_rain": "lorc/arrow-cluster",
+    "roll": "delapouite/boulder-dash"
+  },
+  "items": {
+    "sword_basic": "lorc/broadsword",
+    "sword_rare": "lorc/shining-sword",
+    "armor_heavy": "lorc/layered-armor",
+    "armor_leather": "delapouite/leather-armor",
+    "amulet_vigor": "lorc/gem-pendant",
+    "potion_minor": "delapouite/health-potion",
+    "scrap_material": "lorc/gear-hammer",
+    "unique_emberfang": "lorc/fire-axe",
+    "unique_featherknot": "lorc/feather",
+    "unique_frostbrand": "lorc/ice-spear",
+    "unique_gravitas_plate": "delapouite/chest-armor",
+    "unique_twin_quiver": "delapouite/quiver"
+  },
+  "item_types": {
+    "weapon": "lorc/broadsword",
+    "armor": "delapouite/chest-armor",
+    "trinket": "lorc/gem-pendant",
+    "consumable": "delapouite/magic-potion",
+    "material": "delapouite/stone-pile",
+    "misc": "delapouite/backpack"
+  },
+  "equip_slots": {
+    "weapon": "lorc/broadsword",
+    "armor": "delapouite/chest-armor",
+    "trinket": "lorc/gem-pendant"
+  },
+  "attributes": {
+    "max_health": "lorc/ball-heart",
+    "max_resource": "lorc/star-swirl",
+    "resource_regen": "lorc/aura",
+    "attack_power": "lorc/muscle-up",
+    "defense": "lorc/bordered-shield",
+    "resistance": "lorc/magic-shield",
+    "move_speed": "lorc/walking-boot"
+  },
+  "classes": {
+    "warrior": "delapouite/barbarian",
+    "mage": "delapouite/magic-hat",
+    "ranger": "delapouite/archer"
+  },
+  "resources": {
+    "stamina": "lorc/sprint",
+    "mana": "lorc/star-swirl",
+    "xp": "lorc/star-cycle",
+    "health": "lorc/ball-heart"
+  },
+  "enemies": {
+    "boss": "lorc/horned-skull",
+    "mini_boss": "lorc/wolf-head",
+    "normal": "lorc/skull-crossed-bones"
+  },
+  "ui": {
+    "quests": "lorc/scroll-unfurled",
+    "inventory": "delapouite/backpack",
+    "map": "lorc/treasure-map",
+    "talents": "lorc/tree-branch",
+    "craft": "lorc/anvil",
+    "dialogue": "lorc/open-book",
+    "options": "lorc/gear-hammer",
+    "credits": "lorc/laurel-crown",
+    "menu": "lorc/rune-stone",
+    "boss_left": "lorc/horned-skull",
+    "boss_right": "lorc/horned-skull",
+    "death": "lorc/skull-crossed-bones",
+    "loading_rune": "lorc/rune-stone"
+  },
+  "talent_tiers": {
+    "small": "lorc/rune-stone",
+    "notable": "lorc/star-skull",
+    "mastery": "lorc/crown"
+  }
+}

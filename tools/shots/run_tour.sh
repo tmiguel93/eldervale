@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Uso: [TOUR_CLASS=warrior|mage|ranger] tools/shots/run_tour.sh hub|wild|ruins|chars|wild_close|ruins_close   (requer xvfb-run; Godot Linux em .tools/godot-linux)
+# Uso: [TOUR_CLASS=warrior|mage|ranger] tools/shots/run_tour.sh hub|wild|ruins|chars|wild_close|ruins_close|ui_hub|ui_alpha   (requer xvfb-run; Godot Linux em .tools/godot-linux)
 # E8.2: QUALITY=low|medium|high (--quality do cliente; prefixa os prints com "<qualidade>_"). E8.1: TOUR_CLASS escolhe a classe do jogador (servidor --default-class) e prefixa os prints com "<classe>_".
 set -u
 cd "$(dirname "$0")/../.."
@@ -9,7 +9,7 @@ G=$PWD/.tools/godot-linux/Godot_v4.7.2-stable_linux.x86_64
 export SHOT_DIR=$PWD/.tools/scratch/shots; mkdir -p "$SHOT_DIR"
 PORT=$((24700 + RANDOM % 200))
 EXTRA=""
-case "$TOUR" in hub|chars|scn_hub) ;; *) export ELDERVALE_TEST_MODE=1; EXTRA="--test-speed-mult 4";; esac
+case "$TOUR" in hub|chars|scn_hub|ui_hub) ;; *) export ELDERVALE_TEST_MODE=1; EXTRA="--test-speed-mult 4";; esac
 if [ -n "${TOUR_CLASS:-}" ]; then EXTRA="$EXTRA --default-class $TOUR_CLASS"; export SHOT_PREFIX="${TOUR_CLASS}_"; fi
 QARG=""
 if [ -n "${QUALITY:-}" ]; then QARG="--quality $QUALITY"; export SHOT_PREFIX="${SHOT_PREFIX:-}${QUALITY}_"; fi

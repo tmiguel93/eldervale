@@ -8,16 +8,18 @@ extends Control
 enum Mode { MINI, FULL }
 
 const MINI_RADIUS: float = 36.0
-const COL_BG: Color = Color(0.05, 0.06, 0.08, 0.85)
-const COL_ZONE: Color = Color(0.2, 0.28, 0.2, 0.9)
-const COL_PORTAL: Color = Color(0.4, 0.85, 1.0)
-const COL_NPC: Color = Color(1.0, 0.9, 0.3)
-const COL_STATION: Color = Color(1.0, 0.6, 0.2)
-const COL_PLAYER: Color = Color(0.4, 0.95, 0.5)
+const COL_BG: Color = Color("#120d09", 0.92)
+const COL_ZONE: Color = Color("#4d4332", 0.96)
+const COL_ZONE_EDGE: Color = Color("#c9a24a", 0.9)
+const COL_PORTAL: Color = Color("#7fd0f0")
+const COL_NPC: Color = Color("#f2cf6a")
+const COL_STATION: Color = Color("#e88b3a")
+const COL_PLAYER: Color = Color("#7fdc8f")
 const COL_LOCAL: Color = Color(1.0, 1.0, 1.0)
-const COL_ENEMY: Color = Color(0.95, 0.3, 0.25)
-const COL_BOSS: Color = Color(1.0, 0.5, 0.1)
-const COL_PICKUP: Color = Color(1.0, 0.85, 0.2)
+const COL_ENEMY: Color = Color("#e5453a")
+const COL_BOSS: Color = Color("#ff8a3d")
+const COL_PICKUP: Color = Color("#ffd84a")
+const COL_OUTLINE: Color = Color(0.04, 0.03, 0.02, 0.9)
 
 var mode: Mode = Mode.MINI
 var zone: ZoneDef = null
@@ -122,9 +124,19 @@ func build_draw_list() -> Array[Dictionary]:
 	return out
 
 
+func _diamond(p: Vector2, r: float, col: Color) -> void:
+	draw_colored_polygon(PackedVector2Array([p + Vector2(0, -r - 1.5), p + Vector2(r + 1.5, 0), p + Vector2(0, r + 1.5), p + Vector2(-r - 1.5, 0)]), COL_OUTLINE)
+	draw_colored_polygon(PackedVector2Array([p + Vector2(0, -r), p + Vector2(r, 0), p + Vector2(0, r), p + Vector2(-r, 0)]), col)
+
+
+func _dot(p: Vector2, r: float, col: Color) -> void:
+	draw_circle(p, r + 1.5, COL_OUTLINE)
+	draw_circle(p, r, col)
+
+
 func _draw() -> void:
 	draw_rect(Rect2(Vector2.ZERO, size), COL_BG)
-	var font: Font = ThemeDB.fallback_font
+	var font: Font = NorseFonts.font("heading")
 	for it: Dictionary in build_draw_list():
 		var p: Vector2 = it["pos"]
 		match String(it["type"]):
@@ -132,24 +144,39 @@ func _draw() -> void:
 				draw_colored_polygon(it["points"] as PackedVector2Array, COL_ZONE)
 				var pts: PackedVector2Array = it["points"]
 				for i: int in pts.size():
-					draw_line(pts[i], pts[(i + 1) % pts.size()], UiStyle.BORDER, 1.5)
+					draw_line(pts[i], pts[(i + 1) % pts.size()], COL_ZONE_EDGE, 2.0)
 			"portal":
-				draw_circle(p, 5.0, COL_PORTAL)
-				draw_arc(p, 7.0, 0.0, TAU, 16, COL_PORTAL, 1.0)
+				_dot(p, 4.5, COL_PORTAL)
+				draw_arc(p, 8.0, 0.0, TAU, 20, COL_PORTAL, 1.5)
 			"station":
-				draw_rect(Rect2(p - Vector2(4, 4), Vector2(8, 8)), COL_STATION)
+				draw_rect(Rect2(p - Vector2(6, 6), Vector2(12, 12)), COL_OUTLINE)
+				draw_rect(Rect2(p - Vector2(4.5, 4.5), Vector2(9, 9)), COL_STATION)
 			"npc":
-				draw_circle(p, 4.0, COL_NPC)
+				_diamond(p, 4.0, COL_NPC)
 			"player":
-				draw_circle(p, 3.5, COL_PLAYER)
+				_dot(p, 3.5, COL_PLAYER)
 			"enemy":
-				draw_circle(p, 2.5, COL_ENEMY)
+				_dot(p, 2.8, COL_ENEMY)
 			"boss":
-				draw_circle(p, 5.0, COL_BOSS)
+				_diamond(p, 5.5, COL_BOSS)
+				draw_arc(p, 9.0, 0.0, TAU, 20, COL_BOSS, 1.5)
 			"pickup":
-				draw_rect(Rect2(p - Vector2(2, 2), Vector2(4, 4)), COL_PICKUP)
+				_diamond(p, 2.5, COL_PICKUP)
 			"local":
-				draw_circle(p, 4.5, COL_LOCAL)
-				draw_arc(p, 6.5, 0.0, TAU, 16, UiStyle.INFO, 1.5)
+				_dot(p, 4.5, COL_LOCAL)
+				draw_arc(p, 7.0, 0.0, TAU, 20, UiStyle.INFO, 1.8)
 		if show_labels and not String(it.get("label", "")).is_empty():
-			draw_string(font, p + Vector2(8, 4), String(it["label"]), HORIZONTAL_ALIGNMENT_LEFT, -1, 12, UiStyle.TEXT)
+			var txt: String = String(it["label"])
+			var tw: float = font.get_string_size(txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13).x
+			var lp: Vector2 = p + Vector2(10, 5)
+			if lp.x + tw > size.x - 2.0:  # perto da borda direita: o rotulo vai para a esquerda do marcador
+				lp.x = p.x - 10.0 - tw
+			draw_string_outline(font, lp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, 4, COL_OUTLINE)
+			draw_string(font, lp, txt, HORIZONTAL_ALIGNMENT_LEFT, -1, 13, UiStyle.TEXT)
+	# minimapa: marca "N" na direcao do norte (-Z), ja que o mapa gira com a camera
+	if mode == Mode.MINI and has_local:
+		var north: Vector2 = project(local_pos + Vector3(0, 0, -1)) - project(local_pos)
+		if north.length() > 0.001:
+			var np: Vector2 = size * 0.5 + north.normalized() * (minf(size.x, size.y) * 0.5 - 11.0)
+			draw_circle(np, 9.0, Color(0, 0, 0, 0.55))
+			draw_string(font, np + Vector2(-5, 5), "N", HORIZONTAL_ALIGNMENT_LEFT, -1, 14, NorseTheme.GOLD_BRIGHT)

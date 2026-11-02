@@ -16,6 +16,8 @@ var _hold: float = 0.0
 var _rect: ColorRect
 var _death_rect: ColorRect
 var _death_label: Label
+var _spinner: RuneSpinner
+var _loading: Label
 
 
 func _init() -> void:
@@ -31,12 +33,26 @@ func _init() -> void:
 	_death_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_death_rect.visible = false
 	add_child(_death_rect)
-	_death_label = UiStyle.label("Voce morreu. Reaparecendo...", UiStyle.BAD, 28)
+	_death_label = UiStyle.label("Você morreu. Reaparecendo...", UiStyle.BAD, 34, false, "title")
 	_death_label.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_death_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_death_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_death_label.visible = false
 	add_child(_death_label)
+	# E8.4: runa girando e texto "Atravessando..." enquanto a tela esta escura (troca de zona)
+	_spinner = RuneSpinner.new(110.0)
+	_spinner.set_anchors_preset(Control.PRESET_CENTER)
+	_spinner.position = -_spinner.custom_minimum_size * 0.5
+	_spinner.size = _spinner.custom_minimum_size
+	_spinner.visible = false
+	add_child(_spinner)
+	_loading = UiStyle.label("Atravessando...", UiStyle.ACCENT, 20, false, "heading")
+	_loading.set_anchors_preset(Control.PRESET_CENTER)
+	_loading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_loading.position = Vector2(-120, 64)
+	_loading.size = Vector2(240, 30)
+	_loading.visible = false
+	add_child(_loading)
 	_apply()
 
 
@@ -79,5 +95,11 @@ func advance(delta: float) -> void:
 
 
 func _apply() -> void:
-	_rect.color = Color(0.0, 0.0, 0.0, alpha)
+	_rect.color = Color(0.02, 0.015, 0.01, alpha)
 	_rect.visible = alpha > 0.001
+	var show_rune: bool = alpha > 0.45
+	if _spinner != null:
+		_spinner.visible = show_rune
+		_loading.visible = show_rune
+		_spinner.modulate.a = clampf((alpha - 0.45) / 0.55, 0.0, 1.0)
+		_loading.modulate.a = _spinner.modulate.a

@@ -29,7 +29,7 @@ var _rows: Array[Button] = []
 
 
 func _init() -> void:
-	super._init("Diario de Quests", Vector2(760, 440))
+	super._init("Diário de Quests", Vector2(760, 440), "ᚱ", UiIcons.ref("ui", "quests"))
 	var split: HBoxContainer = HBoxContainer.new()
 	split.add_theme_constant_override("separation", 12)
 	split.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -126,11 +126,12 @@ func _rebuild_list() -> void:
 		var st: String = String(entries[i]["status"])
 		if st != last:
 			last = st
-			list_box.add_child(UiStyle.label(String(GROUP_TITLES.get(st, st)), UiStyle.INFO, 13))
+			list_box.add_child(UiStyle.heading(String(GROUP_TITLES.get(st, st)), UiStyle.INFO, 15))
 		var b: Button = UiStyle.button(String(entries[i]["title"]))
 		b.name = "Quest_" + String(entries[i]["id"])
 		b.clip_text = true
 		b.pressed.connect(_select.bind(i))
+		set_row_icon(b, UiIcons.ref("ui", "quests"))
 		list_box.add_child(b)
 		_rows.append(b)
 	_paint()
@@ -138,7 +139,7 @@ func _rebuild_list() -> void:
 
 func _paint() -> void:
 	for i: int in _rows.size():
-		_rows[i].add_theme_color_override("font_color", UiStyle.ACCENT if i == selected else UiStyle.TEXT)
+		mark_row(_rows[i], i == selected, UiStyle.ACCENT if i == selected else UiStyle.TEXT)
 
 
 func _select(i: int) -> void:

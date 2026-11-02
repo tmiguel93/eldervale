@@ -3,20 +3,21 @@ extends RefCounted
 ## E5.5: tema unico da UI do cliente (somente codigo, sem assets). Cores/margens centralizadas para
 ## manter os paineis consistentes. Nada aqui decide jogo.
 
-const BG: Color = Color(0.07, 0.08, 0.11, 0.94)
-const BG_SOFT: Color = Color(0.13, 0.15, 0.2, 0.96)
-const BG_SELECT: Color = Color(0.32, 0.26, 0.12, 1.0)
-const BORDER: Color = Color(0.58, 0.47, 0.26, 1.0)
-const TEXT: Color = Color(0.93, 0.91, 0.85, 1.0)
-const TEXT_DIM: Color = Color(0.64, 0.64, 0.68, 1.0)
-const ACCENT: Color = Color(0.96, 0.8, 0.32, 1.0)
-const GOOD: Color = Color(0.5, 0.88, 0.55, 1.0)
-const BAD: Color = Color(0.96, 0.42, 0.36, 1.0)
-const INFO: Color = Color(0.55, 0.78, 1.0, 1.0)
-const HP_FILL: Color = Color(0.78, 0.2, 0.2, 1.0)
-const HP_BOSS: Color = Color(0.86, 0.45, 0.12, 1.0)
-const HP_BACK: Color = Color(0.12, 0.05, 0.05, 0.9)
-const FONT_SIZE: int = 15
+const BG: Color = Color("#17110d", 0.96)
+const BG_SOFT: Color = Color("#241b13", 0.96)
+const BG_SELECT: Color = Color("#4a3a26", 1.0)
+const BORDER: Color = Color("#8a6f33", 1.0)
+const TEXT: Color = Color("#efe4cc", 1.0)
+const TEXT_DIM: Color = Color("#b0a48d", 1.0)
+const ACCENT: Color = Color("#ecca78", 1.0)
+const GOOD: Color = Color("#92d17d", 1.0)
+const BAD: Color = Color("#f2705f", 1.0)
+const INFO: Color = Color("#8fc7e6", 1.0)
+const HP_FILL: Color = Color("#b3261e", 1.0)
+const HP_BOSS: Color = Color("#d9531f", 1.0)
+const HP_BACK: Color = Color("#1a0a08", 0.9)
+const GOLD: Color = Color("#c9a24a", 1.0)
+const FONT_SIZE: int = NorseTheme.BODY_SIZE
 
 static var _theme: Theme = null
 
@@ -31,39 +32,32 @@ static func box(bg: Color, border: Color = BORDER, border_w: int = 1, margin: in
 	return sb
 
 
-## Tema compartilhado (criado uma vez). Aplicado no no raiz da UI; os filhos herdam.
+## E8.4: tema nordico compartilhado (criado uma vez; ver NorseTheme). Aplicado no no raiz da UI; os filhos herdam.
 static func theme() -> Theme:
-	if _theme != null:
-		return _theme
-	var t: Theme = Theme.new()
-	t.default_font_size = FONT_SIZE
-	t.set_color("font_color", "Label", TEXT)
-	t.set_stylebox("panel", "PanelContainer", box(BG))
-	t.set_stylebox("normal", "Button", box(BG_SOFT, BORDER, 1, 6))
-	t.set_stylebox("hover", "Button", box(BG_SELECT, ACCENT, 1, 6))
-	t.set_stylebox("pressed", "Button", box(BG_SELECT, ACCENT, 2, 6))
-	t.set_stylebox("disabled", "Button", box(Color(0.1, 0.1, 0.12, 0.8), Color(0.3, 0.3, 0.3), 1, 6))
-	t.set_stylebox("focus", "Button", StyleBoxEmpty.new())
-	for c: String in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		t.set_color(c, "Button", TEXT)
-	t.set_color("font_disabled_color", "Button", TEXT_DIM)
-	t.set_stylebox("background", "ProgressBar", box(HP_BACK, Color(0, 0, 0, 0.6), 1, 0, 2))
-	t.set_stylebox("fill", "ProgressBar", box(HP_FILL, HP_FILL, 0, 0, 2))
-	_theme = t
-	return t
+	if _theme == null:
+		_theme = NorseTheme.build()
+	return _theme
 
 
-static func label(text: String, color: Color = TEXT, size: int = 0, wrap: bool = false) -> Label:
+## `font`: "" (corpo do tema), "heading", "title" ou "rune".
+static func label(text: String, color: Color = TEXT, size: int = 0, wrap: bool = false, font: String = "") -> Label:
 	var l: Label = Label.new()
 	l.text = text
 	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	l.add_theme_color_override("font_color", color)
 	if size > 0:
 		l.add_theme_font_size_override("font_size", size)
+	if not font.is_empty():
+		l.add_theme_font_override("font", NorseFonts.font(font))
 	if wrap:
 		l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		l.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	return l
+
+
+## Rotulo de cabecalho (fonte Cinzel).
+static func heading(text: String, color: Color = ACCENT, size: int = 17) -> Label:
+	return label(text, color, size, false, "heading")
 
 
 ## Botao sem foco (o teclado do jogo e tratado pelos paineis; foco duplicaria Espaco/Enter com a esquiva).
@@ -75,24 +69,14 @@ static func button(text: String) -> Button:
 	return b
 
 
-## Barra (vida) com texto centralizado.
+## Barra estilizada (StatBar e um ProgressBar) com texto centralizado. `fill` escolhe o tipo: HP_BOSS => chefe, GOOD => aliado.
 static func bar(width: float, height: float, fill: Color = HP_FILL) -> ProgressBar:
-	var pb: ProgressBar = ProgressBar.new()
-	pb.custom_minimum_size = Vector2(width, height)
-	pb.show_percentage = false
-	pb.min_value = 0.0
-	pb.max_value = 1.0
-	pb.step = 0.0
-	pb.value = 1.0
-	pb.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pb.add_theme_stylebox_override("fill", box(fill, fill, 0, 0, 2))
-	var txt: Label = label("", TEXT, 12)
-	txt.name = "Text"
-	txt.set_anchors_preset(Control.PRESET_FULL_RECT)
-	txt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	txt.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	pb.add_child(txt)
-	return pb
+	var kind: int = StatBar.Kind.HEALTH
+	if fill == HP_BOSS:
+		kind = StatBar.Kind.BOSS
+	elif fill == GOOD:
+		kind = StatBar.Kind.ALLY
+	return StatBar.new(kind, width, height)
 
 
 static func set_bar(pb: ProgressBar, cur: float, maxv: float, text: String) -> void:
@@ -102,7 +86,6 @@ static func set_bar(pb: ProgressBar, cur: float, maxv: float, text: String) -> v
 		txt.text = text
 
 
-## True se `ev` e um KeyEvent pressionado com a tecla `key` (keycode ou fisica; aceita eco para navegacao).
 static func key_pressed(ev: InputEvent, key: Key, allow_echo: bool = true) -> bool:
 	if not (ev is InputEventKey):
 		return false

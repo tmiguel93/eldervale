@@ -25,12 +25,12 @@ var _inv: ClientInventory = null
 
 
 func _init() -> void:
-	super._init("Bancada", Vector2(660, 380))
+	super._init("Bancada", Vector2(660, 380), "ᚲ", UiIcons.ref("ui", "craft"))
 	var split: HBoxContainer = HBoxContainer.new()
 	split.add_theme_constant_override("separation", 12)
 	body.add_child(split)
 	list_box = VBoxContainer.new()
-	list_box.custom_minimum_size = Vector2(250, 0)
+	list_box.custom_minimum_size = Vector2(290, 0)
 	split.add_child(list_box)
 	var right: VBoxContainer = VBoxContainer.new()
 	right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -92,6 +92,8 @@ func _rebuild() -> void:
 		b.name = "Recipe_" + recipes[i].id
 		b.clip_text = true
 		b.pressed.connect(_select.bind(i))
+		var res: Array = recipes[i].results
+		set_row_icon(b, UiIcons.item_ref(String((res[0] as Dictionary).get("item_id", ""))) if not res.is_empty() and res[0] is Dictionary else UiIcons.ref("ui", "craft"))
 		list_box.add_child(b)
 		_rows.append(b)
 	_paint()
@@ -100,7 +102,7 @@ func _rebuild() -> void:
 
 func _paint() -> void:
 	for i: int in _rows.size():
-		_rows[i].add_theme_color_override("font_color", UiStyle.ACCENT if i == selected else UiStyle.TEXT)
+		mark_row(_rows[i], i == selected, UiStyle.ACCENT if i == selected else UiStyle.TEXT)
 
 
 func _select(i: int) -> void:

@@ -9,6 +9,8 @@ Arte de placeholder deve ser claramente identificada.
 
 **E8.2 (2026-11-02):** nenhum asset novo e nenhum arquivo alterado. Passam a ser USADOS no cenário do cliente os pacotes já creditados abaixo: Quaternius Nature, Medieval Village e Survival, KayKit Dungeon Remastered e Halloween Bits (e o cliente deixa de excluí-los do `.pck`). Chão, trilhas e chamas são shaders procedurais próprios. Detalhes: `docs/E8_SCENERY.md`.
 
+**E8.4 (2026-11-02):** nenhum asset novo. Passam a ser USADOS no cliente: 50 icones game-icons.net (CC BY 3.0, Lorc e Delapouite; mapeados em `data/ui/icons.json`) e 4 fontes Google Fonts (Cinzel Decorative Bold, Cinzel, IM Fell Double Pica, Noto Sans Runic; OFL-1.1). O cliente exclui do `.pck` os demais icones/fontes (`tools/gen_export_filter.py`). A atribuicao obrigatoria aparece em jogo (Menu > Creditos, F1), gerada de `assets/ASSET_MANIFEST.json` + `data/ui/credits.json`. Detalhes: `docs/E8_UI.md`.
+
 **E8.1 (2026-11-02):** nenhum asset novo. Passam a ser USADOS no jogo (cliente): KayKit Adventurers (Barbarian, Knight, Mage, Rogue, Rogue_Hooded: classes e NPCs), KayKit Skeletons (4: inimigos, bruto e chefe PLACEHOLDER), Quaternius animais (Wolf, Fox), Easy Enemies (Spider) e RPG items (Chest_Closed, Potion1_Filled: pickups). Tinturas e escala sao aplicadas em runtime; os arquivos nao foram alterados. Detalhes: `docs/E8_MODELS.md`.
 
 | Asset | Origem (URL/fonte) | Autor | Licenca | Alteracoes | Local no repo |

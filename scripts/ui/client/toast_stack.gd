@@ -26,6 +26,16 @@ static func color_for(kind: String) -> Color:
 	return UiStyle.TEXT
 
 
+## Icone (game-icons) do tipo de aviso; vazio = sem icone.
+static func icon_for(kind: String) -> String:
+	match kind:
+		"loot": return UiIcons.ref("ui", "inventory")
+		"quest": return UiIcons.ref("ui", "quests")
+		"good": return UiIcons.ref("ui", "credits")
+		"bad": return UiIcons.ref("ui", "death")
+	return ""
+
+
 func push(text: String, kind: String = "info", ttl: float = DEFAULT_TTL) -> void:
 	var t: String = UiText.clamp_text(text, UiText.MAX_TOAST)
 	if t.is_empty():
@@ -38,11 +48,20 @@ func push(text: String, kind: String = "info", ttl: float = DEFAULT_TTL) -> void
 			return
 	var pc: PanelContainer = PanelContainer.new()
 	pc.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pc.add_theme_stylebox_override("panel", UiStyle.box(Color(0.07, 0.08, 0.11, 0.88), color_for(kind), 1, 6))
-	var l: Label = UiStyle.label(t, color_for(kind), 15)
+	pc.add_theme_stylebox_override("panel", UiArt.toast(color_for(kind)))
+	var hb: HBoxContainer = HBoxContainer.new()
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.alignment = BoxContainer.ALIGNMENT_CENTER
+	hb.add_theme_constant_override("separation", 8)
+	pc.add_child(hb)
+	var icon_ref: String = icon_for(kind)
+	if not icon_ref.is_empty():
+		hb.add_child(UiIcons.make(icon_ref, 20.0, color_for(kind), kind))
+	var l: Label = UiStyle.label(t, color_for(kind), 16)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	pc.add_child(l)
+	hb.add_child(l)
 	add_child(pc)
+	UiFx.slide_in(pc)
 	_items.append({"text": t, "node": pc, "ttl": ttl, "life": ttl})
 	while _items.size() > MAX_VISIBLE:
 		_drop(0)

@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "_comment": "E8.4. Tela de creditos: os pacotes vem de assets/ASSET_MANIFEST.json (packages); aqui ficam rotulos de licenca, avisos de atribuicao obrigatoria (CC BY) e creditos fora do manifest. Todo pacote do manifest aparece na tela (teste e8_ui).",
+  "title": "Creditos",
+  "intro": "Eldervale e feito com arte e audio livres de terceiros. Obrigado aos autores abaixo.",
+  "license_order": ["CC-BY-3.0", "CC-BY-4.0", "OFL-1.1", "MIT", "CC0-1.0"],
+  "license_labels": {
+    "CC-BY-3.0": "CC BY 3.0 - atribuicao obrigatoria",
+    "CC-BY-4.0": "CC BY 4.0 - atribuicao obrigatoria",
+    "OFL-1.1": "SIL Open Font License 1.1 (fontes)",
+    "MIT": "Licenca MIT",
+    "CC0-1.0": "CC0 1.0 - dominio publico (credito voluntario)"
+  },
+  "license_urls": {
+    "CC-BY-3.0": "https://creativecommons.org/licenses/by/3.0/",
+    "CC-BY-4.0": "https://creativecommons.org/licenses/by/4.0/",
+    "OFL-1.1": "https://openfontlicense.org",
+    "MIT": "https://opensource.org/license/mit",
+    "CC0-1.0": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  "notices": {
+    "game_icons": "Icons made by Lorc (http://lorcblog.blogspot.com) and Delapouite (https://delapouite.com) from https://game-icons.net, licensed under CC BY 3.0.",
+    "oculus_audio_pack": "\"Oculus Audio Pack 01\" by Oculus VR, LLC (https://developers.meta.com/vr/downloads/package/oculus-audio-pack-1/), licensed under CC BY 4.0. Files renamed to the UCS naming convention; OGG previews transcoded from the original WAVs.",
+    "google_fonts": "Fontes: Cinzel, Cinzel Decorative, IM Fell Double Pica, Noto Sans Runic e outras familias do Google Fonts, sob a SIL Open Font License 1.1 (OFL.txt ao lado de cada fonte)."
+  },
+  "extras": [
+    {"name": "Godot Engine 4.7.2", "author": "Godot Engine contributors", "license": "MIT", "source": "https://godotengine.org"}
+  ]
+}

@@ -14,12 +14,12 @@ var _header: Label
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	visible = false
-	add_theme_stylebox_override("panel", UiStyle.box(Color(0.07, 0.08, 0.11, 0.7), UiStyle.BORDER, 1, 6))
+	theme_type_variation = &"HudPanel"
 	_box = VBoxContainer.new()
 	_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_box.add_theme_constant_override("separation", 3)
 	add_child(_box)
-	_header = UiStyle.label("Grupo", UiStyle.INFO, 13)
+	_header = UiStyle.heading("Grupo", UiStyle.INFO, 14)
 	_box.add_child(_header)
 
 
@@ -35,7 +35,8 @@ static func collect(entities: Array, local_id: int, names: Dictionary, local_nam
 		var id: int = int(e["id"])
 		var is_local: bool = id == local_id
 		var nm: String = (local_name if not local_name.is_empty() else "Voce") if is_local else String(names.get(id, "Jogador %d" % id))
-		out.append({"id": id, "name": nm, "hp": float(e["hp"]), "max_hp": float(e["max_hp"]), "dead": float(e["hp"]) <= 0.0, "local": is_local})
+		var cls: String = String(e.get("type", "")).get_slice(":", 1) if String(e.get("type", "")).begins_with("player:") else ""
+		out.append({"id": id, "name": nm, "hp": float(e["hp"]), "max_hp": float(e["max_hp"]), "dead": float(e["hp"]) <= 0.0, "local": is_local, "class_id": cls})
 	out.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
 		if bool(a["local"]) != bool(b["local"]):
 			return bool(a["local"])
@@ -57,11 +58,18 @@ func refresh(entities: Array, local_id: int, names: Dictionary, local_name: Stri
 		var id: int = int(d["id"])
 		keep[id] = true
 		if not _rows.has(id):
-			var l: Label = UiStyle.label("", UiStyle.TEXT, 13)
-			var pb: ProgressBar = UiStyle.bar(190, 14, UiStyle.GOOD)
-			_box.add_child(l)
+			var l: Label = UiStyle.label("", UiStyle.TEXT, 15, false, "heading")
+			var pb: ProgressBar = UiStyle.bar(200, 14, UiStyle.HP_FILL if bool(d["local"]) else UiStyle.GOOD)
+			var head: HBoxContainer = HBoxContainer.new()
+			head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			head.add_theme_constant_override("separation", 5)
+			var cref: String = UiIcons.class_ref(String(d.get("class_id", "")))
+			if not cref.is_empty():
+				head.add_child(UiIcons.make(cref, 16.0, UiStyle.ACCENT, String(d["name"])))
+			head.add_child(l)
+			_box.add_child(head)
 			_box.add_child(pb)
-			_rows[id] = {"label": l, "bar": pb}
+			_rows[id] = {"label": l, "bar": pb, "head": head}
 		var row: Dictionary = _rows[id]
 		var label: Label = row["label"]
 		label.text = String(d["name"]) + (" (morto)" if bool(d["dead"]) else "")
@@ -70,6 +78,6 @@ func refresh(entities: Array, local_id: int, names: Dictionary, local_name: Stri
 	for id2: Variant in _rows.keys():
 		if not keep.has(id2):
 			var r: Dictionary = _rows[id2]
-			(r["label"] as Node).queue_free()
+			(r["head"] as Node).queue_free()
 			(r["bar"] as Node).queue_free()
 			_rows.erase(id2)

@@ -26,6 +26,8 @@ var _class_pick: OptionButton
 var _status: Label
 var _buttons: Array[Button] = []
 var _play_btn: Button
+var _deco: RuneSpinner
+var _busy_spin: RuneSpinner
 
 
 func setup(p_api: BackendApi, p_session_id: String = "") -> void:
@@ -47,13 +49,41 @@ func _ready() -> void:
 
 
 func _build_ui() -> void:
+	# E8.4: tema nordico (fundo escuro, anel de runas, moldura de madeira/ferro); logica e nomes dos controles inalterados.
+	theme = UiStyle.theme()
+	var bg: ColorRect = ColorRect.new()
+	bg.color = Color("#0d0907")
+	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(bg)
+	_deco = RuneSpinner.new(640.0)
+	_deco.set_anchors_preset(Control.PRESET_CENTER)
+	_deco.position = -_deco.custom_minimum_size * 0.5
+	_deco.size = _deco.custom_minimum_size
+	_deco.modulate = Color(1, 1, 1, 0.22)
+	add_child(_deco)
+	var center: CenterContainer = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(center)
+	var frame: PanelContainer = PanelContainer.new()
+	frame.theme_type_variation = &"ModalPanel"
+	center.add_child(frame)
 	var box: VBoxContainer = VBoxContainer.new()
-	box.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	box.custom_minimum_size = Vector2(360, 0)
-	add_child(box)
+	box.custom_minimum_size = Vector2(380, 0)
+	box.add_theme_constant_override("separation", 8)
+	frame.add_child(box)
 	var title: Label = Label.new()
-	title.text = "Eldervale  %s" % BuildInfo.display() # E7.1: versao/build visiveis (anexar a relatos de bug)
+	title.text = "Eldervale"
+	title.theme_type_variation = &"TitleLabel"
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(title)
+	var ver: Label = Label.new()
+	ver.text = BuildInfo.display() # E7.1: versao/build visiveis (anexar a relatos de bug)
+	ver.theme_type_variation = &"DimLabel"
+	ver.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(ver)
+	box.add_child(RuneDivider.new())
 	_email = LineEdit.new()
 	_email.placeholder_text = "E-mail"
 	box.add_child(_email)
@@ -62,11 +92,15 @@ func _build_ui() -> void:
 	_password.secret = true
 	box.add_child(_password)
 	var row: HBoxContainer = HBoxContainer.new()
+	row.add_theme_constant_override("separation", 8)
 	box.add_child(row)
 	row.add_child(_btn("Entrar", func() -> void: await do_login(_email.text, _password.text)))
 	row.add_child(_btn("Registrar", func() -> void: await do_register(_email.text, _password.text)))
+	for bt: Button in _buttons:
+		bt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	box.add_child(UiStyle.heading("Personagens", UiStyle.ACCENT, 16))
 	_list = ItemList.new()
-	_list.custom_minimum_size = Vector2(0, 120)
+	_list.custom_minimum_size = Vector2(0, 110)
 	_list.item_selected.connect(func(i: int) -> void: selected = i)
 	box.add_child(_list)
 	_new_name = LineEdit.new()
@@ -82,10 +116,19 @@ func _build_ui() -> void:
 	box.add_child(_class_pick)
 	box.add_child(_btn("Criar personagem", func() -> void: await do_create(_new_name.text)))
 	_play_btn = _btn("Jogar", func() -> void: await do_play())
+	_play_btn.add_theme_font_size_override("font_size", 19)
 	box.add_child(_play_btn)
+	var srow: HBoxContainer = HBoxContainer.new()
+	srow.add_theme_constant_override("separation", 8)
+	box.add_child(srow)
+	_busy_spin = RuneSpinner.new(34.0)
+	_busy_spin.visible = false
+	srow.add_child(_busy_spin)
 	_status = Label.new()
+	_status.theme_type_variation = &"DimLabel"
+	_status.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	box.add_child(_status)
+	srow.add_child(_status)
 
 
 func _btn(text: String, cb: Callable) -> Button:
@@ -106,6 +149,8 @@ func _set_busy(v: bool) -> void:
 	busy = v
 	for b: Button in _buttons:
 		b.disabled = v
+	if _busy_spin != null:
+		_busy_spin.visible = v
 
 
 ## Mensagem mostrada ao voltar do jogo (ex.: servidor recusou).

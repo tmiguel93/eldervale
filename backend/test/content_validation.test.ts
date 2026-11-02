@@ -155,6 +155,13 @@ describe("validate_content: conteudo corrompido e detectado", () => {
     expect(has(errorsAfter((r) => editJson(r, "data/areas/world/greenwood_world.json", (w) => { w.zones[0].portals[0].to_spawn = "spawn_fantasma"; })), /spawn_fantasma/)).toBe(true);
     expect(has(errorsAfter((r) => editJson(r, "data/areas/world/greenwood_world.json", (w) => { w.zones[0].npcs.push("npc_fantasma"); })), /npc_fantasma/)).toBe(true);
   });
+  it("E8.4 icones e creditos: formato, cobertura e aviso de atribuicao (CC BY)", () => {
+    expect(has(errorsAfter((r) => editJson(r, "data/ui/icons.json", (d) => { d.skills.fireball = "Lorc/Fogo Grande"; })), /fireball: referencia/)).toBe(true);
+    expect(has(errorsAfter((r) => editJson(r, "data/ui/icons.json", (d) => { delete d.items.potion_minor; })), /item 'potion_minor' sem icone/)).toBe(true);
+    expect(has(errorsAfter((r) => editJson(r, "data/ui/icons.json", (d) => { delete d.skills.dodge; })), /habilidade 'dodge' sem icone/)).toBe(true);
+    expect(has(errorsAfter((r) => editJson(r, "data/ui/icons.json", (d) => { delete d.item_types.weapon; })), /tipo de item 'weapon' sem icone/)).toBe(true);
+    expect(has(errorsAfter((r) => editJson(r, "data/ui/icons.json", (d) => { delete d.attributes; })), /secao 'attributes'/)).toBe(true);
+  });
   it("catalogo gerado desatualizado e detectado (sem --no-generated)", () => {
     const errs = errorsAfter((r) => editJson(r, "data/quests/gw_welcome.json", (q) => { q.rewards.xp = 61; }), {});
     expect(has(errs, /quests\.json: desatualizado/)).toBe(true);

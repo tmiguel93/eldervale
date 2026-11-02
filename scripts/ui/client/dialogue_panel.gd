@@ -21,11 +21,12 @@ var _buttons: Array[Button] = []
 
 
 func _init() -> void:
-	super._init("Dialogo", Vector2(560, 300))
-	speaker_label = UiStyle.label("", UiStyle.INFO, 17)
+	super._init("Diálogo", Vector2(560, 300), "ᚨ", UiIcons.ref("ui", "dialogue"))
+	speaker_label = UiStyle.heading("", UiStyle.INFO, 17)
+	speaker_label.visible = false  # E8.4: o nome do NPC ja e o titulo do painel (o texto continua em `speaker_label.text`)
 	body.add_child(speaker_label)
-	text_label = UiStyle.label("", UiStyle.TEXT, 0, true)
-	text_label.custom_minimum_size = Vector2(0, 90)
+	text_label = UiStyle.label("", UiStyle.TEXT, 19, true)
+	text_label.custom_minimum_size = Vector2(0, 96)
 	body.add_child(text_label)
 	list = VBoxContainer.new()
 	list.add_theme_constant_override("separation", 4)
@@ -95,7 +96,7 @@ func _rebuild() -> void:
 
 func _paint() -> void:
 	for i: int in _buttons.size():
-		_buttons[i].add_theme_color_override("font_color", UiStyle.ACCENT if i == selected else UiStyle.TEXT)
+		mark_row(_buttons[i], i == selected, UiStyle.ACCENT if i == selected else UiStyle.TEXT)
 
 
 func _pick(i: int) -> void:

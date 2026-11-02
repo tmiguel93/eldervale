@@ -130,6 +130,8 @@ func _run() -> void:
 		"wild_close": await _tour_wild_close()
 		"ruins_close": await _tour_ruins_close()
 		"alpha": await _tour_alpha()
+		"ui_hub": await _tour_ui_hub()
+		"ui_alpha": await _tour_ui_alpha()
 		"scn_hub": await _tour_scn_hub()
 		"scn_wild": await _tour_scn_wild()
 		"scn_ruins": await _tour_scn_ruins()
@@ -309,3 +311,49 @@ func _tour_scn_ruins() -> void:
 	await _shot("s_ruins_06_salao_boss")
 	await _zoom(-1, 6)
 	await _fight(5.0, "s_ruins_07_chefe_zoom")
+
+
+## E8.4: tecla fisica (Esc nao e acao do InputMap: o ClientUi trata o KEY_ESCAPE direto).
+func _key(code: Key) -> void:
+	for down: bool in [true, false]:
+		var e: InputEventKey = InputEventKey.new()
+		e.keycode = code
+		e.physical_keycode = code
+		e.pressed = down
+		Input.parse_input_event(e)
+		await _wait(0.12)
+
+## E8.4: UI tematica no cliente real (hub): HUD, dialogo, diario, inventario, talentos, mapa, opcoes, creditos e menu.
+func _tour_ui_hub() -> void:
+	await _wait(1.0)
+	await _shot("ui_hub_01_hud")
+	await _goto(Vector2(10, -6), 3.0)
+	await _press("interact")
+	await _wait(1.0)
+	await _shot("ui_hub_02_dialogo")
+	await _press("interact")
+	await _wait(0.5)
+	await _toggle("quest_log_toggle", "ui_hub_03_quests")
+	await _toggle("inventory_toggle", "ui_hub_04_inventario")
+	await _toggle("talent_toggle", "ui_hub_05_talentos")
+	await _toggle("map_toggle", "ui_hub_06_mapa")
+	await _toggle("options_toggle", "ui_hub_07_opcoes")
+	await _toggle("credits_toggle", "ui_hub_08_creditos")
+	await _key(KEY_ESCAPE)
+	await _wait(0.6)
+	await _shot("ui_hub_09_menu")
+	await _key(KEY_ESCAPE)
+
+## E8.4: barra do chefe no cliente real: aparece perto do Alfa e SOME ao se afastar (correcao do bug da barra fantasma).
+func _tour_ui_alpha() -> void:
+	await _goto(Vector2(30, 0), 3.0)
+	await _wait(2.0)
+	await _goto(Vector2(170, 0), 4.0, 90.0)
+	await _shot("ui_alpha_01_longe_sem_barra")
+	await _zoom(-1, 3)
+	await _goto(Vector2(222, -22), 4.0, 50.0)
+	await _goto(Vector2(234, -29), 4.0, 20.0)
+	await _fight(5.0, "ui_alpha_02_combate")
+	await _goto(Vector2(170, 0), 4.0, 40.0)
+	await _wait(1.0)
+	await _shot("ui_alpha_03_afastou_sem_barra")

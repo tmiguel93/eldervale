@@ -8,7 +8,11 @@ extends CanvasLayer
 ## `update_frame(delta, view_yaw)` (por frame) e `handle_input(ev)` (teclas; tambem usada por _unhandled_input).
 ## Teclas (project.godot): interact=F, quest_log_toggle=J, inventory_toggle=I, map_toggle=M, talent_toggle=K (E6.2), Esc fecha.
 
-const PANEL_NAMES: Array[String] = ["dialogue", "quests", "inventory", "craft", "map", "talents"]
+const PANEL_NAMES: Array[String] = ["dialogue", "quests", "inventory", "craft", "map", "talents", "menu", "options", "credits"]
+const SNAPSHOT_STALE_MS: int = 1500  ## E8.4: sem snapshot novo ha mais que isso => a barra do chefe some (dados velhos)
+
+## E8.4: o servidor decide; a UI so pede ao ClientMain para aplicar a qualidade grafica no mundo 3D (ja gravada em settings.cfg).
+signal quality_requested(preset: int)
 
 var session: ClientSession = null
 var inventory: ClientInventory = ClientInventory.new()
@@ -22,6 +26,12 @@ var inventory_panel: InventoryPanel
 var craft: CraftPanel
 var map_panel: MapPanel
 var talents: TalentPanel ## E6.2: arvore de talentos (K)
+var menu: MenuPanel ## E8.4: menu (Esc)
+var options: OptionsPanel ## E8.4: opcoes (O)
+var credits: CreditsPanel ## E8.4: creditos (F1)
+var zone_banner: ZoneBanner
+var hint_bar: PanelContainer
+var level_label: Label
 var minimap: MapView
 var minimap_box: PanelContainer
 var minimap_title: Label
@@ -36,6 +46,9 @@ var prompt: Label
 var interact_target: Dictionary = {}
 
 var _built: bool = false
+var _level: int = 0
+var _last_snap_count: int = -1
+var _last_snap_msec: int = 0
 var _conns: Array[Dictionary] = []  ## {sig: Signal, call: Callable} para desligar ao trocar de sessao
 var _view_yaw: float = PI * 0.25
 
@@ -59,44 +72,66 @@ func ensure_built() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(root)
-	# HUD fixo
+	# HUD fixo (E8.4: layout por ancoras; funciona de 1280x720 a 1920x1080+, a janela escala por content_scale)
 	party = PartyPanel.new()
 	party.name = "Party"
-	_place(party, 0.0, 0.0, 12, 104, 232, 104)
+	_place(party, 0.0, 0.0, 12, 66, 244, 66)
 	boss = BossBar.new()
 	boss.name = "BossBar"
-	_place(boss, 0.5, 0.0, -230, 12, 230, 70)
+	_place(boss, 0.5, 0.0, -270, 10, 270, 96)
 	minimap_box = PanelContainer.new()
 	minimap_box.name = "MinimapBox"
 	minimap_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	minimap_box.add_theme_stylebox_override("panel", UiStyle.box(Color(0.07, 0.08, 0.11, 0.7), UiStyle.BORDER, 1, 4))
+	minimap_box.add_theme_stylebox_override("panel", UiArt.minimap())
 	var mv: VBoxContainer = VBoxContainer.new()
 	mv.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mv.add_theme_constant_override("separation", 3)
 	minimap_box.add_child(mv)
-	minimap_title = UiStyle.label("", UiStyle.INFO, 12)
+	minimap_title = UiStyle.label("", UiStyle.INFO, 14, false, "heading")
+	minimap_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	mv.add_child(minimap_title)
 	minimap = MapView.new(MapView.Mode.MINI, Vector2(168, 168))
 	minimap.name = "Minimap"
 	mv.add_child(minimap)
-	_place(minimap_box, 1.0, 0.0, -192, 12, -12, 226)
+	_place(minimap_box, 1.0, 0.0, -216, 10, -12, 10)
+	minimap_box.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	# dock inferior central: hotbar + vida
+	skill_bar = SkillBar.new()
+	skill_bar.name = "SkillBar"
+	_place(skill_bar, 0.5, 1.0, -160, -160, 160, -52)
 	vitals_box = PanelContainer.new()
 	vitals_box.name = "Vitals"
 	vitals_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vitals_box.add_theme_stylebox_override("panel", UiStyle.box(Color(0.07, 0.08, 0.11, 0.7), UiStyle.BORDER, 1, 4))
-	vitals_bar = UiStyle.bar(230, 20, UiStyle.HP_FILL)
-	vitals_box.add_child(vitals_bar)
+	var vrow: HBoxContainer = HBoxContainer.new()
+	vrow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	vrow.add_theme_constant_override("separation", 8)
+	vitals_box.add_child(vrow)
+	level_label = UiStyle.label("", UiStyle.ACCENT, 15, false, "heading")
+	level_label.name = "Level"
+	level_label.custom_minimum_size = Vector2(0, 0)
+	level_label.visible = false
+	vrow.add_child(level_label)
+	vitals_bar = UiStyle.bar(280, 20, UiStyle.HP_FILL)
+	vitals_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vrow.add_child(vitals_bar)
 	vitals_box.visible = false
-	_place(vitals_box, 0.0, 1.0, 12, -48, 262, -12)
-	skill_bar = SkillBar.new()
-	skill_bar.name = "SkillBar"
-	_place(skill_bar, 1.0, 1.0, -300, -140, -12, -12)
-	prompt = UiStyle.label("", UiStyle.ACCENT, 17)
+	_place(vitals_box, 0.5, 1.0, -160, -48, 160, -8)
+	prompt = UiStyle.label("", UiStyle.ACCENT, 19, false, "heading")
 	prompt.name = "Prompt"
 	prompt.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_place(prompt, 0.5, 1.0, -220, -96, 220, -66)
+	prompt.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.95))
+	prompt.add_theme_constant_override("outline_size", 5)
+	_place(prompt, 0.5, 1.0, -260, -204, 260, -170)
 	toasts = ToastStack.new()
 	toasts.name = "Toasts"
-	_place(toasts, 0.5, 1.0, -230, -330, 230, -104)
+	_place(toasts, 0.5, 1.0, -250, -440, 250, -210)
+	hint_bar = _build_hint_bar()
+	_place(hint_bar, 1.0, 1.0, -440, -40, -12, -10)
+	hint_bar.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	hint_bar.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	zone_banner = ZoneBanner.new()
+	zone_banner.name = "ZoneBanner"
+	_place(zone_banner, 0.5, 0.0, -300, 120, 300, 240)
 	# Paineis modais
 	dialogue = DialoguePanel.new()
 	quests = QuestPanel.new()
@@ -104,10 +139,16 @@ func ensure_built() -> void:
 	craft = CraftPanel.new()
 	map_panel = MapPanel.new()
 	talents = TalentPanel.new()
-	for p: UiPanel in [dialogue, quests, inventory_panel, craft, map_panel, talents]:
+	menu = MenuPanel.new()
+	options = OptionsPanel.new()
+	credits = CreditsPanel.new()
+	for p: UiPanel in [dialogue, quests, inventory_panel, craft, map_panel, talents, menu, options, credits]:
 		var sz: Vector2 = p.custom_minimum_size
 		_place(p, 0.5, 0.5, -sz.x * 0.5, -sz.y * 0.5, sz.x * 0.5, sz.y * 0.5)
 		p.close_requested.connect(close_panel.bind(p))
+	menu.options_requested.connect(func() -> void: open_exclusive(options))
+	menu.credits_requested.connect(func() -> void: open_exclusive(credits))
+	options.quality_changed.connect(func(preset: int) -> void: quality_requested.emit(preset))
 	dialogue.choice_picked.connect(_on_choice_picked)
 	dialogue.finished.connect(_on_dialogue_finished)
 	quests.accept_requested.connect(func(q: String) -> void: _quest_cmd("accept", q))
@@ -125,6 +166,25 @@ func ensure_built() -> void:
 	root.add_child(fade)
 	inventory.changed.connect(func() -> void: inventory_panel.refresh(inventory))
 	inventory_panel.refresh(inventory)
+	UiSettings.apply_scale(get_window())  # E8.4: 1280x720 base, expand (no-op em headless)
+
+
+## E8.4: faixa de atalhos (teclas em "chips") no canto inferior direito.
+func _build_hint_bar() -> PanelContainer:
+	var pc: PanelContainer = PanelContainer.new()
+	pc.name = "HintBar"
+	pc.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pc.add_theme_stylebox_override("panel", UiArt.hud(0.55))
+	var hb: HBoxContainer = HBoxContainer.new()
+	hb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hb.alignment = BoxContainer.ALIGNMENT_END
+	hb.add_theme_constant_override("separation", 12)
+	pc.add_child(hb)
+	for pair: Array in [["I", "Inventário"], ["K", "Talentos"], ["J", "Quests"], ["M", "Mapa"], ["Esc", "Menu"]]:
+		var k: Label = UiStyle.label(String(pair[0]), UiStyle.ACCENT, 14, false, "heading")
+		hb.add_child(k)
+		hb.add_child(UiStyle.label(String(pair[1]), UiStyle.TEXT_DIM, 14))
+	return pc
 
 
 func _place(c: Control, ax: float, ay: float, l: float, t: float, r: float, b: float) -> void:
@@ -193,14 +253,19 @@ func reset_view() -> void:
 	interact_target = {}
 	prompt.text = ""
 	party.refresh([], -1, {})
-	boss.refresh([])
+	boss.reset()
+	_level = 0
+	_last_snap_count = -1
+	level_label.visible = false
+	zone_banner.life = 0.0
+	zone_banner.visible = false
 	vitals_box.visible = false
 	skill_bar.refresh("")
 	talents.reset()
 
 
 func _panels() -> Array[UiPanel]:
-	return [dialogue, quests, inventory_panel, craft, map_panel, talents]
+	return [dialogue, quests, inventory_panel, craft, map_panel, talents, menu, options, credits]
 
 
 func is_playing() -> bool:
@@ -223,6 +288,12 @@ func open_panel_names() -> Array[String]:
 		if ps[i].is_open():
 			out.append(PANEL_NAMES[i])
 	return out
+
+
+## E8.4: acoes locais enviadas (bits do c_input), so para a recarga estimada da hotbar (apresentacao).
+func note_local_actions(bits: int) -> void:
+	if skill_bar != null:
+		skill_bar.note_actions(bits)
 
 
 func toast(text: String, kind: String = "info") -> void:
@@ -301,8 +372,16 @@ func handle_input(ev: InputEvent) -> bool:
 	if ev.is_action_pressed("talent_toggle"):
 		toggle_panel(talents)
 		return true
+	if InputMap.has_action("options_toggle") and ev.is_action_pressed("options_toggle"):
+		toggle_panel(options)
+		return true
+	if InputMap.has_action("credits_toggle") and ev.is_action_pressed("credits_toggle"):
+		toggle_panel(credits)
+		return true
 	if UiStyle.key_pressed(ev, KEY_ESCAPE, false):
-		return close_top()
+		if not close_top():
+			open_exclusive(menu)  # E8.4: Esc sem painel aberto abre o Menu
+		return true
 	for p: UiPanel in _panels():
 		if p.is_open():
 			return p.handle_key(ev)
@@ -438,10 +517,24 @@ func _talent_cmd(op: int, arg: String) -> void:
 
 
 func _on_talents_changed(data: Dictionary) -> void:
+	_set_level(int(data.get("level", _level)))
 	if session != null:
 		talents.apply_state(session.class_id, data)
 		if talents.is_open():
 			talents.set_status("")
+
+
+## E8.4: nivel do personagem (vem do s_talents; 0 = ainda desconhecido => sem indicador). Subir de nivel acende o indicador.
+func _set_level(lv: int) -> void:
+	if lv <= 0:
+		return
+	var up: bool = _level > 0 and lv > _level
+	_level = lv
+	level_label.text = "Nv %d" % lv
+	level_label.visible = true
+	if up:
+		toast("Nível %d!" % lv, "good")
+		UiFx.pulse(level_label, Color(2.0, 1.7, 1.0, 1.0), 0.7)
 
 
 func _on_talents_error(_req: int, _op: int, code: String) -> void:
@@ -479,13 +572,20 @@ func on_event(kind: int, data: Dictionary) -> void:
 				player_names[int(data["id"])] = UiText.clamp_text(String(data.get("name", "")), 24)
 		Protocol.EVENT_PLAYER_LEFT:
 			player_names.erase(int(data.get("id", -1)))
+		Protocol.EVENT_DAMAGE:
+			# E8.4: dano sofrido pelo jogador local => tremor leve + clarao na barra de vida (sem reduce_motion)
+			if int(data.get("target_id", -1)) == session.player_id and float(data.get("amount", 0.0)) > 0.0:
+				UiFx.shake(vitals_box, 5.0, 0.3)
+				UiFx.pulse(vitals_bar, Color(1.7, 0.8, 0.7, 1.0), 0.3)
 		Protocol.EVENT_ZONE:
 			if int(data.get("id", -1)) == session.player_id:
+				boss.reset()  # E8.4: a barra do chefe nunca atravessa zonas
 				if int(data.get("phase", -1)) == Protocol.ZONE_PHASE_LEAVING:
 					fade.fade_out()
 				else:
 					fade.fade_in()
 					toast("Zona: " + UiText.zone_name(String(data.get("zone", ""))), "info")
+					zone_banner.show_zone(UiText.zone_name(String(data.get("zone", ""))))
 		Protocol.EVENT_DEATH:
 			if int(data.get("id", -1)) == session.player_id:
 				fade.set_dead(true)
@@ -525,16 +625,28 @@ func update_frame(delta: float, view_yaw: float = NAN) -> void:
 		_view_yaw = view_yaw
 	toasts.advance(delta)
 	fade.advance(delta)
+	zone_banner.advance(delta)
+	skill_bar.advance(delta)
 	for p: UiPanel in _panels():
 		if p.is_open():
 			p.advance(delta)
 	if not is_playing():
+		boss.reset()  # E8.4: fora de PLAYING (desconectado/rejeitado) nao ha chefe a mostrar
 		return
 	var pos: Variant = _local_pos()
 	var ents: Array = session.last_entities
 	var zone: ZoneDef = _zone()
 	party.refresh(ents, session.player_id, player_names, local_name)
-	boss.refresh(ents, pos)
+	# E8.4: barra do chefe so com posicao local conhecida, snapshot recente, chefe vivo na MESMA zona e a ate BossBar.SHOW_RANGE m
+	var snaps: int = session.result.snapshots_received
+	var now_ms: int = Time.get_ticks_msec()
+	if snaps != _last_snap_count:
+		_last_snap_count = snaps
+		_last_snap_msec = now_ms
+	if now_ms - _last_snap_msec <= SNAPSHOT_STALE_MS:
+		boss.refresh(ents, pos, zone)
+	else:
+		boss.reset()
 	minimap.set_state(zone, session.player_id, pos, ents, _view_yaw)
 	minimap_title.text = zone.display_name if zone != null else ""
 	if map_panel.is_open():

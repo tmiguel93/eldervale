@@ -23,7 +23,14 @@ static func format_status(session: ClientSession) -> String:
 
 func _ready() -> void:
 	_label = Label.new()
-	_label.position = Vector2(12, 8)
+	_label.position = Vector2(12, 6)
+	# E8.4: texto de diagnostico discreto (fonte do tema, pequeno, com contorno para ler sobre qualquer cenario)
+	_label.add_theme_font_override("font", NorseFonts.font("body"))
+	_label.add_theme_font_size_override("font_size", 13)
+	_label.add_theme_color_override("font_color", Color("#cfc3aa"))
+	_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.9))
+	_label.add_theme_constant_override("outline_size", 4)
+	_label.add_theme_constant_override("line_spacing", 0)
 	add_child(_label)
 
 

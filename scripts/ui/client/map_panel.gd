@@ -7,10 +7,10 @@ var zone_label: Label
 
 
 func _init() -> void:
-	super._init("Mapa", Vector2(580, 640))
+	super._init("Mapa", Vector2(580, 560), "ᛗ", UiIcons.ref("ui", "map"))
 	zone_label = UiStyle.label("", UiStyle.INFO, 15)
 	body.add_child(zone_label)
-	view = MapView.new(MapView.Mode.FULL, Vector2(540, 500))
+	view = MapView.new(MapView.Mode.FULL, Vector2(540, 430))
 	body.add_child(view)
 	body.add_child(UiStyle.label("Branco: voce | Verde: jogadores | Amarelo: NPC | Ciano: portal | Laranja: bancada | Vermelho: inimigos", UiStyle.TEXT_DIM, 12, true))
 	hint_label.text = "M abre/fecha | Esc fecha"

@@ -294,7 +294,7 @@ Trocar os placeholders de primitivas por apresentação 3D estilizada com tema R
 - [x] E8.1: suporte `visual_scene` em dados; modelos e animações de jogador (3 classes), inimigos, chefe, NPCs (ver `docs/E8_MODELS.md`; chefe e bruto são PLACEHOLDER).
 - [x] E8.2: cenário nórdico (vila, floresta, ruínas), iluminação semi-realista, sombras, névoa, pós-processamento (ver `docs/E8_SCENERY.md`; SSAO/névoa volumétrica do Forward+ não verificados visualmente).
 - [x] E8.3: VFX de ataques, magias, projéteis, impactos e telégrafos (eventos cosméticos aditivos) + classe dos aliados remotos no snapshot (ver `docs/E8_VFX.md`, DEC-0038; evidências em `docs/img/e8_3_*.png`; sem GPU real, só Compatibility/GL por software).
-- [ ] E8.4: tema de UI nórdico, fontes, ícones, animações/efeitos de interface.
+- [x] E8.4: tema de UI nórdico, fontes, ícones game-icons, animações/efeitos, créditos e opções in-game, barra do chefe só perto/na zona (ver `docs/E8_UI.md`, DEC-0039; evidências em `docs/img/e8_4_*.png`; só Compatibility/GL por software; sem barras de mana/stamina/XP: o protocolo não as envia).
 - [ ] E8.5: áudio básico (se houver assets livres), tour de screenshots, gate de arte.
 
 ### Critérios de aceite

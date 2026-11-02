@@ -249,6 +249,8 @@ func _drop_connection() -> void:
 func _build_presentation() -> void:
 	QualitySettings.current = QualitySettings.resolve_startup(OS.get_cmdline_user_args()) # E8.2: --quality > settings.cfg > Medio
 	VfxSettings.resolve_startup(OS.get_cmdline_user_args()) # E8.3: --reduce-motion > settings.cfg > padrao
+	UiSettings.resolve_startup() # E8.4: volume geral e escala da interface (settings.cfg)
+	UiSettings.apply_volume()
 	_world = ClientWorld.new()
 	_world.name = "ClientWorld"
 	add_child(_world)
@@ -258,6 +260,10 @@ func _build_presentation() -> void:
 	_ui = ClientUi.new()
 	add_child(_ui)
 	_ui.bind(session)
+	_ui.quality_requested.connect(func(preset: int) -> void: # E8.4: Opcoes > Qualidade (ja gravada pelo painel)
+		if _world != null:
+			_world.set_quality(preset)
+			_world.notice.emit("Qualidade grafica: %s" % QualitySettings.preset_name(preset)))
 	_world.notice.connect(func(t: String) -> void:
 		if _ui != null:
 			_ui.toast(t)
@@ -471,6 +477,8 @@ func _tick_playing(delta: float) -> void:
 			session.send_move(LocalInput.read_move(), LocalInput.normalize_yaw(session.input.yaw), acts)
 			if _world != null:
 				_world.note_local_actions(acts) # E8.3: habilidade usada (so apresentacao)
+			if _ui != null:
+				_ui.note_local_actions(acts) # E8.4: recarga estimada da hotbar (so apresentacao)
 	session.prediction.update(delta)
 	if is_bot:
 		_bot_drain_events()
