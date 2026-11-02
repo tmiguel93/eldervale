@@ -42,6 +42,10 @@ class PeerState extends RefCounted:
 	## E5.7: capacidades declaradas pelo cliente (c_caps; mascaradas por Protocol.CAPS_KNOWN_MASK) e seu limitador.
 	var caps: int = 0
 	var caps_limiter: RateLimiter
+	## E7.1 (M7): endereco remoto (so em memoria; nunca logado), se contado no limite por IP, e se o resgate era reconexao.
+	var address: String = ""
+	var addr_counted: bool = false
+	var reconnected: bool = false
 
 
 var settings: ServerSettings
@@ -57,6 +61,12 @@ var sync: BackendSync = null
 var _character_peers: Dictionary = {} ## character_id -> peer_id
 var _next_token: int = 1
 var _registry: ContentRegistry
+## E7.1 (M7): (peer_id) -> endereco remoto como String ("" = desconhecido: sem limite por IP). O server_main liga ao ENet.
+var address_of: Callable = Callable()
+var _addr_conns: Dictionary = {} ## endereco -> conexoes contadas
+var _addr_limiters: Dictionary = {} ## endereco -> RateLimiter (novas conexoes)
+var _last_tick_usec: int = 0
+var _snap_sample: int = 0
 ## E5.1: quests + dialogo (criado em setup; usa o transporte da sessao).
 var quests: QuestService
 ## E5.4: crafting (criado em setup).
@@ -103,6 +113,8 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	equipping.talents = talents
 	process_physics_priority = 20 # depois de jogadores/inimigos
 	metrics = ServerMetrics.new(settings.metrics_interval_sec, now_msec())
+	metrics.gauge_provider = func() -> Dictionary:
+		return {"players_online": welcomed_count(), "peers": peer_count(), "pending": _pending_count(), "tick": world.server_tick if world != null else 0}
 	world.skill_used.connect(func(_eid: int, class_id: String, skill_id: String) -> void: metrics.inc("skill_use", "%s.%s" % [class_id, skill_id]))
 	quests.quest_done.connect(func(_eid: int, quest_id: String) -> void: metrics.inc("quests_completed", quest_id))
 	quests.poi_found.connect(func(_eid: int, poi_id: String) -> void: metrics.inc("pois_discovered", poi_id))
@@ -133,7 +145,12 @@ func now_msec() -> int:
 
 
 func _physics_process(_delta: float) -> void:
+	var t0: int = Time.get_ticks_usec()
+	if _last_tick_usec > 0:
+		metrics.observe("tick_dt_ms", float(t0 - _last_tick_usec) / 1000.0) # intervalo entre ticks (> 1000/tick_rate = atraso)
+	_last_tick_usec = t0
 	step_tick()
+	metrics.observe("tick_ms", float(Time.get_ticks_usec() - t0) / 1000.0) # custo do fim de tick (timeouts, quests, snapshots)
 
 
 ## Fim de tick: contagem, timeouts de hello e (a cada N ticks) snapshots.
@@ -188,7 +205,37 @@ func on_peer_connected(peer_id: int) -> void:
 	p.equip_limiter = RateLimiter.new(settings.equip_rate_per_sec, settings.equip_burst)
 	p.caps_limiter = RateLimiter.new(1.0, 3)
 	_peers[peer_id] = p
-	print("[server] peer %d conectou (%d conexoes)" % [peer_id, _peers.size()])
+	if not _admit_address(p):
+		return
+	ServerLog.info("[server] peer %d conectou (%d conexoes)" % [peer_id, _peers.size()])
+
+
+## M7: limite por endereco remoto. Recusa (desconecta sem processar nada) quando ha conexoes demais do mesmo endereco ou o
+## ritmo de novas conexoes estourou o balde. Sem `address_of` ou endereco vazio nao limita (testes/modo local).
+func _admit_address(p: PeerState) -> bool:
+	if not address_of.is_valid() or settings.max_conns_per_ip <= 0:
+		return true
+	var addr: String = String(address_of.call(p.peer_id))
+	if addr.is_empty():
+		return true
+	p.address = addr
+	var lim: RateLimiter = _addr_limiters.get(addr) as RateLimiter
+	if lim == null:
+		if _addr_limiters.size() >= 512: # teto de memoria: descarta baldes de enderecos sem conexao ativa
+			for k: Variant in _addr_limiters.keys():
+				if not _addr_conns.has(k):
+					_addr_limiters.erase(k)
+		lim = RateLimiter.new(settings.conn_rate_per_sec, settings.conn_burst)
+		_addr_limiters[addr] = lim
+	if int(_addr_conns.get(addr, 0)) >= settings.max_conns_per_ip or not lim.allow(now_msec()):
+		p.closing = true # nao conta, nao recebe hello; sai quando o ENet confirmar a desconexao
+		metrics.inc("rejects", "conn_limit")
+		ServerLog.warn("[server] peer %d: limite de conexoes por endereco; desconectando" % p.peer_id)
+		transport.disconnect_peer(p.peer_id)
+		return false
+	_addr_conns[addr] = int(_addr_conns.get(addr, 0)) + 1
+	p.addr_counted = true
+	return true
 
 
 func on_peer_disconnected(peer_id: int) -> void:
@@ -288,6 +335,7 @@ func _on_redeemed(r: Dictionary, peer_id: int, token: int) -> void:
 		return
 	_character_peers[cid] = peer_id
 	p.character_id = cid
+	p.reconnected = bool(r.get("reconnected", false))
 	sync.load_character(cid, _on_loaded.bind(peer_id, token))
 
 
@@ -342,13 +390,15 @@ func _complete_join(p: PeerState, entity_id: int) -> void:
 			_send_event_to(p, Protocol.EVENT_PLAYER_JOINED, {"id": other.entity_id, "name": other.player_name})
 	for ev: Dictionary in world.state_events_for_player(entity_id): # arena: enemy_spawn; mundo: zona+inimigos+puzzle+chefe
 		_send_event_to(p, int(ev["kind"]), ev["data"] as Dictionary)
-	print("[server] peer %d entrou como '%s' (jogador %d)" % [peer_id, p.player_name, entity_id])
+	ServerLog.info("[server] peer %d entrou como '%s' (jogador %d)" % [peer_id, p.player_name, entity_id])
 	var join_loadout: PlayerLoadout = _loadout_of(p)
 	if join_loadout != null:
 		quests.attach(entity_id, peer_id, p.character_id, join_loadout)
 	crafting.attach(entity_id)
 	talents.attach(entity_id)
 	send_inventory(p, true) # E5.6: estado completo logo apos o welcome (depois, so quando mudar)
+	if p.reconnected:
+		metrics.inc("reconnects", "player") # E7.1: resgate dentro da janela de reconexao do backend
 	if join_loadout != null and join_loadout.class_def != null: # E6.1: classe (autoridade do servidor) so para o dono
 		metrics.inc("joins", join_loadout.class_def.id)
 		transport.send_class(peer_id, {"class_id": join_loadout.class_def.id})
@@ -677,7 +727,7 @@ func _count_invalid(p: PeerState, reason: String) -> void:
 		p.invalid_in_window = 0
 	p.invalid_in_window += 1
 	if p.invalid_in_window > settings.max_invalid_inputs:
-		print("[server] peer %d acima do limite de mensagens invalidas (%s)" % [p.peer_id, reason])
+		ServerLog.info("[server] peer %d acima do limite de mensagens invalidas (%s)" % [p.peer_id, reason])
 		_reject_and_close(p, Protocol.REJECT_RATE_LIMIT, "mensagens invalidas em excesso")
 
 
@@ -702,6 +752,9 @@ func send_snapshots() -> void:
 			if settings.compact_snapshots and (p.caps & Protocol.CAP_SNAPSHOT_COMPACT) != 0:
 				_send_snapshot_compact(p, mine)
 				continue
+			_snap_sample += 1
+			if _snap_sample % 30 == 0: # E7.1: amostragem (var_to_bytes e caro); o compacto mede todos de graca
+				metrics.observe("snapshot_bytes", float(var_to_bytes(mine).size()))
 			if settings.measure_snapshots:
 				_measure_snapshot(world.server_tick, p.last_seq, mine)
 			transport.send_snapshot(p.peer_id, world.server_tick, p.last_seq, mine)
@@ -714,7 +767,7 @@ func _send_snapshot_compact(p: PeerState, mine: Array) -> void:
 	var parts: Array = enc["parts"]
 	if parts.size() > Protocol.MAX_SNAPSHOT_PARTS:
 		# Excede o limite do protocolo (nao ocorre com <= 256 entidades): descarta este snapshot em vez de enviar mensagens invalidas.
-		print("[server] snapshot do peer %d com %d partes excede o limite; descartado" % [p.peer_id, parts.size()])
+		ServerLog.info("[server] snapshot do peer %d com %d partes excede o limite; descartado" % [p.peer_id, parts.size()])
 		return
 	if settings.measure_snapshots:
 		snapshot_stats["snapshots"] = int(snapshot_stats["snapshots"]) + 1
@@ -722,6 +775,10 @@ func _send_snapshot_compact(p: PeerState, mine: Array) -> void:
 		snapshot_stats["max_parts"] = maxi(int(snapshot_stats["max_parts"]), parts.size())
 		snapshot_stats["encode_skipped"] = int(snapshot_stats["encode_skipped"]) + int(enc["skipped"])
 		snapshot_stats["max_entities"] = maxi(int(snapshot_stats["max_entities"]), mine.size())
+	var total_bytes: int = 0
+	for i: int in parts.size():
+		total_bytes += (parts[i] as PackedByteArray).size()
+	metrics.observe("snapshot_bytes", float(total_bytes)) # E7.1: tamanho real do blob compacto por snapshot e peer
 	for i: int in parts.size():
 		var blob: PackedByteArray = parts[i]
 		if settings.measure_snapshots:
@@ -749,7 +806,7 @@ func _measure_bytes(bytes: int) -> void:
 		snapshot_stats["over_mtu"] = int(snapshot_stats["over_mtu"]) + 1
 	# Linha de resumo a cada novo maximo (e a cada 200 amostras): o harness le a ultima; nao depende do encerramento limpo.
 	if new_max or int(snapshot_stats["samples"]) % 200 == 0:
-		print("[server] snapshots: %s" % JSON.stringify(snapshot_stats))
+		ServerLog.info("[server] snapshots: %s" % JSON.stringify(snapshot_stats))
 
 
 func _broadcast_event(kind: int, data: Dictionary) -> void:
@@ -781,7 +838,8 @@ func _reject_and_close(p: PeerState, code: int, message: String) -> void:
 	if p.closing:
 		return
 	p.closing = true
-	print("[server] peer %d rejeitado (codigo %d: %s)" % [p.peer_id, code, message])
+	metrics.inc("rejects", "code_%d" % code)
+	ServerLog.info("[server] peer %d rejeitado (codigo %d: %s)" % [p.peer_id, code, message])
 	transport.send_reject(p.peer_id, code, message)
 	transport.disconnect_peer(p.peer_id)
 	_drop_peer(p.peer_id, "")
@@ -792,8 +850,16 @@ func _drop_peer(peer_id: int, reason: String) -> void:
 	if p == null:
 		return
 	_peers.erase(peer_id)
+	if p.addr_counted:
+		var left: int = int(_addr_conns.get(p.address, 1)) - 1
+		if left <= 0:
+			_addr_conns.erase(p.address)
+		else:
+			_addr_conns[p.address] = left
+	if p.welcomed:
+		metrics.inc("disconnects", "player")
 	if not reason.is_empty():
-		print("[server] peer %d %s" % [peer_id, reason])
+		ServerLog.info("[server] peer %d %s" % [peer_id, reason])
 	if not p.character_id.is_empty():
 		_character_peers.erase(p.character_id)
 		if sync != null:

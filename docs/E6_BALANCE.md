@@ -434,3 +434,7 @@ checkpoint sob latencia real; (4) corrida entre dois servidores de sessao para o
 - Ritmo de level-up depende de quantas vezes o jogador repete abates; o modelo conta uma ocorrencia de cada fonte.
 - Loot: taxas medidas por abate; a sensacao de "raro" depende da frequencia de abates por hora e da economia (venda/craft), ainda nao implementadas.
 - Faixas-alvo sao propostas (DEC-0026); o dono do produto pode muda-las em `data/balance/balance_config.json` sem tocar em codigo e reexecutar.
+
+
+## E7.1 — Telemetria adicional
+A linha `[metrics]` e o snapshot de `ServerMetrics` ganharam: categorias `rejects`, `reconnects`, `disconnects`; `gauges` (`players_online`, `peers`, `pending`, `tick`); `timings` com p50/p95/máx de `tick_ms`, `tick_dt_ms` e `snapshot_bytes` (600 amostras). Consumidores do formato antigo continuam válidos (campos novos são aditivos). Sem PII.

@@ -17,8 +17,13 @@ export interface Config {
   joinTicketTtlSeconds: number;
   reconnectWindowSeconds: number;
   maxBodyBytes: number;
-  /** Confia em x-real-ip (so ative atras de proxy confiavel, ex.: Vercel). */
+  /** Confia no cabecalho de IP do proxy (so ative atras de proxy confiavel que o sobrescreve). Em production TRUST_PROXY e obrigatorio (M2). */
   trustProxy: boolean;
+  /** Cabecalho de IP confiavel (padrao x-real-ip; x-forwarded-for usa TRUSTED_PROXY_HOPS contados do fim) (M3). */
+  proxyIpHeader: string;
+  trustedProxyHops: number;
+  /** Exige `X-Session-Key` (derivada da sessao registrada) nas rotas /internal ligadas a sessao (M5). Padrao: ligado em production. */
+  requireSessionKey: boolean;
   logLevel: "debug" | "info" | "warn" | "error";
   /** true se algum segredo foi gerado em memoria (nunca em producao). */
   ephemeralSecrets: boolean;
@@ -79,6 +84,16 @@ export function loadConfig(env: Env = process.env): Config {
   const level = (env.LOG_LEVEL?.trim() || (nodeEnv === "test" ? "error" : "info")) as Config["logLevel"];
   if (!["debug", "info", "warn", "error"].includes(level)) throw new ConfigError("LOG_LEVEL invalido");
 
+  const tp = env.TRUST_PROXY?.trim().toLowerCase();
+  if (tp !== undefined && tp !== "" && tp !== "true" && tp !== "false") throw new ConfigError("TRUST_PROXY deve ser true ou false");
+  if (isProduction && !tp) throw new ConfigError("TRUST_PROXY deve ser definido (true|false) em production");
+  const proxyIpHeader = (env.PROXY_IP_HEADER?.trim().toLowerCase() || "x-real-ip");
+  if (!/^[a-z0-9-]{1,64}$/.test(proxyIpHeader)) throw new ConfigError("PROXY_IP_HEADER invalido");
+  const rsk = env.REQUIRE_SESSION_KEY?.trim().toLowerCase();
+  if (rsk !== undefined && rsk !== "" && rsk !== "true" && rsk !== "false") throw new ConfigError("REQUIRE_SESSION_KEY deve ser true ou false");
+  const requireSessionKey = rsk ? rsk === "true" : isProduction;
+  if (isProduction && !requireSessionKey) throw new ConfigError("REQUIRE_SESSION_KEY=false nao e permitido em production");
+
   return {
     nodeEnv,
     isProduction,
@@ -91,7 +106,10 @@ export function loadConfig(env: Env = process.env): Config {
     joinTicketTtlSeconds: intVar(env, "JOIN_TICKET_TTL_SECONDS", 60, 5, 600),
     reconnectWindowSeconds: intVar(env, "RECONNECT_WINDOW_SECONDS", 90, 10, 600),
     maxBodyBytes: intVar(env, "MAX_BODY_BYTES", 64 * 1024, 1024, 1024 * 1024),
-    trustProxy: env.TRUST_PROXY?.trim().toLowerCase() === "true",
+    trustProxy: tp === "true",
+    proxyIpHeader,
+    trustedProxyHops: intVar(env, "TRUSTED_PROXY_HOPS", 1, 1, 10),
+    requireSessionKey,
     logLevel: level,
     ephemeralSecrets,
   };

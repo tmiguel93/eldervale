@@ -5,6 +5,8 @@ extends BackendTransport
 ## `forced[needle]` = fila de respostas forcadas para caminhos que contem `needle`.
 
 const SESSION_ID: String = "aaaaaaaa-0000-4000-8000-000000000001"
+## E7.1 (M5): chave da sessao devolvida no registro (o backend real a deriva por HMAC).
+const SESSION_KEY: String = "fake-session-key-for-tests-0123456789ABCDEFGHIJ"
 const NET_ERR: Dictionary = {"status": 0, "body": "", "error": "network"}
 const TIMEOUT_ERR: Dictionary = {"status": 0, "body": "", "error": "timeout"}
 
@@ -53,13 +55,19 @@ func send(req: Dictionary, cb: Callable) -> void:
 		if typeof(parsed) == TYPE_DICTIONARY:
 			body = parsed
 	var session_header: String = ""
+	var key_header: String = ""
+	var rid_header: String = ""
 	for h: String in req.get("headers", PackedStringArray()):
+		if h.begins_with("X-Session-Key: "):
+			key_header = h.substr(15)
+		if h.begins_with("X-Request-Id: "):
+			rid_header = h.substr(14)
 		if h.begins_with("Authorization: Bearer "):
 			last_auth = h.substr(22)
 		if h.begins_with("X-Session-Id: "):
 			session_header = h.substr(14)
 	last_session_header = session_header
-	requests.append({"method": String(req["method"]), "path": path, "body": body, "raw": String(req.get("body", "")), "session_header": session_header})
+	requests.append({"method": String(req["method"]), "path": path, "body": body, "raw": String(req.get("body", "")), "session_header": session_header, "key_header": key_header, "rid_header": rid_header})
 	var resp: Dictionary = {}
 	for needle: String in forced:
 		var q: Array = forced[needle]
@@ -125,7 +133,7 @@ func _cid(path: String) -> String:
 
 func _route(method: String, path: String, body: Dictionary) -> Dictionary:
 	if path == "/internal/sessions":
-		return ok({"session_id": SESSION_ID, "status": "open", "heartbeat_timeout_seconds": 30, "reconnect_window_seconds": 90}, 201)
+		return ok({"session_id": SESSION_ID, "status": "open", "heartbeat_timeout_seconds": 30, "reconnect_window_seconds": 90, "session_key": SESSION_KEY}, 201)
 	if path.ends_with("/heartbeat"):
 		return ok({"locks_refreshed": 0})
 	if path.begins_with("/internal/sessions/") and path.ends_with("/close"):

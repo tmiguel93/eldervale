@@ -28,12 +28,21 @@ export function requireAuth(verify: AuthVerifier, handler: AuthedHandler): Handl
  * Autenticacao servico-a-servico (servidor Godot => /internal/*): `Authorization: Bearer <GAME_SESSION_INTERNAL_SECRET>`,
  * comparacao em tempo constante. Restricao de rede continua necessaria em producao (ARQ. 9).
  */
-export function requireInternal(secret: string, handler: Handler): Handler {
+export interface InternalGuard {
+  /** Chamado ANTES de comparar: lance 429 se a origem ja excedeu falhas (B4). */
+  before(ctx: Parameters<Handler>[0]): void;
+  /** Chamado em cada credencial invalida (log/metrica/contagem). */
+  failed(ctx: Parameters<Handler>[0]): void;
+}
+
+export function requireInternal(secret: string, handler: Handler, guard?: InternalGuard): Handler {
   const expected = Buffer.from(secret);
   return async (ctx) => {
+    guard?.before(ctx);
     const token = bearer(ctx.req);
     const given = Buffer.from(token ?? "");
     if (!token || given.length !== expected.length || !timingSafeEqual(given, expected)) {
+      guard?.failed(ctx);
       throw Errors.unauthorized("Credencial de servico invalida");
     }
     return handler(ctx);

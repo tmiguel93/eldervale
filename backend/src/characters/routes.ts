@@ -6,6 +6,7 @@ import type { Router } from "../http/router.ts";
 import type { Catalog } from "./catalog.ts";
 import { loadCatalogFromDisk } from "./catalog.ts";
 import { loadClassCatalogFromDisk, type ClassCatalog } from "./classes.ts";
+import { assertSessionKey } from "../sessions/session-key.ts";
 import { loadCharacterLimits, type CharacterLimits } from "./limits.ts";
 import { loadQuestCatalogFromDisk, type QuestCatalog } from "../quests/catalog.ts";
 import { loadRecipeCatalogFromDisk, type RecipeCatalog } from "../crafting/catalog.ts";
@@ -26,9 +27,10 @@ function uuidParam(v: string | undefined): string {
  * Fencing (M4): checkpoint/recompensa so sao aceitos da sessao que detem o lock do personagem.
  * A sessao vem no cabecalho X-Session-Id; sem lock, lock de outra sessao ou sessao encerrada => 409.
  */
-async function assertSessionHoldsLock(db: Db, ctx: { req: Request }, characterId: string): Promise<void> {
+async function assertSessionHoldsLock(db: Db, ctx: { req: Request }, characterId: string, config: Parameters<typeof assertSessionKey>[0]): Promise<void> {
   const raw = ctx.req.headers.get("x-session-id");
   if (!raw || !UUID_RE.test(raw)) throw Errors.badRequest("cabecalho X-Session-Id obrigatorio (uuid)", "invalid_session");
+  assertSessionKey(config, ctx.req, raw.toLowerCase()); // M5: a credencial tem de ser DA sessao informada
   const r = await db.query(
     `SELECT 1 FROM character_locks l JOIN game_sessions s ON s.id = l.session_id
      WHERE l.character_id = $1 AND l.session_id = $2 AND s.closed_at IS NULL AND s.status <> 'closed'`,
@@ -103,7 +105,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
 
   router.post("/internal/characters/:id/checkpoint", requireInternal(async (ctx) => {
     const id = uuidParam(ctx.params.id);
-    await assertSessionHoldsLock(db, ctx, id);
+    await assertSessionHoldsLock(db, ctx, id, deps.config);
     const body = objectBody(await ctx.json());
     for (const k of Object.keys(body)) if (k !== "expected_revision" && k !== "state") throw Errors.badRequest(`campo desconhecido "${k.slice(0, 40)}"`, "invalid_body");
     const rev = body.expected_revision;
@@ -115,7 +117,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
 
   router.post("/internal/characters/:id/rewards", requireInternal(async (ctx) => {
     const id = uuidParam(ctx.params.id);
-    await assertSessionHoldsLock(db, ctx, id);
+    await assertSessionHoldsLock(db, ctx, id, deps.config);
     const req = validateRewardRequest(await ctx.json(), catalog, limits, quests, id);
     if (req.idempotency_key.startsWith("craft:")) throw Errors.badRequest("prefixo craft: e reservado ao endpoint /craft", "invalid_idempotency_key");
     if (req.idempotency_key.startsWith("talent:")) throw Errors.badRequest("prefixo talent: e reservado ao endpoint /talents", "invalid_idempotency_key");
@@ -129,7 +131,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
 
   router.post("/internal/characters/:id/craft", requireInternal(async (ctx) => {
     const id = uuidParam(ctx.params.id);
-    await assertSessionHoldsLock(db, ctx, id);
+    await assertSessionHoldsLock(db, ctx, id, deps.config);
     const body = objectBody(await ctx.json());
     for (const k of Object.keys(body)) if (k !== "idempotency_key" && k !== "recipe_id") throw Errors.badRequest(`campo desconhecido "${k.slice(0, 40)}"`, "invalid_body");
     const key = body.idempotency_key;
@@ -146,7 +148,7 @@ export function registerCharactersRoutes(router: Router, deps: RouteDeps, opts: 
   // E6.2: comandos de talentos (allocate / respec / choose_spec). Chave reservada talent:<sessao>:<n>:<personagem>.
   router.post("/internal/characters/:id/talents", requireInternal(async (ctx) => {
     const id = uuidParam(ctx.params.id);
-    await assertSessionHoldsLock(db, ctx, id);
+    await assertSessionHoldsLock(db, ctx, id, deps.config);
     const body = objectBody(await ctx.json());
     for (const k of Object.keys(body)) if (!["idempotency_key", "op", "arg", "expected_revision"].includes(k)) throw Errors.badRequest(`campo desconhecido "${k.slice(0, 40)}"`, "invalid_body");
     const key = body.idempotency_key;

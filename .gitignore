@@ -58,3 +58,6 @@ desktop.ini
 .tools/
 
 backend/.data/
+
+# Gerado por tools/build_windows.py antes de exportar (id de build embutido)
+/build_info.json

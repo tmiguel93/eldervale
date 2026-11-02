@@ -6,7 +6,7 @@ import type { ClassCatalog } from "./classes.ts";
 import type { CharacterLimits } from "./limits.ts";
 import { sameInstance, type ItemInstance } from "./instances.ts";
 import {
-  addItems, BASE_STATS, EQUIP_SLOTS, instancesOf, itemTotals, invalidState, SCHEMA_VERSION, STARTING_EQUIPMENT,
+  addItems, BASE_STATS, EQUIP_SLOTS, STAT_KEYS, instancesOf, itemTotals, invalidState, SCHEMA_VERSION, STARTING_EQUIPMENT,
   type CharacterState, type Equipment, type EquipmentInst, type EquipSlot, type InventoryEntry, type RewardRequest, type Stats,
 } from "./model.ts";
 import { applyXp, xpToNext } from "./progression.ts";
@@ -194,6 +194,13 @@ export async function checkpoint(db: Db, ctx: ServiceCtx, id: string, expectedRe
     if (next.xp - cur.state.xp > ctx.limits.checkpointMaxXpGain) {
       reject("xp_gain_limit", `ganho de xp acima do limite por checkpoint (${ctx.limits.checkpointMaxXpGain})`);
     }
+    // M5: teto relativo de stats (um servidor comprometido nao salta attack_power 10 -> 100000).
+    const base = ctx.classes?.get(cur.class_id)?.base_stats ?? BASE_STATS;
+    for (const k of STAT_KEYS) {
+      const flat = k === "resistance" ? 0.05 : k === "move_speed" ? 1 : 5;
+      const ceiling = Math.max(cur.state.stats[k], base[k] * (1 + (ctx.limits.statCapPercentPerLevel / 100) * (next.level - 1)) + flat);
+      if (next.stats[k] > ceiling) reject("stat_ceiling", `stats.${k} acima do teto relativo (${ceiling.toFixed(2)}) para a classe/nivel`);
+    }
     const before = itemTotals(cur.state);
     for (const [item, n] of itemTotals(next)) {
       if (n - (before.get(item) ?? 0) > ctx.limits.checkpointMaxItemGain) {
@@ -254,6 +261,16 @@ export async function grantReward(db: Db, ctx: ServiceCtx, id: string, req: Rewa
       if (!poi) throw Errors.badRequest("ponto de exploracao desconhecido", "unknown_poi");
       if (cur.state.level < poi.min_level) throw Errors.conflict("nivel insuficiente para este ponto", "poi_level_too_low");
       for (const rq of poi.requires_quests) if (!curQuests.completed.includes(rq)) throw Errors.conflict("quest exigida nao concluida", "poi_prereq_missing");
+    }
+    // M5: orcamento de XP por janela de tempo (so o XP efetivamente pago entra na soma; replays ja saíram acima).
+    if (req.xp > 0) {
+      const since = new Date(ctx.now() - ctx.limits.rewardXpWindowSeconds * 1000);
+      const sum = await tx.query<{ s: string | number | null }>(
+        "SELECT COALESCE(SUM((payload->'result'->>'xp_granted')::bigint), 0) AS s FROM reward_claims WHERE character_id = $1 AND created_at > $2::timestamptz", [id, since]);
+      if (Number(sum.rows[0]?.s ?? 0) + req.xp > ctx.limits.rewardXpPerWindow) {
+        ctx.log.warn("reward_rejected", { character_id: id, reason: "xp_budget" });
+        throw new ApiError(409, "reward_budget_exceeded", "orcamento de xp por janela excedido");
+      }
     }
     const xpRes = applyXp(cur.state.xp, req.xp);
     let inventory = cur.state.inventory;

@@ -10,6 +10,7 @@ import { buildApp } from "../src/app.ts";
 import { signAccessToken } from "../src/auth/tokens.ts";
 import { deriveTicketKey, signTicket } from "../src/sessions/ticket.ts";
 import { clientIp } from "../src/http/rate-limit.ts";
+import { loadConfig } from "../src/config.ts";
 import type { Db } from "../src/persistence/db.ts";
 import { freshDb, mkAccount, mkCharacter, mkSession, testConfig } from "./helpers.ts";
 import { REG, setup, type Harness } from "./m4_harness.ts";
@@ -66,7 +67,7 @@ describe("A/B. autenticacao e separacao de segredos", () => {
       for (const m of readFileSync(f, "utf8").matchAll(/router\.(?:get|post|put|patch|delete)\(\s*"(\/[^"]*)",\s*([^\n]*)/g)) {
         const [, path, rest] = m;
         if (path!.startsWith("/internal")) { n++; expect(rest, `${f} ${path}`).toContain("requireInternal"); }
-        if (path!.startsWith("/v1/") && !path!.startsWith("/v1/auth/") && path !== "/v1/health") expect(rest, `${f} ${path}`).toContain("requireAuth");
+        if (path!.startsWith("/v1/") && !path!.startsWith("/v1/auth/") && path !== "/v1/health" && path !== "/v1/ready") expect(rest, `${f} ${path}`).toContain("requireAuth");
       }
     }
     expect(n).toBeGreaterThanOrEqual(9);
@@ -129,24 +130,60 @@ describe("A/B. autenticacao e separacao de segredos", () => {
   });
 });
 
-describe("A. rate limit (achados)", () => {
-  it("[ACHADO M] lockout dirigido: 10 tentativas ruins de um atacante bloqueiam o login LEGITIMO do e-mail alvo", async () => {
+describe("A. rate limit (E7.1: M1, M2, M3 tratados)", () => {
+  it("[CORRIGIDO M1] lockout dirigido: 10 tentativas ruins de OUTRO ip nao bloqueiam o login legitimo do e-mail alvo", async () => {
     real = await realApp({ TRUST_PROXY: "true" });
     await real.call("POST", "/v1/auth/register", { body: { email: "vitima@example.com", password: PW } });
-    for (let i = 0; i < 10; i++) await real.call("POST", "/v1/auth/login", { headers: { "x-real-ip": `203.0.113.${i}` }, body: { email: "vitima@example.com", password: "tentativa errada " + i } });
+    // Atacante num unico IP: esgota so o proprio balde (e-mail, IP) ...
+    for (let i = 0; i < 10; i++) await real.call("POST", "/v1/auth/login", { headers: { "x-real-ip": "203.0.113.9" }, body: { email: "vitima@example.com", password: "tentativa errada " + i } });
+    const atacante = await real.call("POST", "/v1/auth/login", { headers: { "x-real-ip": "203.0.113.9" }, body: { email: "vitima@example.com", password: PW } });
+    expect(atacante.status).toBe(429);
+    // ... e o dono, de outro IP, entra normalmente.
     const legit = await real.call("POST", "/v1/auth/login", { headers: { "x-real-ip": "198.51.100.7" }, body: { email: "vitima@example.com", password: PW } });
-    expect(legit.status).toBe(429); // senha CORRETA, IP diferente, mesmo assim bloqueado
+    expect(legit.status).toBe(200);
   });
 
-  it("[ACHADO M] sem TRUST_PROXY todos os clientes dividem UM balde de IP (\"unknown\")", () => {
+  it("[CORRIGIDO M1, residual] forca bruta distribuida em muitos IPs ainda e freada pelo balde global do e-mail (60 + 20/min)", async () => {
+    real = await realApp({ TRUST_PROXY: "true" });
+    let blocked = 0;
+    for (let i = 0; i < 70; i++) {
+      const r = await real.call("POST", "/v1/auth/login", { headers: { "x-real-ip": `203.0.113.${(i % 200) + 1}`, }, body: { email: "alvo@example.com", password: "tentativa errada " + i } });
+      if (r.status === 429) blocked++;
+    }
+    expect(blocked).toBeGreaterThan(0);
+  }, 120_000);
+
+  it("[CORRIGIDO M2] production exige TRUST_PROXY explicito (true|false); valor invalido e recusado", () => {
+    const prod = { NODE_ENV: "production", DATABASE_URL: "postgres://u:p@h/db?sslmode=require", AUTH_SECRET: "a".repeat(40), GAME_SESSION_INTERNAL_SECRET: "b".repeat(40) };
+    expect(() => loadConfig(prod)).toThrow(/TRUST_PROXY/);
+    expect(() => loadConfig({ ...prod, TRUST_PROXY: "talvez" })).toThrow(/TRUST_PROXY/);
+    expect(loadConfig({ ...prod, TRUST_PROXY: "false" }).trustProxy).toBe(false);
+    expect(loadConfig({ ...prod, TRUST_PROXY: "true" }).trustProxy).toBe(true);
+    expect(() => loadConfig({ ...prod, TRUST_PROXY: "true", REQUIRE_SESSION_KEY: "false" })).toThrow(/REQUIRE_SESSION_KEY/);
+  });
+
+  it("sem TRUST_PROXY o cabecalho e ignorado (todos em \"unknown\"): limite por IP vira global, por isso production exige decisao explicita", () => {
     const mk = (ip: string) => new Request("http://t/", { headers: { "x-real-ip": ip } });
-    expect(clientIp(mk("1.1.1.1"), false)).toBe(clientIp(mk("2.2.2.2"), false));
+    expect(clientIp(mk("1.1.1.1"), false)).toBe("unknown");
+    expect(clientIp(mk("2.2.2.2"), false)).toBe("unknown");
   });
 
-  it("[ACHADO M/B] com TRUST_PROXY, x-forwarded-for (primeiro item, controlado pelo cliente) vale quando x-real-ip falta", () => {
-    const r = (v: string) => new Request("http://t/", { headers: { "x-forwarded-for": v } });
-    expect(clientIp(r("9.9.9.1, 10.0.0.1"), true)).toBe("9.9.9.1");
-    expect(clientIp(r("9.9.9.2, 10.0.0.1"), true)).toBe("9.9.9.2"); // atacante rotaciona e foge do limite por IP
+  it("[CORRIGIDO M3] x-forwarded-for forjado NAO vale: sem o cabecalho configurado, ignora; com ele, usa o item do proxy (do fim), nao o primeiro", () => {
+    const r = (h: string, v: string) => new Request("http://t/", { headers: { [h]: v } });
+    // Padrao (x-real-ip): x-forwarded-for e ignorado por completo.
+    expect(clientIp(r("x-forwarded-for", "9.9.9.1, 10.0.0.1"), true)).toBe("unknown");
+    // Configurado: o cliente forja "9.9.9.9"; o proxy confiavel anexa o IP real (203.0.113.5) no FIM.
+    const trust = { header: "x-forwarded-for", hops: 1 };
+    expect(clientIp(r("x-forwarded-for", "9.9.9.9, 203.0.113.5"), trust)).toBe("203.0.113.5");
+    expect(clientIp(r("x-forwarded-for", "1.2.3.4, 9.9.9.9, 203.0.113.5"), trust)).toBe("203.0.113.5");
+    // Dois proxies confiaveis: o IP do cliente e o penultimo.
+    expect(clientIp(r("x-forwarded-for", "9.9.9.9, 198.51.100.2, 10.1.1.1"), { header: "x-forwarded-for", hops: 2 })).toBe("198.51.100.2");
+    // Lixo no cabecalho nao vira chave de bucket.
+    expect(clientIp(r("x-real-ip", "nao-e-ip"), true)).toBe("unknown");
+    expect(clientIp(r("x-real-ip", "1.1.1.1"), true)).toBe("1.1.1.1");
+    // IPv6 agrupa por /64 e ::ffff:a.b.c.d vira IPv4.
+    expect(clientIp(r("x-real-ip", "2001:db8:1:2:aaaa:bbbb:cccc:dddd"), true)).toBe(clientIp(r("x-real-ip", "2001:db8:1:2::1"), true));
+    expect(clientIp(r("x-real-ip", "::ffff:203.0.113.8"), true)).toBe("203.0.113.8");
   });
 });
 
@@ -244,14 +281,16 @@ describe("C. achados de integridade (abertos)", () => {
     expect((await real.call("POST", `/internal/characters/${id}/rewards`, { secret: SECRET, body: { ...body, idempotency_key: "zombie-key-0002" }, headers: { "x-session-id": sid } })).status).toBe(409);
   });
 
-  it("[ACHADO M] stats nao tem teto relativo: um checkpoint pode saltar attack_power 10 -> 100000", async () => {
+  it("[CORRIGIDO M5] stats tem teto relativo: salto attack_power 10 -> 100000 e recusado (422); valor dentro do teto passa", async () => {
     real = await realApp();
     const acct = await mkAccount(real.db, "s@example.com");
     const tok = await signAccessToken(real.config, acct, T0);
     const c = (await real.call("POST", "/v1/characters", { token: tok, body: { name: "Stats", class_id: "warrior" } })).json.character;
-    const state = { schema_version: 1, level: c.level, xp: c.xp, stats: { ...c.stats, attack_power: 100000 }, inventory: c.inventory, equipment: c.equipment };
-    const r = await real.call("POST", `/internal/characters/${c.id}/checkpoint`, { secret: SECRET, body: { expected_revision: c.revision, state } });
-    expect(r.status).toBe(200);
+    const mk = (attack: number) => ({ schema_version: 1, level: c.level, xp: c.xp, stats: { ...c.stats, attack_power: attack }, inventory: c.inventory, equipment: c.equipment });
+    const r = await real.call("POST", `/internal/characters/${c.id}/checkpoint`, { secret: SECRET, body: { expected_revision: c.revision, state: mk(100000) } });
+    expect(r.status).toBe(422);
+    expect(r.json.error.message).toMatch(/teto relativo/);
+    expect((await real.call("POST", `/internal/characters/${c.id}/checkpoint`, { secret: SECRET, body: { expected_revision: c.revision, state: mk(c.stats.attack_power) } })).status).toBe(200);
   });
 
   it("[ACHADO B] lock vencido (sessao morta sem close) impede apagar o personagem para sempre (409)", async () => {

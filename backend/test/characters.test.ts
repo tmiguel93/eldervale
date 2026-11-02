@@ -485,13 +485,16 @@ describe("recompensas", () => {
   });
 
   it("nivel maximo: satura o xp e nao passa de 50", async () => {
+    // E7.1 (M5): o orcamento de xp por janela (20 000/min) e desligado aqui para testar a saturacao da curva.
+    const wide = mkApp({ ...DEFAULT_LIMITS, rewardXpPerWindow: 100_000_000 });
+    const rw = (id: string, body: unknown) => call(wide, "POST", `/internal/characters/${id}/rewards`, { internal: true, body });
     const a = await newAccount();
     const c = await newChar(a);
     let last: any;
-    for (let i = 0; i < 2; i++) last = await reward(c.id, { idempotency_key: key(), xp: 1_000_000 });
+    for (let i = 0; i < 2; i++) last = await rw(c.id, { idempotency_key: key(), xp: 1_000_000 });
     expect(last.json.result.level_after).toBe(MAX_LEVEL);
     expect(last.json.result.xp_total).toBe(MAX_TOTAL_XP);
-    const again = await reward(c.id, { idempotency_key: key(), xp: 500 });
+    const again = await rw(c.id, { idempotency_key: key(), xp: 500 });
     expect(again.json.result).toMatchObject({ xp_granted: 0, levels_gained: 0, level_after: MAX_LEVEL });
     expect(await get(c.id)).toMatchObject({ level: 50, xp: MAX_TOTAL_XP });
   });

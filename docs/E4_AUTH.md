@@ -47,3 +47,9 @@ Somente eventos (`auth_login_ok`, `auth_login_failed{reason}`, `auth_refresh_reu
 - Sem verificacao de e-mail, reset de senha, MFA, listagem/revogacao geral de sessoes, nem limpeza de `refresh_tokens` expirados (job futuro).
 - scrypt ~32 MiB/hash: dimensionar memoria das Functions; nao testado em Vercel. Argon2id (citado na arquitetura) exigiria dependencia nova.
 - Senhas nao sao normalizadas em Unicode (NFC/NFKC).
+
+
+## E7.1 — Limites de login e IP
+- Login consome o balde `(e-mail, IP)` (cap. 10, 1/6 s) e depois o balde global por e-mail (cap. 60, 1/3 s). Ver `docs/E4_SECURITY_REVIEW.md` (M1).
+- IP do cliente: `TRUST_PROXY` (obrigatório em production), `PROXY_IP_HEADER` (padrão `x-real-ip`), `TRUSTED_PROXY_HOPS` para `x-forwarded-for` (lido do fim). IPv6 agrupado por /64.
+- Toda resposta tem `X-Request-Id`; `GET /v1/ready` informa migrações pendentes (503).

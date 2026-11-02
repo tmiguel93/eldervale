@@ -3,9 +3,11 @@ import type { Config } from "../config.ts";
 import type { Db } from "../persistence/db.ts";
 import { requireAuth, requireInternal } from "./auth.ts";
 import type { AuthedHandler, AuthVerifier, Handler, RequestContext } from "./context.ts";
+import { createHash } from "node:crypto";
 import { ApiError, Errors } from "./errors.ts";
+import { Metrics } from "./metrics.ts";
 import type { Logger } from "./logger.ts";
-import { clientIp } from "./rate-limit.ts";
+import { clientIp, RateLimiter } from "./rate-limit.ts";
 import { errorBody, json, SECURITY_HEADERS } from "./respond.ts";
 import { Router } from "./router.ts";
 
@@ -22,6 +24,8 @@ export interface RouteDeps {
   requireInternal: (handler: Handler) => Handler;
   /** IP do cliente para chaves de RateLimiter. */
   clientIp: (req: Request) => string;
+  /** Metricas operacionais da instancia (E7.1). */
+  metrics: Metrics;
 }
 
 export interface AppDeps {
@@ -32,6 +36,7 @@ export interface AppDeps {
   /** Registra rotas. Padrao do projeto: `registerRoutes` de src/routes.ts. */
   register: (router: Router, deps: RouteDeps) => void;
   now?: () => number;
+  metrics?: Metrics;
 }
 
 export interface App {
@@ -44,14 +49,35 @@ const BODY_METHODS = new Set(["POST", "PUT", "PATCH"]);
 export function createApp(deps: AppDeps): App {
   const now = deps.now ?? Date.now;
   const router = new Router();
+  const metrics = deps.metrics ?? new Metrics(now);
+  const ipOf = (req: Request) => clientIp(req, deps.config.trustProxy ? { header: deps.config.proxyIpHeader, hops: deps.config.trustedProxyHops } : false);
+  // B4: falhas de credencial interna por origem. Sem IP confiavel ("unknown") so loga/conta: bloquear um balde global
+  // permitiria a um atacante travar o servidor de jogo legitimo.
+  const internalFails = new RateLimiter({ capacity: 20, refillPerSecond: 0.2, now });
+  const internalGuard = {
+    before: (ctx: RequestContext) => {
+      const ip = ipOf(ctx.req);
+      if (ip !== "unknown" && !internalFails.wouldAllow(ip)) {
+        metrics.inc("internal_auth_blocked");
+        throw Errors.tooManyRequests(5);
+      }
+    },
+    failed: (ctx: RequestContext) => {
+      const ip = ipOf(ctx.req);
+      metrics.inc("internal_auth_failed");
+      ctx.log.warn("internal_auth_failed", { path: ctx.url.pathname, client: createHash("sha256").update(ip).digest("hex").slice(0, 12) });
+      if (ip !== "unknown") internalFails.take(ip);
+    },
+  };
   const routeDeps: RouteDeps = {
     config: deps.config,
     db: deps.db,
     log: deps.log,
     now,
     requireAuth: (h) => requireAuth(deps.authVerifier, h),
-    requireInternal: (h) => requireInternal(deps.config.gameSessionInternalSecret, h),
-    clientIp: (req) => clientIp(req, deps.config.trustProxy),
+    requireInternal: (h) => requireInternal(deps.config.gameSessionInternalSecret, h, internalGuard),
+    clientIp: ipOf,
+    metrics,
   };
   deps.register(router, routeDeps);
   const maxBody = deps.config.maxBodyBytes;
@@ -121,9 +147,11 @@ export function createApp(deps: AppDeps): App {
         res = await dispatch(req, ctx);
       } catch (e) {
         if (e instanceof ApiError) {
+          if (e.status === 429) metrics.inc("rate_limited");
           res = json(e.status, errorBody(e.code, e.message), e.headers);
         } else {
           // Nunca vaza detalhes/stack ao cliente; o log recebe nome+mensagem redigidos.
+          metrics.inc("unhandled_error");
           log.error("unhandled_error", { error: e });
           res = json(500, errorBody("internal_error", "Erro interno"));
         }
@@ -132,6 +160,7 @@ export function createApp(deps: AppDeps): App {
       const headers = new Headers(res.headers);
       for (const [k, v] of Object.entries(SECURITY_HEADERS)) headers.set(k, v);
       headers.set("x-request-id", requestId);
+      metrics.observeRequest(res.status, now() - started);
       log.info("request", { method: req.method, path: url.pathname, status: res.status, duration_ms: now() - started });
       return new Response(res.body, { status: res.status, statusText: res.statusText, headers });
     },

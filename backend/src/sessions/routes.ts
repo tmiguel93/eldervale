@@ -3,6 +3,7 @@ import { Errors } from "../http/errors.ts";
 import { created, ok } from "../http/respond.ts";
 import type { Router } from "../http/router.ts";
 import { createSessionsService, sessionsOptionsFromEnv, type SessionsOptions } from "./service.ts";
+import { assertSessionKey, deriveSessionKey } from "./session-key.ts";
 import { bodyObject, intField, strField, uuid } from "./validate.ts";
 
 const REGION_RE = /^[a-z0-9][a-z0-9-]{1,31}$/;
@@ -27,11 +28,22 @@ export function registerSessionsRoutes(router: Router, deps: RouteDeps, opts?: S
       protocolVersion: intField(b.protocol_version, "protocol_version", 1, 1_000_000),
       endpoint,
     });
-    return created(res);
+    // M5: credencial restrita a ESTA sessao (derivada; nao ha estado novo no banco).
+    return created({ ...res, session_key: deriveSessionKey(deps.config.gameSessionInternalSecret, res.session_id) });
   }));
 
-  router.post("/internal/sessions/:id/heartbeat", deps.requireInternal(async (ctx) => ok(await svc.heartbeat(uuid(ctx.params.id, "id")))));
-  router.post("/internal/sessions/:id/close", deps.requireInternal(async (ctx) => ok(await svc.close(uuid(ctx.params.id, "id")))));
+  const keyed = (sessionId: string, ctx: { req: Request }) => assertSessionKey(deps.config, ctx.req, sessionId);
+
+  router.post("/internal/sessions/:id/heartbeat", deps.requireInternal(async (ctx) => {
+    const id = uuid(ctx.params.id, "id");
+    keyed(id, ctx);
+    return ok(await svc.heartbeat(id));
+  }));
+  router.post("/internal/sessions/:id/close", deps.requireInternal(async (ctx) => {
+    const id = uuid(ctx.params.id, "id");
+    keyed(id, ctx);
+    return ok(await svc.close(id));
+  }));
 
   router.get("/v1/sessions", deps.requireAuth(async (ctx) => {
     const raw = ctx.url.searchParams.get("region");
@@ -49,18 +61,24 @@ export function registerSessionsRoutes(router: Router, deps: RouteDeps, opts?: S
   router.post("/internal/tickets/redeem", deps.requireInternal(async (ctx) => {
     const b = bodyObject(await ctx.json());
     const ticket = strField(b.ticket, "ticket", /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/, 2048);
-    return ok(await svc.redeem(ticket, uuid(b.session_id, "session_id")));
+    const sid = uuid(b.session_id, "session_id");
+    keyed(sid, ctx);
+    return ok(await svc.redeem(ticket, sid));
   }));
 
   router.post("/internal/characters/:id/disconnect", deps.requireInternal(async (ctx) => {
     const characterId = uuid(ctx.params.id, "id");
     const b = bodyObject(await ctx.json());
-    return ok(await svc.disconnect(characterId, uuid(b.session_id, "session_id")));
+    const sid = uuid(b.session_id, "session_id");
+    keyed(sid, ctx);
+    return ok(await svc.disconnect(characterId, sid));
   }));
 
   router.post("/internal/characters/:id/release", deps.requireInternal(async (ctx) => {
     const characterId = uuid(ctx.params.id, "id");
     const b = bodyObject(await ctx.json());
-    return ok(await svc.release(characterId, uuid(b.session_id, "session_id")));
+    const sid = uuid(b.session_id, "session_id");
+    keyed(sid, ctx);
+    return ok(await svc.release(characterId, sid));
   }));
 }

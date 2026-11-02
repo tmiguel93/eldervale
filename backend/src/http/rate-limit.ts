@@ -1,3 +1,5 @@
+import { isIP } from "node:net";
+
 /**
  * Token bucket em memoria, por chave (ex.: "login:ip:1.2.3.4" ou "acct:<id>").
  * LIMITE: o estado vive no processo. Em Vercel Functions (varias instancias, sem estado) ele
@@ -56,6 +58,13 @@ export class RateLimiter {
     return { allowed: false, remaining: 0, retryAfterMs: Math.ceil(((cost - b.tokens) / this.refill) * 1000) };
   }
 
+  /** Consulta sem consumir: ha pelo menos 1 token na chave? (chave desconhecida = sim) */
+  wouldAllow(key: string): boolean {
+    const b = this.buckets.get(key);
+    if (!b) return true;
+    return Math.min(this.capacity, b.tokens + ((this.now() - b.last) / 1000) * this.refill) >= 1;
+  }
+
   get size(): number {
     return this.buckets.size;
   }
@@ -73,9 +82,47 @@ export class RateLimiter {
   }
 }
 
-/** IP do cliente para chaves de rate limit. So confia no cabecalho se `trustProxy`. */
-export function clientIp(req: Request, trustProxy: boolean): string {
-  if (!trustProxy) return "unknown";
-  const ip = req.headers.get("x-real-ip")?.trim() || req.headers.get("x-forwarded-for")?.split(",")[0]?.trim();
-  return ip && ip.length <= 64 ? ip : "unknown";
+/** Cabecalho de IP confiavel e numero de proxies confiaveis (M3). */
+export interface ProxyTrust {
+  /** Nome do cabecalho (minusculo) que o proxy confiavel SOBRESCREVE. */
+  header: string;
+  /** So para `x-forwarded-for`: quantos proxies confiaveis anexam; usa-se o item `hops` a partir do FIM. */
+  hops: number;
+}
+export const DEFAULT_PROXY_TRUST: ProxyTrust = { header: "x-real-ip", hops: 1 };
+
+/** Normaliza IP para chave de limite: ::ffff:a.b.c.d vira IPv4; IPv6 agrupa por /64 (atacante com um /64 nao rotaciona). */
+export function normalizeIp(ip: string): string {
+  const v4mapped = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/i.exec(ip);
+  if (v4mapped && isIP(v4mapped[1]!) === 4) return v4mapped[1]!;
+  if (isIP(ip) === 6) {
+    // Expande abreviacao "::" e mantem os 4 primeiros grupos (/64).
+    const [head = "", tail = ""] = ip.toLowerCase().split("::");
+    const h = head ? head.split(":") : [];
+    const t = tail ? tail.split(":") : [];
+    const groups = ip.includes("::") ? [...h, ...Array(Math.max(0, 8 - h.length - t.length)).fill("0"), ...t] : h;
+    return groups.slice(0, 4).map((g) => g.replace(/^0+(?=.)/, "")).join(":") + "::/64";
+  }
+  return ip;
+}
+
+/**
+ * IP do cliente para chaves de rate limit. NUNCA confia em cabecalho sem `trust` (M2/M3).
+ * `true` = cabecalho `x-real-ip` (o proxy confiavel precisa sobrescreve-lo). `x-forwarded-for` so e lido se configurado
+ * explicitamente e entao usa o item `hops` contado a partir do FIM (o que o PROPRIO proxy anexou), nunca o primeiro (forjavel).
+ * Valor ausente ou que nao seja um IP valido => "unknown".
+ */
+export function clientIp(req: Request, trust: boolean | ProxyTrust): string {
+  if (trust === false) return "unknown";
+  const t = trust === true ? DEFAULT_PROXY_TRUST : trust;
+  const raw = req.headers.get(t.header);
+  if (!raw || raw.length > 512) return "unknown";
+  let cand: string | undefined;
+  if (t.header === "x-forwarded-for") {
+    const parts = raw.split(",").map((x) => x.trim()).filter(Boolean);
+    cand = parts[parts.length - Math.max(1, t.hops)];
+  } else {
+    cand = raw.trim();
+  }
+  return cand && isIP(cand) !== 0 ? normalizeIp(cand) : "unknown";
 }

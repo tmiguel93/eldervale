@@ -52,7 +52,7 @@ func _build_ui() -> void:
 	box.custom_minimum_size = Vector2(360, 0)
 	add_child(box)
 	var title: Label = Label.new()
-	title.text = "Eldervale"
+	title.text = "Eldervale  %s" % BuildInfo.display() # E7.1: versao/build visiveis (anexar a relatos de bug)
 	box.add_child(title)
 	_email = LineEdit.new()
 	_email.placeholder_text = "E-mail"

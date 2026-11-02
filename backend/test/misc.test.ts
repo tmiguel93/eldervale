@@ -4,7 +4,7 @@ import { createLogger, maskEmail } from "../src/http/logger.ts";
 import { RateLimiter } from "../src/http/rate-limit.ts";
 
 describe("config", () => {
-  const good = { NODE_ENV: "production", DATABASE_URL: "postgres://u:p@h/db", AUTH_SECRET: "a".repeat(32), GAME_SESSION_INTERNAL_SECRET: "b".repeat(32) };
+  const good = { NODE_ENV: "production", DATABASE_URL: "postgres://u:p@h/db", AUTH_SECRET: "a".repeat(32), GAME_SESSION_INTERNAL_SECRET: "b".repeat(32), TRUST_PROXY: "false" };
   it("production sem segredo ou DATABASE_URL falha", () => {
     expect(() => loadConfig({ ...good, AUTH_SECRET: undefined })).toThrow(ConfigError);
     expect(() => loadConfig({ ...good, GAME_SESSION_INTERNAL_SECRET: "" })).toThrow(/obrigatorio/);

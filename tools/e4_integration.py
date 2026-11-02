@@ -4,7 +4,7 @@ separados em 127.0.0.1. Segredos aleatorios gerados a cada execucao e passados S
 Uso: python3 tools/e4_integration.py <happy|mage|ranger|replay|double|crash|badticket|nobackendsecret|all> [--godot CAMINHO] [--port N]
 Requer: python3 (stdlib), node >= 22 e `npm ci` em backend/, binario Godot 4.7.2. Saida 0 = tudo PASS.
 Cada cenario leva < 170 s; `all` soma todos (rode um por vez se o seu shell tem limite de tempo)."""
-import argparse, glob, json, os, re, secrets, shutil, signal, subprocess, sys, time, urllib.error, urllib.request
+import argparse, base64, glob, hashlib, hmac, json, os, re, secrets, shutil, signal, subprocess, sys, time, urllib.error, urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCR = os.path.join(ROOT, ".tools", "scratch")
@@ -99,6 +99,8 @@ class Ctx:
         env.update({"NODE_ENV": "development", "PORT": str(self.api_port), "AUTH_SECRET": self.auth_secret,
                     "GAME_SESSION_INTERNAL_SECRET": self.internal_secret, "LOG_LEVEL": "warn",
                     "SESSION_HEARTBEAT_TIMEOUT_SECONDS": str(HB_TIMEOUT),
+                    # E7.1 (M5): os cenarios rodam com a chave por sessao OBRIGATORIA, como em production
+                    "REQUIRE_SESSION_KEY": "true",
                     "ELDERVALE_E4_DATA_DIR": os.path.join(self.dir, "pglite") if PERSIST_DB else "memory"})
         tsx = os.path.join(ROOT, "backend", "node_modules", "tsx", "dist", "cli.mjs")
         if not os.path.exists(tsx):
@@ -113,6 +115,11 @@ class Ctx:
                 return
             time.sleep(0.5)
         sys.exit("API nao respondeu em 60 s")
+
+    def session_key(self, session_id):
+        """Mesma derivacao do backend (src/sessions/session-key.ts): HMAC-SHA256(segredo interno, 'eldervale/session-key/v1:<id>')."""
+        mac = hmac.new(self.internal_secret.encode(), f"eldervale/session-key/v1:{session_id.lower()}".encode(), hashlib.sha256).digest()
+        return base64.urlsafe_b64encode(mac).decode().rstrip("=")
 
     def http(self, method, path, body=None, token=None):
         req = urllib.request.Request(self.api_url + path, method=method,

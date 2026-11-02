@@ -62,6 +62,12 @@ class A(e4.Ctx):
                                      headers={"Content-Type": "application/json", "Authorization": "Bearer " + self.internal_secret})
         if session:
             req.add_header("X-Session-Id", session)
+        # E7.1 (M5): chave da sessao (derivada do segredo, como o servidor Godot recebe no registro). A sessao vem do argumento,
+        # do caminho (/internal/sessions/<id>/...) ou do corpo (session_id).
+        m = re.search(r"/internal/sessions/([0-9a-f-]{36})/", path)
+        sid_for_key = session or (m.group(1) if m else None) or (body.get("session_id") if isinstance(body, dict) else None)
+        if sid_for_key:
+            req.add_header("X-Session-Key", self.session_key(sid_for_key))
         try:
             with urllib.request.urlopen(req, timeout=10) as r:
                 raw = r.read()

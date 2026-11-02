@@ -166,6 +166,9 @@ func _on_registered(r: Dictionary) -> void:
 	if r["ok"] and BackendClient._id(sid) != "invalid":
 		session_id = sid
 		client.fencing_session_id = sid
+		var skey: String = String(r["data"].get("session_key", "")) # E7.1 (M5): credencial restrita a esta sessao
+		client.fencing_session_key = skey
+		ServerLog.add_secret(skey)
 		_registered = true
 		_hb_timer = 0.0
 		_hb_failures = 0
@@ -210,6 +213,7 @@ func _on_heartbeat(r: Dictionary) -> void:
 		_registered = false
 		session_id = ""
 		client.fencing_session_id = ""
+		client.fencing_session_key = ""
 		_register_wait = 0.0
 		_register_delay = register_retry_sec
 	else:

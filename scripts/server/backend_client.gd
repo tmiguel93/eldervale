@@ -16,6 +16,11 @@ var transport: BackendTransport
 var base_url: String = ""
 ## Sessao dona do lock dos personagens (fencing M4): enviada em X-Session-Id em checkpoint/rewards.
 var fencing_session_id: String = ""
+## E7.1 (M5): chave desta sessao (devolvida UMA vez no registro). Enviada em X-Session-Key em toda rota /internal ligada a sessao;
+## o backend recusa (403) a chave de outra sessao. Nunca em log (ServerLog.add_secret em BackendSync).
+var fencing_session_key: String = ""
+## E7.1: contador do id de correlacao (X-Request-Id) enviado ao backend e repetido nos retries da mesma chamada.
+var _rid_seq: int = 0
 var timeout_sec: float = 5.0
 var max_attempts: int = 3
 var backoff_base_sec: float = 0.25
@@ -166,10 +171,16 @@ static func _id(raw: String) -> String:
 	return raw
 
 
+## Id de correlacao [A-Za-z0-9_-]{8,64} (o backend o aceita e o ecoa nos logs dele). Aleatorio, sem dado do jogador.
+func _new_request_id() -> String:
+	_rid_seq += 1
+	return "gs%08x%08x%04x" % [randi(), randi(), _rid_seq & 0xFFFF]
+
+
 func _request(method: String, path: String, body: Variant, idempotent: bool, cb: Callable) -> void:
 	var ctx: Dictionary = {
 		"method": method, "path": path, "body": body, "idempotent": idempotent,
-		"cb": cb, "attempt": 1, "epoch": _epoch,
+		"cb": cb, "attempt": 1, "epoch": _epoch, "rid": _new_request_id(),
 	}
 	_inflight += 1
 	_dispatch(ctx)
@@ -183,6 +194,9 @@ func _dispatch(ctx: Dictionary) -> void:
 		"Authorization: Bearer " + _secret, "Accept: application/json",
 	])
 	var path_s: String = String(ctx["path"])
+	headers.append("X-Request-Id: " + String(ctx["rid"]))
+	if not fencing_session_key.is_empty() and path_s != "/internal/sessions":
+		headers.append("X-Session-Key: " + fencing_session_key)
 	if not fencing_session_id.is_empty() and (path_s.ends_with("/checkpoint") or path_s.ends_with("/rewards") or path_s.ends_with("/craft") or path_s.ends_with("/talents")):
 		headers.append("X-Session-Id: " + fencing_session_id)
 	var payload: String = ""
@@ -243,7 +257,7 @@ func _finish(ctx: Dictionary, resp: Dictionary) -> void:
 	elif data.is_empty() and status != 204:
 		ok = false
 		code = "bad_response"
-	var result: Dictionary = {"ok": ok, "status": status, "data": data, "code": code, "attempts": int(ctx["attempt"])}
+	var result: Dictionary = {"ok": ok, "status": status, "data": data, "code": code, "attempts": int(ctx["attempt"]), "request_id": String(ctx.get("rid", ""))}
 	var cb: Callable = ctx["cb"]
 	if cb.is_valid():
 		cb.call(result)

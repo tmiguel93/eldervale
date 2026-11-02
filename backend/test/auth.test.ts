@@ -330,11 +330,11 @@ describe("refresh token", () => {
 });
 
 describe("rate limit", () => {
-  it("login por e-mail dispara 429 com Retry-After e recupera com o tempo", async () => {
+  it("login por (e-mail, IP) dispara 429 com Retry-After e recupera com o tempo", async () => {
     const c = await setup();
     await reg(c);
     let last: Awaited<ReturnType<typeof login>> | undefined;
-    for (let i = 0; i < DEFAULT_AUTH_LIMITS.loginEmail.capacity; i++) {
+    for (let i = 0; i < DEFAULT_AUTH_LIMITS.loginEmailIp.capacity; i++) {
       last = await login(c, "user@example.com", "senha errada demais");
       expect(last.res.status).toBe(401);
     }

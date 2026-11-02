@@ -7,7 +7,6 @@ extends Node
 ## Com --backend-url: login -> personagem -> sessao -> join-ticket -> ENet -> hello v2 (ticket).
 ## Sem --backend-url: conexao direta (--host/--port) com ticket vazio (dev).
 
-const BUILD: String = "dev-e4"
 const CONNECT_TIMEOUT_S: float = 10.0
 const DEFAULT_BOT_SECONDS: float = 10.0
 const PING_INTERVAL_S: float = 0.5
@@ -60,6 +59,10 @@ var _return_to_login: bool = false
 
 
 func _ready() -> void:
+	if OS.get_cmdline_user_args().has("--version"): # E7.1: imprime versao/build e sai (sem rede)
+		print("Eldervale client %s protocol %d godot %s" % [BuildInfo.display(), Protocol.VERSION, String(BuildInfo.info()["godot"])])
+		get_tree().quit(0)
+		return
 	cfg = NetConfig.from_environment()
 	args = ClientArgs.from_environment()
 	is_bot = not cfg.bot_script.is_empty()
@@ -270,7 +273,7 @@ func _on_connected() -> void:
 		shown_name = args.character
 	if _ui != null:
 		_ui.local_name = shown_name
-	session.begin(Protocol.VERSION if not is_bot else BotScript.hello_version(cfg.bot_script, Protocol.VERSION), BUILD, shown_name, ticket)
+	session.begin(Protocol.VERSION if not is_bot else BotScript.hello_version(cfg.bot_script, Protocol.VERSION), BuildInfo.hello_build(), shown_name, ticket)
 
 
 func _on_connection_failed() -> void:

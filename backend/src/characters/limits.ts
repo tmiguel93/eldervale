@@ -12,6 +12,12 @@ export interface CharacterLimits {
   rewardMaxItems: number;
   /** Maximo de qty por linha de item. */
   rewardMaxQty: number;
+  /** M5: janela (s) do orcamento de XP por recompensa. */
+  rewardXpWindowSeconds: number;
+  /** M5: XP total que recompensas podem pagar a UM personagem dentro da janela (freia servidor comprometido; legitimo: chefe 1200). */
+  rewardXpPerWindow: number;
+  /** M5: teto relativo de stats: cada stat <= max(persistido, base_da_classe * (1 + pct/100 * (nivel-1)) + folga). */
+  statCapPercentPerLevel: number;
   /** Maximo de quests ativas por personagem (E5.1). */
   maxActiveQuests: number;
 }
@@ -24,6 +30,9 @@ export const DEFAULT_LIMITS: CharacterLimits = {
   rewardMaxXp: 1_000_000,
   rewardMaxItems: 20,
   rewardMaxQty: 999,
+  rewardXpWindowSeconds: 60,
+  rewardXpPerWindow: 20_000,
+  statCapPercentPerLevel: 10,
   maxActiveQuests: 10,
 };
 
@@ -32,6 +41,9 @@ const ENV_MAP: Record<string, [keyof CharacterLimits, number, number]> = {
   CHARACTER_INVENTORY_CAPACITY: ["inventoryCapacity", 1, 200],
   CHARACTER_CHECKPOINT_MAX_XP_GAIN: ["checkpointMaxXpGain", 0, 1_000_000_000],
   CHARACTER_CHECKPOINT_MAX_ITEM_GAIN: ["checkpointMaxItemGain", 0, 100_000],
+  CHARACTER_REWARD_XP_PER_WINDOW: ["rewardXpPerWindow", 0, 1_000_000_000],
+  CHARACTER_REWARD_XP_WINDOW_SECONDS: ["rewardXpWindowSeconds", 1, 86_400],
+  CHARACTER_STAT_CAP_PERCENT_PER_LEVEL: ["statCapPercentPerLevel", 0, 1000],
   CHARACTER_MAX_ACTIVE_QUESTS: ["maxActiveQuests", 1, 50],
 };
 

@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "default-class", "loot-test-force", "metrics-interval"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "default-class", "loot-test-force", "metrics-interval", "log-format", "log-level", "health-file", "health-interval", "max-conns-per-ip"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -26,6 +26,11 @@ var _elapsed: float = 0.0
 var _running: bool = false
 var _quitting: bool = false
 var _finalizing: bool = false ## aguardando checkpoint/release/close no backend
+## E7.1: sonda de saude. Com --health-file o servidor regrava um JSON pequeno a cada --health-interval s (padrao 5): um
+## orquestrador/monitor externo considera o processo vivo se o arquivo for recente e pronto se `status == "ready"`.
+var _health_file: String = ""
+var _health_interval: float = 5.0
+var _health_elapsed: float = 0.0
 
 
 func _ready() -> void:
@@ -34,18 +39,23 @@ func _ready() -> void:
 
 
 func _start() -> void:
+	if OS.get_cmdline_user_args().has("--version"): # E7.1
+		ServerLog.info("Eldervale server %s protocol %d godot %s" % [BuildInfo.display(), Protocol.VERSION, String(BuildInfo.info()["godot"])])
+		get_tree().quit(0)
+		return
 	var extras: Dictionary = {}
 	var net_args: PackedStringArray = _split_args(OS.get_cmdline_user_args(), extras)
+	_apply_log_options(extras)
 	cfg = NetConfig.parse(net_args, _read_env())
 	for e: String in cfg.errors:
-		print("[server] config: %s" % e)
+		ServerLog.info("[server] config: %s" % e)
 	settings = ServerSettings.from_net_config(cfg)
 	_apply_extras(extras)
 	backend_cfg = ServerBackendConfig.parse(extras, _read_env_all(), cfg.port)
 	ServerLog.add_secret(backend_cfg.secret)
 	if backend_cfg.enabled():
 		for e: String in backend_cfg.errors:
-			printerr("[server] backend config: %s" % e)
+			ServerLog.error("[server] backend config: %s" % e)
 		if not backend_cfg.errors.is_empty():
 			get_tree().quit(2)
 			return
@@ -54,7 +64,7 @@ func _start() -> void:
 	else:
 		if not backend_cfg.errors.is_empty():
 			for e: String in backend_cfg.errors:
-				printerr("[server] backend config: %s" % e)
+				ServerLog.error("[server] backend config: %s" % e)
 			get_tree().quit(2)
 			return
 	settings.session_seed = randi()
@@ -65,7 +75,7 @@ func _start() -> void:
 	peer = ENetMultiplayerPeer.new()
 	var err: int = peer.create_server(cfg.port, cfg.max_players + PENDING_SLACK)
 	if err != OK:
-		printerr("[server] falha ao abrir a porta %d (erro %d)" % [cfg.port, err])
+		ServerLog.error("[server] falha ao abrir a porta %d (erro %d)" % [cfg.port, err])
 		get_tree().quit(1)
 		return
 	multiplayer.multiplayer_peer = peer
@@ -73,7 +83,7 @@ func _start() -> void:
 	if cfg.sim_latency_ms > 0 or cfg.sim_jitter_ms > 0 or cfg.sim_loss_pct > 0.0:
 		rpc.sim = NetSim.new()
 		rpc.sim.configure(cfg.sim_latency_ms, cfg.sim_jitter_ms, cfg.sim_loss_pct, settings.session_seed)
-		print("[server] NetSim ativo: %d ms, jitter %d ms, perda %.1f%%" % [cfg.sim_latency_ms, cfg.sim_jitter_ms, cfg.sim_loss_pct])
+		ServerLog.info("[server] NetSim ativo: %d ms, jitter %d ms, perda %.1f%%" % [cfg.sim_latency_ms, cfg.sim_jitter_ms, cfg.sim_loss_pct])
 
 	world = ServerWorld.new()
 	world.name = "World"
@@ -83,6 +93,7 @@ func _start() -> void:
 	session.name = "Session"
 	add_child(session)
 	session.setup(settings, world, NetRpcTransport.new(rpc))
+	session.address_of = _remote_address_of # E7.1 (M7): limite de conexoes por endereco remoto
 	_start_backend()
 
 	rpc.hello_received.connect(session.on_hello)
@@ -98,20 +109,22 @@ func _start() -> void:
 	multiplayer.peer_disconnected.connect(session.on_peer_disconnected)
 
 	_running = true
-	print("[server] escutando na porta %d (max %d jogadores, tick %d Hz, snapshot %d Hz, protocolo %d)" % [
+	_write_health("ready")
+	ServerLog.info("[server] build %s, protocolo %d" % [BuildInfo.display(), Protocol.VERSION])
+	ServerLog.info("[server] escutando na porta %d (max %d jogadores, tick %d Hz, snapshot %d Hz, protocolo %d)" % [
 		cfg.port, cfg.max_players, cfg.tick_rate, cfg.snapshot_rate, Protocol.VERSION])
 
 
 func _start_backend() -> void:
 	if not backend_cfg.enabled():
-		print("[server] AVISO: sem --backend-url -> MODO DEV: tickets nao exigidos, nada e persistido")
+		ServerLog.info("[server] AVISO: sem --backend-url -> MODO DEV: tickets nao exigidos, nada e persistido")
 		return
 	backend_client = BackendClient.new()
 	backend_client.name = "BackendClient"
 	add_child(backend_client)
 	var err: String = backend_client.configure(backend_cfg.backend_url, backend_cfg.secret)
 	if not err.is_empty():
-		printerr("[server] backend config: %s" % err)
+		ServerLog.error("[server] backend config: %s" % err)
 		get_tree().quit(2)
 		return
 	backend_client.transport = HttpBackendTransport.new(backend_client)
@@ -128,28 +141,33 @@ func _start_backend() -> void:
 	add_child(sync)
 	session.attach_backend(sync)
 	sync.start()
-	print("[server] backend configurado (%s); ticket OBRIGATORIO, autosave %.0fs, heartbeat %.0fs" % [
+	ServerLog.info("[server] backend configurado (%s); ticket OBRIGATORIO, autosave %.0fs, heartbeat %.0fs" % [
 		backend_cfg.backend_url.get_slice("/", 2), backend_cfg.autosave_interval_sec, sync.heartbeat_interval_sec])
 
 
 func _process(delta: float) -> void:
 	if _finalizing:
 		if sync == null or sync.is_shutdown_complete():
-			print("[server] encerrado")
+			ServerLog.info("[server] encerrado")
 			get_tree().quit(0)
 			_finalizing = false
 		return
 	if not _running or _quitting:
 		return
 	_elapsed += delta
+	if not _health_file.is_empty():
+		_health_elapsed += delta
+		if _health_elapsed >= _health_interval:
+			_health_elapsed = 0.0
+			_write_health("ready" if (sync == null or sync.is_ready()) else "starting")
 	if _max_seconds > 0.0 and _elapsed >= _max_seconds:
-		print("[server] --max-seconds atingido")
+		ServerLog.info("[server] --max-seconds atingido")
 		shutdown()
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
-		print("[server] pedido de encerramento recebido")
+		ServerLog.info("[server] pedido de encerramento recebido")
 		shutdown()
 
 
@@ -160,9 +178,10 @@ func shutdown() -> void:
 		return
 	_quitting = true
 	_running = false
+	_write_health("stopping")
 	if session != null:
 		if settings.measure_snapshots:
-			print("[server] snapshots: %s" % JSON.stringify(session.snapshot_stats))
+			ServerLog.info("[server] snapshots: %s" % JSON.stringify(session.snapshot_stats))
 		session.shutdown()
 	if peer != null:
 		peer.close()
@@ -170,11 +189,60 @@ func shutdown() -> void:
 		sync.begin_shutdown()
 		_finalizing = true
 		return
-	print("[server] encerrado")
+	ServerLog.info("[server] encerrado")
 	get_tree().quit(0)
 
 
+## E7.1: endereco remoto do peer ENet ("" se indisponivel). Nunca logado.
+func _remote_address_of(peer_id: int) -> String:
+	if peer == null:
+		return ""
+	var pp: ENetPacketPeer = peer.get_peer(peer_id)
+	return pp.get_remote_address() if pp != null else ""
+
+
+## E7.1: --log-format text|json e --log-level debug|info|warn|error (valor invalido => aviso e padrao).
+func _apply_log_options(extras: Dictionary) -> void:
+	if extras.has("log-format"):
+		var f: String = String(extras["log-format"]).strip_edges().to_lower()
+		if f == "json" or f == "text":
+			ServerLog.json_mode = f == "json"
+		else:
+			ServerLog.warn("--log-format '%s' invalido (text|json); mantendo text" % f.left(16))
+	if extras.has("log-level"):
+		var lv: int = ServerLog.parse_level(String(extras["log-level"]))
+		if lv < 0:
+			ServerLog.warn("--log-level '%s' invalido; mantendo info" % String(extras["log-level"]).left(16))
+		else:
+			ServerLog.min_level = lv
+
+
+## E7.1: grava (atomicamente) o JSON de saude. Sem dados de jogador: so contagens e estado.
+func _write_health(status: String) -> void:
+	if _health_file.is_empty():
+		return
+	var gauges: Dictionary = session.metrics.snapshot(Time.get_ticks_msec())["gauges"] if session != null and session.metrics != null else {}
+	var doc: Dictionary = {"status": status, "ts": int(Time.get_unix_time_from_system()), "uptime_s": snappedf(_elapsed, 0.1),
+		"protocol": Protocol.VERSION, "build": BuildInfo.hello_build(), "backend": "dev" if backend_cfg == null or not backend_cfg.enabled() else ("ready" if sync != null and sync.is_ready() else "starting"),
+		"players_online": int(gauges.get("players_online", 0)), "tick": int(gauges.get("tick", 0))}
+	var tmp: String = _health_file + ".tmp"
+	var f: FileAccess = FileAccess.open(tmp, FileAccess.WRITE)
+	if f == null:
+		ServerLog.warn("nao foi possivel gravar --health-file (erro %d)" % FileAccess.get_open_error())
+		_health_file = "" # nao repete o aviso a cada intervalo
+		return
+	f.store_string(JSON.stringify(doc))
+	f.close()
+	DirAccess.rename_absolute(tmp, _health_file)
+
+
 func _apply_extras(extras: Dictionary) -> void:
+	if extras.has("health-file"):
+		_health_file = String(extras["health-file"]).strip_edges()
+	if extras.has("health-interval") and String(extras["health-interval"]).is_valid_float():
+		_health_interval = clampf(float(extras["health-interval"]), 0.5, 3600.0)
+	if extras.has("max-conns-per-ip") and String(extras["max-conns-per-ip"]).is_valid_int():
+		settings.max_conns_per_ip = clampi(int(extras["max-conns-per-ip"]), 0, 64)
 	if extras.has("max-seconds") and String(extras["max-seconds"]).is_valid_float():
 		_max_seconds = maxf(0.0, float(extras["max-seconds"]))
 	if extras.has("max-invalid") and String(extras["max-invalid"]).is_valid_float():
@@ -182,7 +250,7 @@ func _apply_extras(extras: Dictionary) -> void:
 	if extras.has("world"): # E5.3: --world greenwood (mundo em zonas) | arena (padrao: arena de teste do E1/E3)
 		var w: String = String(extras["world"]).strip_edges()
 		settings.world_id = "" if w == "arena" or w.is_empty() else w
-		print("[server] mundo: %s" % ("arena de teste" if settings.world_id.is_empty() else settings.world_id))
+		ServerLog.info("[server] mundo: %s" % ("arena de teste" if settings.world_id.is_empty() else settings.world_id))
 		settings.individual_loot = not settings.world_id.is_empty() # E5.4: o mundo usa loot individual (arena: legado E3/E4)
 	if extras.has("metrics-interval") and String(extras["metrics-interval"]).is_valid_float(): # E6.5: s entre linhas [metrics] (0 = so a final)
 		settings.metrics_interval_sec = clampf(float(String(extras["metrics-interval"])), 0.0, 86400.0)
@@ -190,19 +258,19 @@ func _apply_extras(extras: Dictionary) -> void:
 		var dc: String = String(extras["default-class"]).strip_edges()
 		if ClassCatalog.shared().has_class(dc):
 			settings.default_class_id = dc
-			print("[server] classe padrao (dev): %s" % dc)
+			ServerLog.info("[server] classe padrao (dev): %s" % dc)
 		else:
-			print("[server] --default-class '%s' desconhecida; mantendo %s" % [dc.left(32), settings.default_class_id])
+			ServerLog.info("[server] --default-class '%s' desconhecida; mantendo %s" % [dc.left(32), settings.default_class_id])
 	if extras.has("individual-loot"): # E5.4: --individual-loot 0|1 forca o modo (padrao: ligado so com --world)
 		settings.individual_loot = String(extras["individual-loot"]).strip_edges() in ["1", "true", "on"]
-		print("[server] loot individual: %s" % ("ligado" if settings.individual_loot else "desligado"))
+		ServerLog.info("[server] loot individual: %s" % ("ligado" if settings.individual_loot else "desligado"))
 	# E5.6: parametros SO de teste. Sem ELDERVALE_TEST_MODE=1 sao ignorados (com aviso): nunca valem em producao por engano.
 	var test_mode: bool = OS.get_environment("ELDERVALE_TEST_MODE") == "1"
 	for k: String in ["test-hp-mult", "test-speed-mult"]:
 		if not extras.has(k):
 			continue
 		if not test_mode:
-			print("[server] AVISO: --%s ignorado (exige ELDERVALE_TEST_MODE=1)" % k)
+			ServerLog.info("[server] AVISO: --%s ignorado (exige ELDERVALE_TEST_MODE=1)" % k)
 			continue
 		if String(extras[k]).is_valid_float():
 			if k == "test-hp-mult":
@@ -210,14 +278,14 @@ func _apply_extras(extras: Dictionary) -> void:
 			else:
 				settings.test_move_speed_mult = clampf(float(extras[k]), 1.0, 3.0)
 	if test_mode and (settings.test_enemy_hp_mult != 1.0 or settings.test_move_speed_mult != 1.0):
-		print("[server] MODO DE TESTE: vida dos inimigos x%.2f, velocidade dos jogadores x%.2f (NAO usar em producao)" % [settings.test_enemy_hp_mult, settings.test_move_speed_mult])
+		ServerLog.info("[server] MODO DE TESTE: vida dos inimigos x%.2f, velocidade dos jogadores x%.2f (NAO usar em producao)" % [settings.test_enemy_hp_mult, settings.test_move_speed_mult])
 	if extras.has("loot-test-force"):
 		var fr: String = String(extras["loot-test-force"]).strip_edges()
 		if not test_mode:
-			print("[server] AVISO: --loot-test-force ignorado (exige ELDERVALE_TEST_MODE=1)")
+			ServerLog.info("[server] AVISO: --loot-test-force ignorado (exige ELDERVALE_TEST_MODE=1)")
 		elif ItemRules.shared().has_rarity(fr) and fr != "common":
 			settings.test_force_rarity = fr
-			print("[server] MODO DE TESTE: equipamentos do loot com raridade forcada '%s' (NAO usar em producao)" % fr)
+			ServerLog.info("[server] MODO DE TESTE: equipamentos do loot com raridade forcada '%s' (NAO usar em producao)" % fr)
 	if extras.has("measure-snapshots"):
 		settings.measure_snapshots = String(extras["measure-snapshots"]).strip_edges() in ["1", "true", "on"]
 	if extras.has("compact-snapshots"):

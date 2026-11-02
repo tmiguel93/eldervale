@@ -12,6 +12,8 @@ config_version=5
 
 config/name="Eldervale"
 run/main_scene="res://scenes/boot/boot.tscn"
+run/main_scene.eldervale_client="res://scenes/client/client_boot.tscn"
+run/main_scene.eldervale_server="res://scenes/server/server_boot.tscn"
 config/features=PackedStringArray("4.7", "Forward Plus")
 
 [input]

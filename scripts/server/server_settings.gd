@@ -21,6 +21,11 @@ var ping_burst: int = 6
 ## E5.1: comandos de quest/dialogo (c_quest_cmd/c_dialogue_cmd): token bucket por peer.
 var quest_rate_per_sec: float = 5.0
 var quest_burst: int = 10
+## E7.1 (M7): conexoes ENet simultaneas por endereco remoto (0 = sem limite) e token bucket de novas conexoes por endereco.
+## Um grupo de 4 jogadores atras do mesmo NAT cabe com folga (4 + reconexao). Excedeu: desconecta sem processar.
+var max_conns_per_ip: int = 6
+var conn_rate_per_sec: float = 1.0
+var conn_burst: int = 8
 var session_seed: int = 0
 ## E4: com backend, o drop morto vai para o Inventory do matador (para o checkpoint nao apagar o que
 ## a recompensa persistiu). Sem backend (modo dev) o drop segue informativo como no E3.

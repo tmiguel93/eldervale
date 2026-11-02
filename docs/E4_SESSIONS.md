@@ -40,3 +40,7 @@ Se o resgate falha por 409 (lock/cheia), o ticket NAO e consumido (a transacao r
 - Servidor Godot/cliente nao integrados: `c_hello` em `network_protocol.md` nao tem campo de ticket; precisa de revisao do contrato (E3) antes de usar.
 - Expulsar/sair da party nao derruba a sessao do personagem. Selecao/matchmaking de sessao (qual `session_id` pedir) fica fora deste modulo.
 - Rate limiter nao e global entre instancias serverless.
+
+
+## E7.1 — Chave por sessão
+`POST /internal/sessions` devolve `session_key = HMAC-SHA256(GAME_SESSION_INTERNAL_SECRET, session_id)`. Heartbeat, close, redeem, disconnect, release e as rotas internas de personagem (checkpoint, rewards, craft, talents) exigem `X-Session-Key` (403 se errada; se ausente, 403 quando `REQUIRE_SESSION_KEY=true`, obrigatório em production). O servidor Godot guarda a chave em memória e a registra como segredo do `ServerLog`. Orçamento de XP por janela (409 `reward_budget_exceeded`) e teto relativo de stats no checkpoint (422 `stat_ceiling`).

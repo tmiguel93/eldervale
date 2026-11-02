@@ -291,3 +291,51 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 - **Escolha provisória:** `backend/test/exploits.test.ts` (backend real, 20 testes) e `tests/e6_balance/test_exploits.gd` (servidor Godot, 14 verificações) tentam replay de recompensa, duplicação de uid, equipar+craftar+checkpoint simultâneos, replay/excesso de `talent_cmd`, descoberta repetida e checkpoint forjado; todos devem falhar a favor do jogo. Lacunas conhecidas em `docs/E6_BALANCE.md`, seção 8.
 - **Consequências:** novas formas de recompensa/instância devem ganhar um cenário aqui. A unicidade global de `uid` entre personagens depende de só o servidor de sessão emitir instâncias (não de constraint no banco).
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0030 — Endurecimento de rate limit sem infraestrutura externa
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana
+- **Contexto:** achados M1/M2/M3 do E4 (lockout dirigido, balde `unknown` compartilhado, `x-forwarded-for` forjável) e B4.
+- **Opções consideradas:** (a) Redis/WAF agora (custo, credenciais); (b) manter como está; (c) corrigir o que o código pode: balde `(e-mail, IP)` antes do balde global, `TRUST_PROXY` obrigatório em production, IP só de cabeçalho configurado (`x-real-ip` por padrão; `x-forwarded-for` lido do fim com `TRUSTED_PROXY_HOPS`), limite de falhas em `/internal/*`.
+- **Escolha provisória:** (c). Parte dependente de infra (WAF, limite compartilhado entre instâncias, proxy real) fica documentada como ABERTA em `docs/E4_SECURITY_REVIEW.md`.
+- **Consequências:** botnet contra um e-mail ainda esgota o balde global (60); limites seguem por instância. Contrato HTTP compatível (apenas 429 antes/depois).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0031 — Chave por sessão (stateless) e orçamentos contra servidor comprometido
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana
+- **Contexto:** M5: segredo interno único; qualquer portador age sobre qualquer sessão e concede XP/stats sem teto.
+- **Opções consideradas:** (a) segredo por servidor em tabela (exige gestão/rotação); (b) mTLS (infra); (c) chave derivada `HMAC(segredo, session_id)` sem estado, devolvida no registro e enviada em `X-Session-Key`; mais orçamento de XP por janela e teto relativo de stats.
+- **Escolha provisória:** (c). `REQUIRE_SESSION_KEY` obrigatório em production; fora dele, desligável para compatibilidade com clientes antigos. Orçamento padrão 20 000 XP/60 s; teto de stat +10% do base por nível + folga fixa.
+- **Consequências:** quem tem o segredo ainda pode registrar sessões novas; valores de orçamento/teto são heurísticos e podem bloquear jogo legítimo muito rápido (409/422) — calibrar com playtest.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0032 — Limite de conexões ENet por endereço no próprio servidor
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana
+- **Contexto:** M7: slots ociosos de uma só origem bloqueiam o servidor.
+- **Escolha provisória:** `--max-conns-per-ip` (padrão 6), taxa de conexões novas 1/s com rajada 8, por `get_remote_address()`; rejeições contadas em `rejects.conn_limit`.
+- **Consequências:** NAT/CGNAT e LANs de eventos compartilham IP (ajustar o limite). Não substitui firewall/anti-DDoS.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0033 — Build Windows por script reproduzível, features de exportação e id de build do commit
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana
+- **Contexto:** E7 pede build Windows reproduzível de cliente e servidor dedicado.
+- **Escolha provisória:** `export_presets.cfg` com dois presets e features `eldervale_client`/`eldervale_server` (cena principal por feature em `project.godot`), `embed_pck=false`, `tools/build_windows.py` (templates 4.7.2 verificados por SHA-512 dentro de `.tools/`, zip determinístico, `MANIFEST.json`, `SHA256SUMS.txt`), versão em `BuildInfo.GAME_VERSION` e build id = hash do commit (+`-dirty`) em `build_info.json` gerado e descartado a cada build.
+- **Consequências:** `.exe` não assinado e não executado no Windows nesta VM; um build anterior diferiu em PCK (causa não investigada).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0034 — Log estruturado, métricas operacionais e health sem serviço externo
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana
+- **Contexto:** diagnosticar alpha sem Datadog/Sentry e sem PII.
+- **Escolha provisória:** backend: `X-Request-Id` (aceita o do cliente se válido), `GET /v1/ready` (503 com migrações pendentes), `GET /internal/metrics` (requireInternal; latência p50/p95, status, contadores, `players_online`). Godot: `ServerLog` com níveis, modo JSON e `scrub` (segredos, e-mail -> `[email]`, JWT), `ServerMetrics` com séries (`tick_ms`, `tick_dt_ms`, `snapshot_bytes`), gauges e contadores (`rejects`, `reconnects`, `disconnects`), arquivo de saúde atômico (`--health-file`). O cliente envia `X-Request-Id`.
+- **Consequências:** coleta, rotação e retenção de logs continuam manuais; séries em memória (600 amostras).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0035 — Rascunhos legais e feedback manual na alpha
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão jurídica
+- **Escolha provisória:** `docs/legal/` com rascunhos marcados "RASCUNHO — requer revisão jurídica" descrevendo só o que o software coleta (e-mail, hash de senha, personagem, logs, IP); `docs/FEEDBACK.md` com relato manual, sem coleta automática. Nenhum compromisso legal inventado; lacunas marcadas `[a definir]`.
+- **Responsável/aprovação:** Proprietário do projeto; revisão jurídica pendente.

@@ -18,6 +18,9 @@ export interface BucketLimit {
 
 export interface AuthLimits {
   loginIp: BucketLimit;
+  /** M1: balde por (e-mail, IP): tentativas ruins de um atacante NAO bloqueiam o dono da conta vindo de outro IP. */
+  loginEmailIp: BucketLimit;
+  /** M1: balde global por e-mail, bem mais folgado: so freia forca bruta distribuida em muitos IPs. */
   loginEmail: BucketLimit;
   registerIp: BucketLimit;
   registerEmail: BucketLimit;
@@ -27,7 +30,8 @@ export interface AuthLimits {
 /** Padroes: generosos para uso legitimo, curtos o bastante para frear forca bruta. */
 export const DEFAULT_AUTH_LIMITS: AuthLimits = {
   loginIp: { capacity: 100, refillPerSecond: 2 },
-  loginEmail: { capacity: 10, refillPerSecond: 1 / 6 }, // 10 de rajada, depois 10/min
+  loginEmailIp: { capacity: 10, refillPerSecond: 1 / 6 }, // 10 de rajada, depois 10/min, por (e-mail, IP)
+  loginEmail: { capacity: 60, refillPerSecond: 1 / 3 }, // global por e-mail: 60 de rajada, depois 20/min (distribuido)
   registerIp: { capacity: 30, refillPerSecond: 0.1 },
   registerEmail: { capacity: 3, refillPerSecond: 1 / 60 },
   refreshIp: { capacity: 60, refillPerSecond: 1 },
@@ -47,6 +51,7 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, limits: AuthLi
   const { db, config, now, log } = deps;
   const mk = (l: BucketLimit) => new RateLimiter({ capacity: l.capacity, refillPerSecond: l.refillPerSecond, now });
   const loginIp = mk(limits.loginIp);
+  const loginEmailIp = mk(limits.loginEmailIp);
   const loginEmail = mk(limits.loginEmail);
   const registerIp = mk(limits.registerIp);
   const registerEmail = mk(limits.registerEmail);
@@ -79,6 +84,9 @@ export function createAuthRoutes(router: Router, deps: RouteDeps, limits: AuthLi
     const body = await ctx.json();
     const email = readEmail(body);
     const password = readLoginPassword(body);
+    // Ordem importa: primeiro o balde (e-mail, IP); o global so e consumido por tentativas que passaram no primeiro,
+    // entao um atacante de UM IP esgota so o proprio balde (10) e nao gasta o orcamento global do e-mail.
+    limit(loginEmailIp, `${emailKey(email)}|${deps.clientIp(ctx.req)}`);
     limit(loginEmail, emailKey(email));
 
     const r = await db.query<{ id: string; password_hash: string; disabled: boolean }>(
