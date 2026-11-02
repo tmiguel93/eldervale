@@ -62,7 +62,7 @@ Clip faltando nunca e erro: segue a cadeia e, no fim, so idle/move usam "o prime
 | Guerreiro | Barbarian (`class.warrior`) | 1.9 | - | machado 2H + chapeu |
 | Mago | Mage (`class.mage`) | 1.85 | - | cajado + chapeu |
 | Patrulheiro | Rogue_Hooded (`class.ranger`) | 1.85 | - | besta + capa |
-| Aliados remotos | Knight (`class.warrior_alt`) | 1.9 | - | o snapshot nao traz a classe dos outros jogadores (ver Limitacoes) |
+| Aliados remotos | Knight (`class.warrior_alt`) | 1.9 | - | classe vem do `type` do snapshot (`player:<classe>`, E8.3); Cavaleiro e o fallback |
 | melee_grunt | Skeleton_Minion (`enemy.minion`) | 1.7 | - | |
 | ranged_caster | Skeleton_Mage (`enemy.skeleton_conjurer`) | 1.8 | - | |
 | bow_scout | Skeleton_Rogue (`enemy.skeleton_archer`) | 1.8 | verde claro | |
@@ -94,7 +94,7 @@ Stag, Husky, Rat, Snake, Frog e Wasp estao importados mas sem uso (a lacuna de m
 - `TOUR_CLASS=warrior|mage|ranger tools/shots/run_tour.sh hub|wild|ruins|chars|wild_close|alpha`: tour real (servidor `--default-class`); prints prefixados com a classe. `chars` = parado, andando, ataque, habilidades, esquiva e NPCs de perto.
 
 ## 8. Limitacoes conhecidas
-- O snapshot nao informa a classe dos OUTROS jogadores: aliados aparecem como Cavaleiro. Corrigir exige campo aditivo no protocolo (por exemplo `type = "player:mage"` ou um evento de classe), fora do escopo do E8.1.
+- RESOLVIDO no E8.3 (DEC-0038): o snapshot traz `type = "player:<classe>"` e o cliente usa o modelo da classe do aliado; servidor antigo ou `--party-class 0` (type `player`) cai no Cavaleiro neutro.
 - Esqueletos KayKit vem sem armas no GLB; os ataques corpo a corpo sao desarmados. Chefe e bruto sao o mesmo modelo do esqueleto guerreiro (PLACEHOLDER).
 - A camera isometrica e alta: chapeus e capuzes dominam a silhueta de cima. Nas ruinas a camera aproximada entra nas muralhas primitivas (E5.3) e o jogador some; o tour `ruins` ja tinha jogador oculto atras de muralhas antes do E8.1.
 - `Husky`, `Stag` etc. sem uso. Sombra/iluminacao/pos-processamento sao do E8.2; VFX do E8.3.

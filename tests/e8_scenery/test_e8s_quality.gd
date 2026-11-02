@@ -1,7 +1,7 @@
 extends RefCounted
 ## E8.2: presets de qualidade (Baixo/Medio/Alto): chaves, padrao seguro, --quality, ConfigFile e ambiente por humor.
 
-const TMP: String = "user://e8s_settings_test.cfg"
+var TMP: String = "user://e8s_settings_test_%d.cfg" % Time.get_ticks_usec() # nome unico: remocao pode falhar onde rm e bloqueado
 
 
 func run(ctx: Variant) -> void:

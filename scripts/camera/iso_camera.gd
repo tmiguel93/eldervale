@@ -36,6 +36,12 @@ static func step_zoom(current: float, direction: int) -> float:
 	return clampf(current * (1.0 + ZOOM_STEP * float(direction)), ZOOM_MIN, ZOOM_MAX)
 
 var is_orthogonal: bool = true
+## E8.3: tremor leve de camera (cosmetico; respeita VfxSettings: reduce_motion/camera_shake). Deslocamento h/v_offset da Camera3D.
+const SHAKE_MAX_OFFSET: float = 0.35
+var _shake_amp: float = 0.0
+var _shake_time: float = 0.0
+var _shake_left: float = 0.0
+var _shake_clock: float = 0.0
 
 @onready var _camera: Camera3D = get_node_or_null("Camera3D") as Camera3D
 
@@ -71,7 +77,35 @@ func toggle_projection() -> void:
 	_apply_projection(not is_orthogonal)
 
 
+## Pede tremor de `strength` (0..1) por `seconds`. Ignorado com reduce_motion/camera_shake desligado; o maior pedido vence.
+func shake(strength: float, seconds: float) -> void:
+	if _camera == null or not VfxSettings.shake_enabled():
+		return
+	var amp: float = clampf(strength, 0.0, 1.0) * SHAKE_MAX_OFFSET
+	if amp >= _shake_amp * (_shake_left / maxf(_shake_time, 0.001)):
+		_shake_amp = amp
+		_shake_time = maxf(seconds, 0.05)
+		_shake_left = _shake_time
+
+
+func _tick_shake(delta: float) -> void:
+	if _shake_left <= 0.0:
+		return
+	_shake_left -= delta
+	_shake_clock += delta
+	var k: float = clampf(_shake_left / _shake_time, 0.0, 1.0)
+	if _shake_left <= 0.0 or not VfxSettings.shake_enabled():
+		_shake_left = 0.0
+		_camera.h_offset = 0.0
+		_camera.v_offset = 0.0
+		return
+	_camera.h_offset = sin(_shake_clock * 63.0) * _shake_amp * k * k
+	_camera.v_offset = cos(_shake_clock * 79.0 + 1.3) * _shake_amp * k * k
+
+
 func _process(delta: float) -> void:
+	if _camera != null:
+		_tick_shake(delta)
 	if target == null or not is_instance_valid(target):
 		return
 	var weight: float = 1.0 - exp(-follow_speed * delta)

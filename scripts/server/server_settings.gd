@@ -84,6 +84,9 @@ var measure_snapshots: bool = false
 ## E5.7: permite o snapshot compacto (s_snapshot_c) para os peers que declaram `CAP_SNAPSHOT_COMPACT`. Desligar força o
 ## `s_snapshot` legado para todos (kill-switch e comparacao antes/depois: `--compact-snapshots 0`).
 var compact_snapshots: bool = true
+## E8.3: o `type` dos jogadores no snapshot leva a classe ("player:mage"; ver Protocol.player_type_for). Desligar volta ao "player" de antes
+## (kill-switch `--party-class 0`: o cliente cai no modelo de aliado generico). Vale para o snapshot legado e para o compacto.
+var party_class: bool = true
 ## E5.7: orcamento do blob por mensagem do snapshot compacto (bytes); o MTU de payload e 1392.
 var snapshot_part_bytes: int = SnapshotCodec.MAX_PART_BYTES
 ## E6.1: classe dos jogadores SEM personagem do backend (modo dev/bots). Com backend a classe vem do personagem (`class_id`).

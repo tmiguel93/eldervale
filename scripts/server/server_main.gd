@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "default-class", "loot-test-force", "metrics-interval", "log-format", "log-level", "health-file", "health-interval", "max-conns-per-ip"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "party-class", "default-class", "loot-test-force", "metrics-interval", "log-format", "log-level", "health-file", "health-interval", "max-conns-per-ip"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -290,6 +290,8 @@ func _apply_extras(extras: Dictionary) -> void:
 		settings.measure_snapshots = String(extras["measure-snapshots"]).strip_edges() in ["1", "true", "on"]
 	if extras.has("compact-snapshots"):
 		settings.compact_snapshots = String(extras["compact-snapshots"]).strip_edges() in ["1", "true", "on"]
+	if extras.has("party-class"):
+		settings.party_class = String(extras["party-class"]).strip_edges() in ["1", "true", "on"]
 	if extras.has("hello-timeout") and String(extras["hello-timeout"]).is_valid_float():
 		settings.hello_timeout_sec = clampf(float(extras["hello-timeout"]), 0.5, 600.0)
 

@@ -17,6 +17,7 @@ import { buildTalentCatalog } from "./gen_talents_catalog.mjs";
 import { buildRecipeCatalog } from "./gen_recipes_catalog.mjs";
 import { buildQuestCatalog } from "./gen_quests_catalog.mjs";
 import { checkVisualJson, checkVisualTres } from "./visual_check.mjs";
+import { checkVfx } from "./vfx_check.mjs";
 import { VISUAL_KEYS } from "./gen_classes_catalog.mjs";
 import { parseTres, validateAffixes, validateRarities, validateUniques } from "./gen_items_catalog.mjs";
 
@@ -343,6 +344,7 @@ export function validateContent(root = DEFAULT_ROOT, opts = {}) {
     if (talents.errors.length === 0) fresh("talents.json", talents.catalog);
     if (recipes.errors.length === 0) fresh("recipes.json", recipes.catalog);
   }
+  Object.assign(stats, Object.fromEntries(Object.entries(checkVfx(root, err)).map(([k, v]) => [`vfx_${k}`, v]))); // E8.3
   return { errors: [...new Set(errors)], stats };
 }
 

@@ -1,0 +1,1530 @@
+{
+ "schema_version": 1,
+ "effects": {
+  "fx_hit_physical": {
+   "priority": 0,
+   "layers": [
+    {
+     "type": "burst",
+     "count": 1,
+     "life": 0.14,
+     "speed": [
+      0,
+      0
+     ],
+     "size": [
+      1.44,
+      1.76
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      1,
+      0.9
+     ],
+     "color_b": [
+      1.0,
+      0.82,
+      0.35
+     ],
+     "spread": 0,
+     "shape": "point",
+     "explosiveness": 1.0,
+     "offset": [
+      0,
+      1.0,
+      0
+     ],
+     "size_curve": "pop",
+     "blend": "mix"
+    },
+    {
+     "type": "burst",
+     "count": 8,
+     "life": 0.28,
+     "speed": [
+      2.0,
+      6.0
+     ],
+     "size": [
+      0.128,
+      0.32
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      0.95,
+      0.7
+     ],
+     "color_b": [
+      1.0,
+      0.55,
+      0.15
+     ],
+     "gravity": -7,
+     "spread": 180,
+     "shape": "point",
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 1.0,
+     "offset": [
+      0,
+      1.0,
+      0
+     ],
+     "blend": "mix"
+    },
+    {
+     "type": "ring",
+     "r0": 0.1,
+     "r1": 0.9,
+     "width": 0.22,
+     "life": 0.2,
+     "color_a": [
+      1,
+      0.95,
+      0.8
+     ],
+     "intensity": 1.4,
+     "height": 0.12
+    }
+   ]
+  },
+  "fx_hit_crit": {
+   "priority": 1,
+   "layers": [
+    {
+     "type": "burst",
+     "count": 1,
+     "life": 0.2,
+     "speed": [
+      0,
+      0
+     ],
+     "size": [
+      2.56,
+      3.04
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      1,
+      1
+     ],
+     "color_b": [
+      1.0,
+      0.82,
+      0.35
+     ],
+     "spread": 0,
+     "shape": "point",
+     "explosiveness": 1.0,
+     "offset": [
+      0,
+      1.1,
+      0
+     ],
+     "size_curve": "pop",
+     "blend": "mix"
+    },
+    {
+     "type": "burst",
+     "count": 14,
+     "life": 0.38,
+     "speed": [
+      3.0,
+      8.0
+     ],
+     "size": [
+      0.16,
+      0.416
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      0.95,
+      0.6
+     ],
+     "color_b": [
+      1.0,
+      0.55,
+      0.15
+     ],
+     "gravity": -8,
+     "spread": 180,
+     "shape": "point",
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 1.0,
+     "offset": [
+      0,
+      1.1,
+      0
+     ],
+     "blend": "mix"
+    },
+    {
+     "type": "ring",
+     "r0": 0.1,
+     "r1": 1.5,
+     "width": 0.18,
+     "life": 0.3,
+     "color_a": [
+      1.0,
+      0.82,
+      0.35
+     ],
+     "intensity": 1.8,
+     "height": 0.12
+    },
+    {
+     "type": "light",
+     "color": [
+      1,
+      0.85,
+      0.4
+     ],
+     "energy": 1.8,
+     "range": 4.5,
+     "peak": 0.15,
+     "life": 0.25,
+     "offset": [
+      0,
+      1.2,
+      0
+     ]
+    }
+   ]
+  },
+  "fx_hit_player": {
+   "priority": 1,
+   "layers": [
+    {
+     "type": "burst",
+     "count": 1,
+     "life": 0.16,
+     "speed": [
+      0,
+      0
+     ],
+     "size": [
+      1.6,
+      1.92
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      0.6,
+      0.5
+     ],
+     "color_b": [
+      1.0,
+      0.3,
+      0.12
+     ],
+     "spread": 0,
+     "shape": "point",
+     "explosiveness": 1.0,
+     "offset": [
+      0,
+      1.0,
+      0
+     ],
+     "size_curve": "pop",
+     "blend": "mix"
+    },
+    {
+     "type": "burst",
+     "count": 8,
+     "life": 0.3,
+     "speed": [
+      1.5,
+      4.5
+     ],
+     "size": [
+      0.128,
+      0.288
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      0.45,
+      0.3
+     ],
+     "color_b": [
+      0.7,
+      0.05,
+      0.05
+     ],
+     "gravity": -6,
+     "spread": 180,
+     "shape": "point",
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 1.0,
+     "offset": [
+      0,
+      1.0,
+      0
+     ],
+     "blend": "mix"
+    }
+   ]
+  },
+  "fx_heal": {
+   "priority": 1,
+   "layers": [
+    {
+     "type": "pillar",
+     "radius": 0.65,
+     "height": 2.6,
+     "life": 0.95,
+     "grow": 0.25,
+     "color_a": [
+      0.9,
+      1,
+      0.7
+     ],
+     "color_b": [
+      0.5,
+      1.0,
+      0.5
+     ],
+     "intensity": 1.5
+    },
+    {
+     "type": "ring",
+     "r0": 0.3,
+     "r1": 1.3,
+     "width": 0.16,
+     "life": 0.6,
+     "color_a": [
+      0.8,
+      1,
+      0.7
+     ],
+     "intensity": 1.5
+    },
+    {
+     "type": "burst",
+     "count": 16,
+     "life": 0.9,
+     "speed": [
+      0.6,
+      1.6
+     ],
+     "size": [
+      0.16,
+      0.352
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      1,
+      1,
+      0.7
+     ],
+     "color_b": [
+      0.5,
+      1.0,
+      0.5
+     ],
+     "gravity": -1.0,
+     "spread": 25,
+     "shape": "disc",
+     "shape_radius": 0.6,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.4,
+     "offset": [
+      0,
+      0.2,
+      0
+     ]
+    },
+    {
+     "type": "light",
+     "color": [
+      0.7,
+      1,
+      0.6
+     ],
+     "energy": 1.0,
+     "range": 4.0,
+     "peak": 0.25,
+     "life": 0.8,
+     "offset": [
+      0,
+      1,
+      0
+     ]
+    }
+   ]
+  },
+  "fx_levelup": {
+   "priority": 2,
+   "layers": [
+    {
+     "type": "pillar",
+     "radius": 1.0,
+     "height": 9.0,
+     "life": 1.9,
+     "grow": 0.18,
+     "color_a": [
+      1,
+      0.95,
+      0.7
+     ],
+     "color_b": [
+      1.0,
+      0.82,
+      0.35
+     ],
+     "intensity": 1.3
+    },
+    {
+     "type": "rune",
+     "radius": 2.4,
+     "style": "valknut",
+     "life": 1.9,
+     "color_a": [
+      1,
+      0.95,
+      0.7
+     ],
+     "color_b": [
+      1.0,
+      0.82,
+      0.35
+     ],
+     "intensity": 1.7,
+     "appear": 0.15,
+     "vanish": 0.45,
+     "spin": 1.2,
+     "height": 0.07
+    },
+    {
+     "type": "ring",
+     "r0": 0.4,
+     "r1": 4.0,
+     "width": 0.12,
+     "life": 0.8,
+     "color_a": [
+      1.0,
+      0.82,
+      0.35
+     ],
+     "intensity": 1.7,
+     "height": 0.1
+    },
+    {
+     "type": "burst",
+     "count": 40,
+     "life": 1.4,
+     "speed": [
+      1.5,
+      3.8
+     ],
+     "size": [
+      0.16,
+      0.416
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      0.95,
+      0.7
+     ],
+     "color_b": [
+      1.0,
+      0.82,
+      0.35
+     ],
+     "gravity": -1.5,
+     "spread": 20,
+     "shape": "disc",
+     "shape_radius": 1.2,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.3,
+     "offset": [
+      0,
+      0.2,
+      0
+     ],
+     "blend": "mix"
+    },
+    {
+     "type": "light",
+     "color": [
+      1,
+      0.85,
+      0.45
+     ],
+     "energy": 2.4,
+     "range": 9.0,
+     "peak": 0.2,
+     "life": 1.7,
+     "offset": [
+      0,
+      1.5,
+      0
+     ]
+    },
+    {
+     "type": "shake",
+     "strength": 0.07,
+     "life": 0.3
+    }
+   ]
+  },
+  "fx_talent": {
+   "priority": 1,
+   "layers": [
+    {
+     "type": "rune",
+     "radius": 1.5,
+     "style": "valknut",
+     "life": 1.0,
+     "color_a": [
+      0.9,
+      0.95,
+      1
+     ],
+     "color_b": [
+      0.4,
+      0.6,
+      1
+     ],
+     "intensity": 1.6,
+     "appear": 0.2,
+     "vanish": 0.5,
+     "spin": 1.5,
+     "height": 0.07
+    },
+    {
+     "type": "burst",
+     "count": 18,
+     "life": 0.9,
+     "speed": [
+      0.8,
+      2.2
+     ],
+     "size": [
+      0.128,
+      0.32
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      0.9,
+      0.95,
+      1
+     ],
+     "color_b": [
+      0.4,
+      0.6,
+      1
+     ],
+     "gravity": -0.8,
+     "spread": 30,
+     "shape": "disc",
+     "shape_radius": 0.9,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.5,
+     "offset": [
+      0,
+      0.2,
+      0
+     ]
+    }
+   ]
+  },
+  "fx_spawn_rune": {
+   "priority": 1,
+   "scale_with_tier": true,
+   "layers": [
+    {
+     "type": "rune",
+     "radius": 1.9,
+     "style": "circle",
+     "life": 1.3,
+     "color_a": [
+      0.7,
+      1,
+      0.7
+     ],
+     "color_b": [
+      0.2,
+      0.5,
+      0.3
+     ],
+     "intensity": 1.4,
+     "appear": 0.2,
+     "vanish": 0.5,
+     "spin": -1.2,
+     "glyphs": 12,
+     "height": 0.06
+    },
+    {
+     "type": "burst",
+     "count": 12,
+     "life": 1.0,
+     "speed": [
+      0.4,
+      1.2
+     ],
+     "size": [
+      0.7,
+      1.3
+     ],
+     "sprite": "smoke",
+     "blend": "mix",
+     "color_a": [
+      0.25,
+      0.32,
+      0.25,
+      0.5
+     ],
+     "color_b": [
+      0.15,
+      0.2,
+      0.15,
+      0.0
+     ],
+     "gravity": 0.6,
+     "spread": 60,
+     "shape": "disc",
+     "shape_radius": 1.4,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.5,
+     "offset": [
+      0,
+      0.1,
+      0
+     ],
+     "size_curve": "grow"
+    },
+    {
+     "type": "burst",
+     "count": 14,
+     "life": 0.9,
+     "speed": [
+      0.8,
+      2.0
+     ],
+     "size": [
+      0.128,
+      0.256
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      0.8,
+      1,
+      0.7
+     ],
+     "color_b": [
+      0.5,
+      1.0,
+      0.5
+     ],
+     "gravity": -1.0,
+     "spread": 30,
+     "shape": "disc",
+     "shape_radius": 1.2,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.4,
+     "offset": [
+      0,
+      0.1,
+      0
+     ]
+    }
+   ]
+  },
+  "fx_death_enemy": {
+   "priority": 1,
+   "scale_with_tier": true,
+   "layers": [
+    {
+     "type": "burst",
+     "count": 14,
+     "life": 1.0,
+     "speed": [
+      0.6,
+      1.8
+     ],
+     "size": [
+      0.192,
+      0.416
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      0.85,
+      1,
+      0.95
+     ],
+     "color_b": [
+      0.4,
+      0.7,
+      0.8
+     ],
+     "gravity": -1.2,
+     "spread": 40,
+     "shape": "sphere",
+     "shape_radius": 0.5,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.8,
+     "offset": [
+      0,
+      0.9,
+      0
+     ]
+    },
+    {
+     "type": "burst",
+     "count": 8,
+     "life": 0.7,
+     "speed": [
+      0.8,
+      2.2
+     ],
+     "size": [
+      0.5,
+      1.0
+     ],
+     "sprite": "smoke",
+     "blend": "mix",
+     "color_a": [
+      0.5,
+      0.47,
+      0.42,
+      0.5
+     ],
+     "color_b": [
+      0.35,
+      0.33,
+      0.3,
+      0.0
+     ],
+     "gravity": 0.4,
+     "spread": 150,
+     "shape": "disc",
+     "shape_radius": 0.5,
+     "direction": [
+      0,
+      0.5,
+      0
+     ],
+     "explosiveness": 1.0,
+     "offset": [
+      0,
+      0.15,
+      0
+     ],
+     "size_curve": "grow"
+    },
+    {
+     "type": "ring",
+     "r0": 0.2,
+     "r1": 1.6,
+     "width": 0.14,
+     "life": 0.5,
+     "color_a": [
+      0.8,
+      0.95,
+      1
+     ],
+     "intensity": 1.4,
+     "height": 0.08
+    }
+   ]
+  },
+  "fx_death_boss": {
+   "priority": 2,
+   "layers": [
+    {
+     "type": "rune",
+     "radius": 3.5,
+     "style": "valknut",
+     "life": 2.0,
+     "color_a": [
+      0.7,
+      1,
+      0.8
+     ],
+     "color_b": [
+      0.2,
+      0.6,
+      0.4
+     ],
+     "intensity": 1.6,
+     "appear": 0.15,
+     "vanish": 0.5,
+     "spin": 0.8,
+     "height": 0.07
+    },
+    {
+     "type": "pillar",
+     "radius": 1.1,
+     "height": 7.0,
+     "life": 1.8,
+     "grow": 0.25,
+     "color_a": [
+      0.85,
+      1,
+      0.9
+     ],
+     "color_b": [
+      0.3,
+      0.7,
+      0.5
+     ],
+     "intensity": 1.4
+    },
+    {
+     "type": "burst",
+     "count": 40,
+     "life": 1.6,
+     "speed": [
+      1.0,
+      3.5
+     ],
+     "size": [
+      0.224,
+      0.48
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      0.85,
+      1,
+      0.95
+     ],
+     "color_b": [
+      0.4,
+      0.8,
+      0.7
+     ],
+     "gravity": -1.5,
+     "spread": 50,
+     "shape": "sphere",
+     "shape_radius": 1.2,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.6,
+     "offset": [
+      0,
+      1.2,
+      0
+     ]
+    },
+    {
+     "type": "burst",
+     "count": 16,
+     "life": 1.2,
+     "speed": [
+      1.0,
+      3.0
+     ],
+     "size": [
+      1.0,
+      2.0
+     ],
+     "sprite": "smoke",
+     "blend": "mix",
+     "color_a": [
+      0.4,
+      0.45,
+      0.38,
+      0.5
+     ],
+     "color_b": [
+      0.25,
+      0.3,
+      0.25,
+      0.0
+     ],
+     "gravity": 0.5,
+     "spread": 150,
+     "shape": "disc",
+     "shape_radius": 1.5,
+     "direction": [
+      0,
+      0.5,
+      0
+     ],
+     "explosiveness": 0.9,
+     "offset": [
+      0,
+      0.15,
+      0
+     ],
+     "size_curve": "grow"
+    },
+    {
+     "type": "ring",
+     "r0": 0.3,
+     "r1": 5.0,
+     "width": 0.1,
+     "life": 0.9,
+     "color_a": [
+      0.8,
+      1,
+      0.9
+     ],
+     "intensity": 1.6,
+     "height": 0.1
+    },
+    {
+     "type": "light",
+     "color": [
+      0.6,
+      1,
+      0.8
+     ],
+     "energy": 2.4,
+     "range": 10.0,
+     "peak": 0.2,
+     "life": 1.6,
+     "offset": [
+      0,
+      1.5,
+      0
+     ]
+    },
+    {
+     "type": "shake",
+     "strength": 0.22,
+     "life": 0.4
+    }
+   ]
+  },
+  "fx_death_player": {
+   "priority": 1,
+   "layers": [
+    {
+     "type": "burst",
+     "count": 12,
+     "life": 1.2,
+     "speed": [
+      0.5,
+      1.4
+     ],
+     "size": [
+      0.192,
+      0.384
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      0.8,
+      0.85,
+      1
+     ],
+     "color_b": [
+      0.4,
+      0.45,
+      0.8
+     ],
+     "gravity": -1.0,
+     "spread": 30,
+     "shape": "sphere",
+     "shape_radius": 0.4,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.6,
+     "offset": [
+      0,
+      0.9,
+      0
+     ]
+    },
+    {
+     "type": "rune",
+     "radius": 1.2,
+     "style": "rings",
+     "life": 1.2,
+     "color_a": [
+      0.8,
+      0.85,
+      1
+     ],
+     "color_b": [
+      0.35,
+      0.4,
+      0.8
+     ],
+     "intensity": 1.2,
+     "appear": 0.2,
+     "vanish": 0.5,
+     "height": 0.06
+    }
+   ]
+  },
+  "fx_loot_pop": {
+   "priority": 0,
+   "layers": [
+    {
+     "type": "burst",
+     "count": 7,
+     "life": 0.6,
+     "speed": [
+      0.8,
+      2.2
+     ],
+     "size": [
+      0.128,
+      0.256
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      1,
+      1
+     ],
+     "color_b": [
+      0.8,
+      0.8,
+      0.8
+     ],
+     "gravity": -2,
+     "spread": 60,
+     "shape": "point",
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 1.0,
+     "offset": [
+      0,
+      0.4,
+      0
+     ],
+     "blend": "mix"
+    },
+    {
+     "type": "ring",
+     "r0": 0.1,
+     "r1": 0.8,
+     "width": 0.2,
+     "life": 0.35,
+     "color_a": [
+      0.9,
+      0.9,
+      0.9
+     ],
+     "intensity": 1.2,
+     "height": 0.08,
+     "tintable": true
+    }
+   ]
+  },
+  "fx_loot_beam": {
+   "priority": 1,
+   "layers": [
+    {
+     "type": "pillar",
+     "radius": 0.32,
+     "height": 5.5,
+     "life": 2.6,
+     "grow": 0.12,
+     "color_a": [
+      1,
+      1,
+      1
+     ],
+     "color_b": [
+      0.8,
+      0.8,
+      0.8
+     ],
+     "intensity": 1.5,
+     "tintable": true
+    },
+    {
+     "type": "ring",
+     "r0": 0.1,
+     "r1": 1.3,
+     "width": 0.14,
+     "life": 0.7,
+     "color_a": [
+      1,
+      1,
+      1
+     ],
+     "intensity": 1.6,
+     "height": 0.08,
+     "tintable": true
+    },
+    {
+     "type": "burst",
+     "count": 14,
+     "life": 1.4,
+     "speed": [
+      0.5,
+      1.6
+     ],
+     "size": [
+      0.112,
+      0.24
+     ],
+     "sprite": "hit",
+     "color_a": [
+      1,
+      1,
+      1
+     ],
+     "color_b": [
+      0.8,
+      0.8,
+      0.8
+     ],
+     "gravity": -0.8,
+     "spread": 25,
+     "shape": "disc",
+     "shape_radius": 0.5,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.3,
+     "offset": [
+      0,
+      0.2,
+      0
+     ],
+     "tintable": true,
+     "blend": "mix"
+    },
+    {
+     "type": "light",
+     "color": [
+      1,
+      1,
+      1
+     ],
+     "energy": 1.2,
+     "range": 4.5,
+     "peak": 0.2,
+     "life": 2.4,
+     "offset": [
+      0,
+      1,
+      0
+     ],
+     "tintable": true
+    }
+   ]
+  },
+  "fx_portal_ambient": {
+   "loop": true,
+   "priority": 0,
+   "fade_out": 0.6,
+   "layers": [
+    {
+     "type": "rune",
+     "radius": 1.6,
+     "style": "circle",
+     "life": 4.0,
+     "color_a": [
+      0.85,
+      0.7,
+      1
+     ],
+     "color_b": [
+      0.4,
+      0.25,
+      0.9
+     ],
+     "intensity": 1.5,
+     "appear": 0.1,
+     "vanish": 0.35,
+     "spin": 0.7,
+     "glyphs": 10,
+     "height": 0.06
+    },
+    {
+     "type": "pillar",
+     "radius": 0.9,
+     "height": 3.6,
+     "life": 4.0,
+     "grow": 0.2,
+     "color_a": [
+      0.85,
+      0.75,
+      1
+     ],
+     "color_b": [
+      0.4,
+      0.3,
+      0.9
+     ],
+     "intensity": 1.0
+    },
+    {
+     "type": "burst",
+     "count": 10,
+     "life": 1.8,
+     "speed": [
+      0.3,
+      0.9
+     ],
+     "size": [
+      0.06,
+      0.14
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      0.9,
+      0.85,
+      1
+     ],
+     "color_b": [
+      0.5,
+      0.4,
+      1
+     ],
+     "gravity": -0.4,
+     "spread": 20,
+     "shape": "disc",
+     "shape_radius": 1.2,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "continuous": true,
+     "offset": [
+      0,
+      0.2,
+      0
+     ]
+    }
+   ]
+  },
+  "fx_portal_burst": {
+   "priority": 1,
+   "layers": [
+    {
+     "type": "ring",
+     "r0": 0.3,
+     "r1": 2.6,
+     "width": 0.14,
+     "life": 0.6,
+     "color_a": [
+      0.85,
+      0.7,
+      1
+     ],
+     "intensity": 1.7,
+     "height": 0.1
+    },
+    {
+     "type": "pillar",
+     "radius": 0.9,
+     "height": 4.0,
+     "life": 0.9,
+     "grow": 0.25,
+     "color_a": [
+      0.9,
+      0.8,
+      1
+     ],
+     "color_b": [
+      0.45,
+      0.3,
+      0.95
+     ],
+     "intensity": 1.5
+    },
+    {
+     "type": "burst",
+     "count": 24,
+     "life": 0.9,
+     "speed": [
+      1.0,
+      3.5
+     ],
+     "size": [
+      0.128,
+      0.288
+     ],
+     "sprite": "hit",
+     "color_a": [
+      0.95,
+      0.9,
+      1
+     ],
+     "color_b": [
+      0.5,
+      0.4,
+      1
+     ],
+     "gravity": -1.0,
+     "spread": 60,
+     "shape": "disc",
+     "shape_radius": 0.8,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.7,
+     "offset": [
+      0,
+      0.2,
+      0
+     ],
+     "blend": "mix"
+    },
+    {
+     "type": "light",
+     "color": [
+      0.7,
+      0.55,
+      1
+     ],
+     "energy": 1.6,
+     "range": 6.0,
+     "peak": 0.2,
+     "life": 0.8,
+     "offset": [
+      0,
+      1,
+      0
+     ]
+    }
+   ]
+  },
+  "fx_boss_aura": {
+   "loop": true,
+   "priority": 1,
+   "fade_out": 0.8,
+   "scale_with_tier": true,
+   "layers": [
+    {
+     "type": "rune",
+     "radius": 3.4,
+     "style": "circle",
+     "life": 4.0,
+     "color_a": [
+      0.7,
+      1,
+      0.6
+     ],
+     "color_b": [
+      0.35,
+      0.15,
+      0.5
+     ],
+     "intensity": 1.3,
+     "appear": 0.1,
+     "vanish": 0.35,
+     "spin": -0.5,
+     "glyphs": 16,
+     "height": 0.05
+    },
+    {
+     "type": "burst",
+     "count": 14,
+     "life": 1.8,
+     "speed": [
+      0.3,
+      0.9
+     ],
+     "size": [
+      1.0,
+      1.8
+     ],
+     "sprite": "smoke",
+     "blend": "mix",
+     "color_a": [
+      0.25,
+      0.3,
+      0.22,
+      0.4
+     ],
+     "color_b": [
+      0.12,
+      0.15,
+      0.1,
+      0.0
+     ],
+     "gravity": 0.3,
+     "spread": 30,
+     "shape": "disc",
+     "shape_radius": 2.4,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "continuous": true,
+     "offset": [
+      0,
+      0.1,
+      0
+     ],
+     "size_curve": "grow"
+    },
+    {
+     "type": "burst",
+     "count": 12,
+     "life": 1.8,
+     "speed": [
+      0.4,
+      1.2
+     ],
+     "size": [
+      0.07,
+      0.16
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      0.8,
+      1,
+      0.6
+     ],
+     "color_b": [
+      0.5,
+      0.2,
+      0.8
+     ],
+     "gravity": -0.5,
+     "spread": 25,
+     "shape": "disc",
+     "shape_radius": 2.4,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "continuous": true,
+     "offset": [
+      0,
+      0.1,
+      0
+     ]
+    }
+   ]
+  },
+  "fx_respawn": {
+   "priority": 1,
+   "layers": [
+    {
+     "type": "pillar",
+     "radius": 0.9,
+     "height": 4.0,
+     "life": 1.1,
+     "grow": 0.25,
+     "color_a": [
+      0.9,
+      0.95,
+      1
+     ],
+     "color_b": [
+      0.5,
+      0.7,
+      1
+     ],
+     "intensity": 1.4
+    },
+    {
+     "type": "rune",
+     "radius": 1.8,
+     "style": "rings",
+     "life": 1.2,
+     "color_a": [
+      0.9,
+      0.95,
+      1
+     ],
+     "color_b": [
+      0.5,
+      0.7,
+      1
+     ],
+     "intensity": 1.4,
+     "appear": 0.15,
+     "vanish": 0.5,
+     "height": 0.06
+    },
+    {
+     "type": "burst",
+     "count": 16,
+     "life": 1.0,
+     "speed": [
+      0.8,
+      2.2
+     ],
+     "size": [
+      0.128,
+      0.288
+     ],
+     "sprite": "particle_soft",
+     "color_a": [
+      0.9,
+      0.95,
+      1
+     ],
+     "color_b": [
+      0.5,
+      0.7,
+      1
+     ],
+     "gravity": -1,
+     "spread": 30,
+     "shape": "disc",
+     "shape_radius": 0.8,
+     "direction": [
+      0,
+      1,
+      0
+     ],
+     "explosiveness": 0.5,
+     "offset": [
+      0,
+      0.2,
+      0
+     ]
+    }
+   ]
+  }
+ }
+}

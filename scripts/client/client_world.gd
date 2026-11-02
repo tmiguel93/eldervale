@@ -8,12 +8,15 @@ extends Node3D
 ## headless/bot/teste ou com `use_models = false`, continua nas primitivas acima. O servidor nunca ve a arte.
 
 signal notice(text: String)
+## E8.3: pedido de tremor leve de camera (cosmetico; IsoCamera.shake respeita VfxSettings).
+signal camera_shake(strength: float, time: float)
 
 const HEIGHT_DAMAGE: float = 2.2
 const FLASH_TIME: float = 0.12
 const HEAD_MARGIN: float = 0.4
 const MOVING_EPS_SQ: float = 0.000004
-## Aliado remoto: o snapshot nao informa a classe dos outros jogadores (protocolo inalterado), entao usam o Cavaleiro.
+## Aliado remoto SEM classe conhecida (servidor antigo ou `--party-class 0`: o `type` e so "player"): usa o Cavaleiro generico.
+## E8.3: com o servidor novo o `type` e "player:<classe>" (Protocol.class_of_player_type) e o aliado usa o modelo da classe dele.
 const ALLY_SCENE: String = "class.warrior_alt"
 
 var avatars: Dictionary = {}  # id -> Node3D
@@ -41,6 +44,8 @@ var _puzzle_event: Dictionary = {}
 var scenery_env: SceneryEnv = null
 var scenery_info: Dictionary = {}
 var _sun: DirectionalLight3D = null
+## E8.3: efeitos de combate (so cliente com display; null em headless/bot/teste = comportamento de antes).
+var vfx: ClientVfx = null
 
 
 func _ready() -> void:
@@ -54,6 +59,12 @@ func _ready() -> void:
 		scenery_env = SceneryEnv.new()
 		add_child(scenery_env)
 		scenery_env.set_quality(QualitySettings.current)
+	if ClientVfx.enabled():
+		vfx = ClientVfx.new()
+		add_child(vfx)
+		vfx.set_world(self)
+		vfx.set_quality(QualitySettings.current)
+		vfx.shake_requested.connect(func(st: float, tm: float) -> void: camera_shake.emit(st, tm))
 
 
 func _build_ground() -> void:
@@ -122,6 +133,9 @@ func update_frame(samples: Dictionary, p_local_id: int, local_pos: Variant, delt
 		_facing.erase(id)
 		_last_pos.erase(id)
 	local_avatar = avatars.get(local_id) as Node3D
+	if vfx != null:
+		vfx.local_class_id = local_class_id
+		vfx.on_frame(samples, local_id, delta)
 	_tick_flash(delta)
 	if scenery_env != null and local_avatar != null and is_instance_valid(local_avatar):
 		scenery_env.update(delta, local_avatar.position)
@@ -130,11 +144,15 @@ func update_frame(samples: Dictionary, p_local_id: int, local_pos: Variant, delt
 func _create_avatar(id: int, s: Dictionary) -> Node3D:
 	var root: Node3D = Node3D.new()
 	root.name = "Entity_%d" % id
+	root.set_meta("kind", int(s["kind"])) # E8.3: os efeitos de combate consultam tipo/kind do avatar
+	root.set_meta("vtype", String(s["type"]))
 	var vis: Node3D = Node3D.new()
 	vis.name = "Visual"
 	root.add_child(vis)
 	add_child(root)
 	_build_visual(root, id, s)
+	if vfx != null:
+		vfx.on_avatar_created(id, root)
 	return root
 
 
@@ -145,12 +163,15 @@ func _visual_key(id: int, s: Dictionary) -> String:
 			return "e:" + String(s["type"])
 		Protocol.KIND_PICKUP:
 			return "k:" + String(s["type"])
-	return "p:" + (_class_of(id) if use_models else "prim")
+	return "p:" + (_class_of(id, s) if use_models else "prim")
 
 
-func _class_of(id: int) -> String:
+## Classe do jogador `id` para escolher o modelo: o local usa a do s_class (ClientMain); remoto, a do `type` do snapshot
+## ("player:mage"); sem classe conhecida (ou id fora do catalogo local), "ally" = Cavaleiro generico.
+func _class_of(id: int, s: Dictionary = {}) -> String:
 	if id != local_id:
-		return "ally"
+		var cid: String = Protocol.class_of_player_type(s.get("type", ""))
+		return cid if not cid.is_empty() and ClassCatalog.shared().has_class(cid) else "ally"
 	return local_class_id if ClassCatalog.shared().has_class(local_class_id) else ClassCatalog.DEFAULT_CLASS_ID
 
 
@@ -165,7 +186,7 @@ func _spec_for(id: int, s: Dictionary) -> VisualSpec:
 			if item.begins_with("potion"):
 				return VisualSpec.make("res://assets/third_party/quaternius_rpg_items/Potion1_Filled.glb", 0.5)
 			return VisualSpec.make("prop.chest", 0.55)
-	var cid: String = _class_of(id)
+	var cid: String = _class_of(id, s)
 	if cid == "ally":
 		return VisualSpec.make(ALLY_SCENE, 1.9, Color(1, 1, 1, 0), 0.0, {"move": "Running_A"}, PackedStringArray(["1H_Sword", "Rectangle_Shield"]))
 	var def: ClassDef = ClassCatalog.shared().get_def(cid)
@@ -281,6 +302,9 @@ func _update_enemy_telegraph(av: Node3D, s: Dictionary) -> void:
 		_drop_telegraph(av, existing)
 		return
 	if existing != null and String(existing.get_meta("atk_id", "")) == atk_id:
+		if vfx != null and existing is MeshInstance3D:
+			var el: float = float(Time.get_ticks_msec()) / 1000.0 - float(existing.get_meta("t0", 0.0))
+			VfxTelegraph.update(existing as MeshInstance3D, el / maxf(float(existing.get_meta("windup", 0.5)), 0.05), el)
 		return
 	_drop_telegraph(av, existing)
 	var edata: EnemyData = EnemyCatalog.data_for(StringName(String(s["type"])))
@@ -288,7 +312,13 @@ func _update_enemy_telegraph(av: Node3D, s: Dictionary) -> void:
 		return
 	for a: EnemyAttack in edata.all_attacks():
 		if a != null and String(a.id) == atk_id:
-			var tg: MeshInstance3D = EnemyTelegraph.build(a)
+			var tg: MeshInstance3D = null
+			if vfx != null:
+				tg = VfxTelegraph.build(a, vfx.catalog.telegraph_color(VfxTelegraph.kind_name(a)))
+				tg.set_meta("t0", float(Time.get_ticks_msec()) / 1000.0)
+				tg.set_meta("windup", a.windup)
+			else:
+				tg = EnemyTelegraph.build(a)
 			tg.set_meta("atk_id", atk_id)
 			av.add_child(tg) # filho da raiz (nao do Visual escalado); gira com o yaw da entidade
 			return
@@ -301,6 +331,8 @@ func _drop_telegraph(av: Node3D, existing: Node) -> void:
 
 
 func apply_event(kind: int, data: Dictionary) -> void:
+	if vfx != null:
+		vfx.on_event(kind, data)
 	match kind:
 		Protocol.EVENT_DAMAGE:
 			var target: int = int(data.get("target_id", -1))
@@ -309,7 +341,11 @@ func apply_event(kind: int, data: Dictionary) -> void:
 			var av: Node3D = avatars.get(target) as Node3D
 			if av != null and is_instance_valid(av):
 				var label: DamageNumber = DamageNumber.new()
-				label.setup(amount, Color(1.0, 0.8, 0.3) if crit else Color(1.0, 0.9, 0.3))
+				if vfx != null: # E8.3: numeros estilizados (critico dourado, dano sofrido vermelho)
+					var taken: bool = int(av.get_meta("kind", 0)) == Protocol.KIND_PLAYER
+					label.setup_styled(amount, "crit" if crit and not taken else ("taken" if taken else "hit"))
+				else:
+					label.setup(amount, Color(1.0, 0.8, 0.3) if crit else Color(1.0, 0.9, 0.3))
 				add_child(label)
 				label.global_position = av.global_position + Vector3(randf_range(-0.3, 0.3), float(av.get_meta("height", HEIGHT_DAMAGE - HEAD_MARGIN)) + HEAD_MARGIN, 0.0)
 				_flash(target, av)
@@ -349,6 +385,36 @@ func apply_event(kind: int, data: Dictionary) -> void:
 			pass
 
 
+## E8.3: numero flutuante estilizado sobre o avatar `id` (cura etc.).
+func show_number(id: int, amount: float, style: String) -> void:
+	var av: Node3D = avatars.get(id) as Node3D
+	if av == null or not is_instance_valid(av):
+		return
+	var label: DamageNumber = DamageNumber.new()
+	label.setup_styled(amount, style)
+	add_child(label)
+	label.global_position = av.global_position + Vector3(randf_range(-0.3, 0.3), float(av.get_meta("height", HEIGHT_DAMAGE - HEAD_MARGIN)) + HEAD_MARGIN, 0.0)
+
+
+## E8.3: hit-stop cosmetico no modelo do atacante `id` (so animacao; nao altera tempo do jogo).
+func hit_stop(id: int, seconds: float) -> void:
+	var rig: ModelRig = _rigs.get(id) as ModelRig
+	if rig != null and is_instance_valid(rig):
+		rig.hit_stop(seconds)
+
+
+## E8.3: o ClientMain informa os botoes de acao enviados (a habilidade do jogador local nao vem no snapshot).
+func note_local_actions(bits: int) -> void:
+	if vfx != null:
+		vfx.note_local_actions(bits)
+
+
+## E8.3: s_talents (nivel/pontos gastos) => efeito de level up / talento.
+func on_talents_state(state: Dictionary) -> void:
+	if vfx != null:
+		vfx.on_talents_state(state)
+
+
 ## E5.3: monta o visual da zona (primitivas, mesmos dados do servidor) e esconde o chao generico.
 func show_zone(new_zone_id: String, def: WorldDef = null) -> bool:
 	var world_def: WorldDef = def if def != null else WorldDef.shared()
@@ -367,6 +433,8 @@ func show_zone(new_zone_id: String, def: WorldDef = null) -> bool:
 		_ground.visible = false
 	_decorate_zone(zone, first_zone)
 	_apply_puzzle()
+	if vfx != null:
+		vfx.on_zone(zone)
 	return true
 
 
@@ -386,6 +454,8 @@ func _decorate_zone(zone: ZoneDef, instant: bool) -> void:
 ## E8.2: troca o preset de qualidade (Baixa/Media/Alta) e reconstroi o cenario da zona atual (densidade/luzes mudam).
 func set_quality(preset: int) -> void:
 	QualitySettings.current = preset
+	if vfx != null:
+		vfx.set_quality(preset)
 	if scenery_env == null:
 		return
 	scenery_env.set_quality(preset)

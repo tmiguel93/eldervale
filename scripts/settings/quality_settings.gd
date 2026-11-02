@@ -16,19 +16,24 @@ const PRESET_NAMES: Dictionary = {
 ## (m a partir da camera; props de cenario alem disso nao sao desenhados), max_lights (luzes de tocha/fogueira ativas ao
 ## mesmo tempo, as mais proximas do jogador), shadow_distance (m), volumetric_fog (so Forward+), ssil (so Forward+; fica
 ## desligado: custo alto para pouco ganho com a camera isometrica).
+## E8.3 (VFX de combate): vfx_density (fator sobre a quantidade de particulas de cada efeito), vfx_max_active (efeitos
+## simultaneos; o excedente e descartado por prioridade) e vfx_max_lights (luzes dinamicas curtas dos efeitos fortes).
 const PRESET_DATA: Dictionary = {
 	Preset.LOW: {"shadows": false, "shadow_size": 1024, "ssao": false, "glow": false,
 		"msaa": Viewport.MSAA_DISABLED, "scale": 0.75,
 		"decor_density": 0.35, "view_distance": 60.0, "max_lights": 4, "shadow_distance": 50.0,
-		"volumetric_fog": false, "ssil": false},
+		"volumetric_fog": false, "ssil": false,
+		"vfx_density": 0.4, "vfx_max_active": 10, "vfx_max_lights": 0},
 	Preset.MEDIUM: {"shadows": true, "shadow_size": 2048, "ssao": false, "glow": true,
 		"msaa": Viewport.MSAA_2X, "scale": 1.0,
 		"decor_density": 0.7, "view_distance": 90.0, "max_lights": 8, "shadow_distance": 55.0,
-		"volumetric_fog": false, "ssil": false},
+		"volumetric_fog": false, "ssil": false,
+		"vfx_density": 0.75, "vfx_max_active": 20, "vfx_max_lights": 2},
 	Preset.HIGH: {"shadows": true, "shadow_size": 4096, "ssao": true, "glow": true,
 		"msaa": Viewport.MSAA_4X, "scale": 1.0,
 		"decor_density": 1.0, "view_distance": 130.0, "max_lights": 14, "shadow_distance": 60.0,
-		"volumetric_fog": true, "ssil": false},
+		"volumetric_fog": true, "ssil": false,
+		"vfx_density": 1.0, "vfx_max_active": 32, "vfx_max_lights": 4},
 }
 
 ## E8.2: padrao seguro do cliente (sem configuracao salva nem --quality).

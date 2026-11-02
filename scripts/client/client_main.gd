@@ -113,6 +113,9 @@ func _wire_session(ss: ClientSession) -> void:
 	ss.send_talent_cmd = Callable(_rpc, "send_talent_cmd")
 	ss.send_equip_cmd = Callable(_rpc, "send_equip_cmd")
 	ss.send_caps = Callable(_rpc, "send_caps")
+	ss.talents_changed.connect(func(d: Dictionary) -> void: # E8.3: level up / talento (so apresentacao)
+		if _world != null:
+			_world.on_talents_state(d))
 
 
 func _read_bot_seconds() -> float:
@@ -245,6 +248,7 @@ func _drop_connection() -> void:
 
 func _build_presentation() -> void:
 	QualitySettings.current = QualitySettings.resolve_startup(OS.get_cmdline_user_args()) # E8.2: --quality > settings.cfg > Medio
+	VfxSettings.resolve_startup(OS.get_cmdline_user_args()) # E8.3: --reduce-motion > settings.cfg > padrao
 	_world = ClientWorld.new()
 	_world.name = "ClientWorld"
 	add_child(_world)
@@ -263,6 +267,7 @@ func _build_presentation() -> void:
 	if cam_scene != null:
 		_camera = cam_scene.instantiate() as IsoCamera
 		add_child(_camera)
+		_world.camera_shake.connect(_camera.shake) # E8.3: tremor leve (respeita reduce_motion)
 
 
 func _on_connected() -> void:
@@ -464,6 +469,8 @@ func _tick_playing(delta: float) -> void:
 			# E5.5: com painel de UI aberto nao enviamos acoes (clicar em botao nao pode atacar); o movimento segue.
 			var acts: int = 0 if (_ui != null and _ui.blocks_game_actions()) else LocalInput.read_actions()
 			session.send_move(LocalInput.read_move(), LocalInput.normalize_yaw(session.input.yaw), acts)
+			if _world != null:
+				_world.note_local_actions(acts) # E8.3: habilidade usada (so apresentacao)
 	session.prediction.update(delta)
 	if is_bot:
 		_bot_drain_events()

@@ -117,6 +117,15 @@ const MAX_SNAPSHOT_PARTS: int = 16
 ## MTU de payload considerado (ENet/UDP sem fragmentar); nenhuma mensagem unreliable de snapshot compacto passa disso.
 const MTU_PAYLOAD: int = 1392
 
+## E8.3 (aditivo, VERSION continua 2): CLASSE DOS JOGADORES NO SNAPSHOT. O `type` de uma entidade KIND_PLAYER passa de "player" para
+## "player:<class_id>" (ex.: "player:mage"), nos DOIS formatos (s_snapshot legado e s_snapshot_c compacto): nenhum campo, flag ou formato
+## novo, so o texto do `type`, que o compacto ja deduplica na tabela de strings da parte (<= 14 B por classe distinta por parte).
+## Cliente/servidor antigos tratam `type` de jogador como texto opaco (so `kind` importa) e seguem funcionando; o cliente novo cai no
+## modelo de aliado generico quando o type e "player" (servidor antigo, ou kill-switch `--party-class 0`). Autoridade: so o servidor
+## escreve; a classe nao e segredo (e visivel no jogo) e nao e persistida aqui. Ver docs/E8_VFX.md e DEC-0038.
+const PLAYER_TYPE: String = "player"
+const PLAYER_TYPE_CLASS_PREFIX: String = "player:"
+
 ## Extensao aditiva E5.1 (quests + dialogo; VERSION continua 2, ver network_protocol.md "Revisao E5.1").
 ## c_quest_cmd: ops de quest. c_dialogue_cmd: ops de dialogo.
 const QUEST_OP_ACCEPT: int = 1
@@ -318,6 +327,25 @@ static func _vec3_finite(v: Vector3) -> bool:
 	return is_finite_number(v.x) and is_finite_number(v.y) and is_finite_number(v.z)
 
 
+## E8.3: `type` de jogador no snapshot para a classe `class_id`: "player:<id>" (id de conteudo que cabe em MAX_TYPE_LEN) ou "player".
+static func player_type_for(class_id: String) -> String:
+	if not is_content_id(class_id):
+		return PLAYER_TYPE
+	var t: String = PLAYER_TYPE_CLASS_PREFIX + class_id
+	return t if t.length() <= MAX_TYPE_LEN else PLAYER_TYPE
+
+
+## E8.3: classe contida num `type` de jogador ("player:mage" -> "mage"); "" se nao ha classe ("player", outro texto, id invalido).
+static func class_of_player_type(type_text: Variant) -> String:
+	if typeof(type_text) != TYPE_STRING:
+		return ""
+	var t: String = type_text
+	if not t.begins_with(PLAYER_TYPE_CLASS_PREFIX):
+		return ""
+	var cid: String = t.substr(PLAYER_TYPE_CLASS_PREFIX.length())
+	return cid if is_content_id(cid) else ""
+
+
 ## Entidade do snapshot: {id, kind(1|2), pos:Vector3, yaw, hp, max_hp, state, type:String}.
 static func validate_entity_dict(d: Variant) -> bool:
 	if typeof(d) != TYPE_DICTIONARY:
@@ -338,6 +366,9 @@ static func validate_entity_dict(d: Variant) -> bool:
 	if float(e["hp"]) < 0.0 or float(e["max_hp"]) < 0.0:
 		return false
 	if typeof(e["type"]) != TYPE_STRING or (e["type"] as String).length() > MAX_TYPE_LEN:
+		return false
+	# E8.3: `type` de jogador e "player" ou "player:<id de conteudo>"; qualquer outro texto com o prefixo "player:" e invalido.
+	if kind == KIND_PLAYER and (e["type"] as String).begins_with(PLAYER_TYPE_CLASS_PREFIX) and class_of_player_type(e["type"]).is_empty():
 		return false
 	# E5.2: campos OPCIONAIS de inimigo (clientes antigos ignoram): fase 0..MAX_PHASE e id do ataque em telegrafo.
 	if e.has("phase") and (typeof(e["phase"]) != TYPE_INT or int(e["phase"]) < 0 or int(e["phase"]) > MAX_PHASE):

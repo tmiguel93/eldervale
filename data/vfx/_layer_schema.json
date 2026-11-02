@@ -1,0 +1,122 @@
+{
+  "_comment": "E8.3. Esquema das camadas de efeito (data/vfx/effects_*.json). Lido pelo Godot (VfxCatalog.validate) e pelo Node (tools/vfx_check.mjs): o mesmo arquivo nos dois lados. Campos: t = num|int|bool|enum|color|vec3|range|sprite; req = obrigatorio. Cores [r,g,b] ou [r,g,b,a] (0..8; valores >1 = brilho). vec3 = deslocamento local (x direita, y cima, -z frente).",
+  "schema_version": 1,
+  "effect_keys": {
+    "priority": {"t": "int", "min": 0, "max": 2},
+    "loop": {"t": "bool"},
+    "fade_out": {"t": "num", "min": 0.05, "max": 3.0},
+    "scale_with_tier": {"t": "bool"},
+    "note": {"t": "str"},
+    "layers": {"t": "layers"}
+  },
+  "common": {
+    "type": {"t": "str", "req": true},
+    "start": {"t": "num", "min": 0.0, "max": 10.0},
+    "life": {"t": "num", "min": 0.02, "max": 12.0, "req": true},
+    "tintable": {"t": "bool"}
+  },
+  "sprites": ["particle_soft", "smoke", "burst", "hit", "glow"],
+  "blends": ["add", "mix"],
+  "layer_types": {
+    "arc": {
+      "radius": {"t": "num", "min": 0.2, "max": 12.0, "req": true},
+      "width": {"t": "num", "min": 0.05, "max": 6.0, "req": true},
+      "angle": {"t": "num", "min": 10.0, "max": 360.0, "req": true},
+      "height": {"t": "num", "min": -1.0, "max": 4.0},
+      "tilt": {"t": "num", "min": -90.0, "max": 90.0},
+      "mirror": {"t": "bool"},
+      "spin": {"t": "num", "min": -2000.0, "max": 2000.0},
+      "color_a": {"t": "color"},
+      "color_b": {"t": "color"},
+      "intensity": {"t": "num", "min": 0.1, "max": 12.0},
+      "tail": {"t": "num", "min": 0.05, "max": 1.5},
+      "sweep": {"t": "num", "min": 0.1, "max": 1.0},
+      "offset": {"t": "vec3"}
+    },
+    "ring": {
+      "r0": {"t": "num", "min": 0.0, "max": 12.0, "req": true},
+      "r1": {"t": "num", "min": 0.1, "max": 24.0, "req": true},
+      "width": {"t": "num", "min": 0.02, "max": 0.6},
+      "height": {"t": "num", "min": -0.5, "max": 4.0},
+      "color_a": {"t": "color"},
+      "intensity": {"t": "num", "min": 0.1, "max": 12.0},
+      "dash": {"t": "num", "min": 0.0, "max": 1.0},
+      "ease": {"t": "enum", "values": ["out", "in_out", "linear"]},
+      "offset": {"t": "vec3"}
+    },
+    "rune": {
+      "radius": {"t": "num", "min": 0.3, "max": 12.0, "req": true},
+      "style": {"t": "enum", "values": ["circle", "valknut", "rings"]},
+      "glyphs": {"t": "int", "min": 4, "max": 24},
+      "spin": {"t": "num", "min": -6.0, "max": 6.0},
+      "fill": {"t": "num", "min": 0.0, "max": 1.0},
+      "appear": {"t": "num", "min": 0.02, "max": 1.0},
+      "vanish": {"t": "num", "min": 0.02, "max": 1.0},
+      "pulse": {"t": "num", "min": 0.0, "max": 12.0},
+      "height": {"t": "num", "min": -0.5, "max": 4.0},
+      "color_a": {"t": "color"},
+      "color_b": {"t": "color"},
+      "intensity": {"t": "num", "min": 0.1, "max": 12.0},
+      "offset": {"t": "vec3"}
+    },
+    "pillar": {
+      "radius": {"t": "num", "min": 0.1, "max": 6.0, "req": true},
+      "height": {"t": "num", "min": 0.3, "max": 20.0, "req": true},
+      "grow": {"t": "num", "min": 0.02, "max": 1.0},
+      "color_a": {"t": "color"},
+      "color_b": {"t": "color"},
+      "intensity": {"t": "num", "min": 0.1, "max": 12.0},
+      "offset": {"t": "vec3"}
+    },
+    "orb": {
+      "radius": {"t": "num", "min": 0.03, "max": 3.0, "req": true},
+      "glow": {"t": "num", "min": 0.0, "max": 8.0},
+      "pulse": {"t": "num", "min": 0.0, "max": 30.0},
+      "color_a": {"t": "color"},
+      "color_b": {"t": "color"},
+      "intensity": {"t": "num", "min": 0.1, "max": 12.0},
+      "offset": {"t": "vec3"}
+    },
+    "streak": {
+      "length": {"t": "num", "min": 0.1, "max": 16.0, "req": true},
+      "width": {"t": "num", "min": 0.02, "max": 3.0, "req": true},
+      "mode": {"t": "enum", "values": ["trail", "flash"]},
+      "color_a": {"t": "color"},
+      "color_b": {"t": "color"},
+      "intensity": {"t": "num", "min": 0.1, "max": 12.0},
+      "offset": {"t": "vec3"}
+    },
+    "burst": {
+      "count": {"t": "int", "min": 1, "max": 120, "req": true},
+      "speed": {"t": "range", "min": 0.0, "max": 40.0},
+      "size": {"t": "range", "min": 0.01, "max": 6.0},
+      "sprite": {"t": "sprite"},
+      "blend": {"t": "enum", "values": ["add", "mix"]},
+      "color_a": {"t": "color"},
+      "color_b": {"t": "color"},
+      "gravity": {"t": "num", "min": -30.0, "max": 30.0},
+      "spread": {"t": "num", "min": 0.0, "max": 180.0},
+      "shape": {"t": "enum", "values": ["point", "sphere", "ring", "disc"]},
+      "shape_radius": {"t": "num", "min": 0.0, "max": 12.0},
+      "direction": {"t": "vec3"},
+      "damping": {"t": "num", "min": 0.0, "max": 20.0},
+      "explosiveness": {"t": "num", "min": 0.0, "max": 1.0},
+      "local": {"t": "bool"},
+      "offset": {"t": "vec3"},
+      "spin": {"t": "range", "min": -720.0, "max": 720.0},
+      "size_curve": {"t": "enum", "values": ["shrink", "grow", "pop", "flat"]},
+      "align": {"t": "bool"},
+      "continuous": {"t": "bool"}
+    },
+    "light": {
+      "color": {"t": "color"},
+      "energy": {"t": "num", "min": 0.1, "max": 12.0, "req": true},
+      "range": {"t": "num", "min": 0.5, "max": 24.0, "req": true},
+      "peak": {"t": "num", "min": 0.0, "max": 1.0},
+      "offset": {"t": "vec3"}
+    },
+    "shake": {
+      "strength": {"t": "num", "min": 0.01, "max": 1.0, "req": true}
+    }
+  }
+}

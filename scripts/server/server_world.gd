@@ -517,6 +517,13 @@ func _summon_for_enemy(summoner: Enemy, type_id: StringName, count: int) -> Arra
 
 # ------------------------------------------------------------------ snapshot
 
+## E8.3: `type` do jogador no snapshot: "player:<classe>" (ou "player" com o kill-switch `party_class = false`).
+func _player_type(slot: PlayerSlot) -> String:
+	if not settings.party_class or slot.loadout == null:
+		return Protocol.PLAYER_TYPE
+	return Protocol.player_type_for(slot.loadout.class_id())
+
+
 ## Entidades no formato do contrato. Mortos recentes aparecem com hp 0 ate o corpo sumir.
 func build_entities() -> Array:
 	var out: Array = []
@@ -528,7 +535,7 @@ func build_entities() -> Array:
 			"id": id, "kind": Protocol.KIND_PLAYER, "pos": slot.node.global_position,
 			"yaw": slot.node.facing_yaw_value, "hp": slot.health.current_health,
 			"max_hp": slot.health.max_health(), "state": int(slot.combat.machine.state),
-			"type": "player",
+			"type": _player_type(slot),
 		})
 	for enemy: Enemy in _live_enemies():
 		out.append({

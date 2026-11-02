@@ -37,6 +37,8 @@ var _pending_base: StringName = &""
 var _yaw_lag: float = 0.0
 var _yaw_ready: bool = false
 var _flash_left: float = 0.0
+var _stop_left: float = 0.0              ## E8.3: hit-stop cosmetico (animacao quase parada por alguns centesimos)
+var _stop_prev: float = 1.0
 
 
 # ------------------------------------------------------------------ fabrica / cache
@@ -320,7 +322,11 @@ func _process(delta: float) -> void:
 		_flash_left -= delta
 		if _flash_left <= 0.0:
 			_set_flash(false)
-	if _lock_left <= 0.0 and _flash_left <= 0.0:
+	if _stop_left > 0.0:
+		_stop_left -= delta
+		if _stop_left <= 0.0 and anim != null:
+			anim.speed_scale = _stop_prev
+	if _lock_left <= 0.0 and _flash_left <= 0.0 and _stop_left <= 0.0:
 		set_process(false)
 
 
@@ -333,6 +339,16 @@ func follow_yaw(entity_yaw: float, delta: float) -> void:
 		_yaw_ready = true
 	_yaw_lag = PlayerMotion.smooth_angle(_yaw_lag, entity_yaw, TURN_SPEED, delta)
 	rotation.y = wrapf(_yaw_lag - entity_yaw, -PI, PI)
+
+
+## E8.3: hit-stop cosmetico: congela (quase) a animacao deste modelo por `seconds`. So apresentacao; nao toca simulacao nem tempo global.
+func hit_stop(seconds: float) -> void:
+	if anim == null or _stop_left > 0.0 or seconds <= 0.0:
+		return
+	_stop_prev = anim.speed_scale
+	anim.speed_scale = 0.04
+	_stop_left = seconds
+	set_process(true)
 
 
 func flash(seconds: float) -> void:

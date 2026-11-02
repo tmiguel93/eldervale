@@ -1,0 +1,176 @@
+{
+ "schema_version": 1,
+ "_comment": "E8.3. Liga habilidades, ataques de inimigo e eventos cosmeticos aos efeitos de effects_*.json. Habilidade: cast (efeito ao iniciar o ataque, em `delay`=windup), muzzle (ao iniciar, sem atraso), projectile (efeito do projetil cosmetico; velocidade/alcance/perfuracao vem do SkillData), impact (acerto/fim), end (ao terminar a esquiva), shake. `at` = deslocamento a frente do jogador (m).",
+ "skills": {
+  "basic_attack": {
+   "cast": "fx_axe_swing",
+   "impact": "fx_hit_physical"
+  },
+  "heavy_strike": {
+   "cast": "fx_heavy_strike",
+   "impact": "fx_hit_physical"
+  },
+  "whirlwind": {
+   "cast": "fx_whirlwind",
+   "impact": "fx_hit_physical"
+  },
+  "dodge": {
+   "cast": "fx_dodge_dash"
+  },
+  "arcane_bolt": {
+   "muzzle": "fx_cast_arcane",
+   "projectile": "proj_arcane_bolt",
+   "impact": "fx_impact_arcane"
+  },
+  "fireball": {
+   "muzzle": "fx_cast_fire",
+   "projectile": "proj_fireball",
+   "impact": "fx_impact_fire"
+  },
+  "frost_nova": {
+   "cast": "fx_frost_nova",
+   "impact": "fx_impact_arcane"
+  },
+  "blink": {
+   "cast": "fx_blink",
+   "end": "fx_blink"
+  },
+  "quick_shot": {
+   "muzzle": "fx_cast_bow",
+   "projectile": "proj_arrow",
+   "impact": "fx_impact_arrow"
+  },
+  "piercing_arrow": {
+   "muzzle": "fx_cast_bow",
+   "projectile": "proj_arrow_pierce",
+   "impact": "fx_impact_arrow_big"
+  },
+  "arrow_rain": {
+   "cast": "fx_arrow_rain",
+   "impact": "fx_impact_arrow"
+  },
+  "roll": {
+   "cast": "fx_roll_dust"
+  }
+ },
+ "enemy_attacks": {
+  "kinds": {
+   "melee": {
+    "strike": "fx_enemy_swipe",
+    "impact": "fx_hit_player"
+   },
+   "aoe": {
+    "strike": "fx_enemy_slam",
+    "impact": "fx_hit_player"
+   },
+   "projectile": {
+    "windup": "fx_enemy_windup",
+    "projectile": "proj_enemy_bolt",
+    "impact": "fx_enemy_impact"
+   },
+   "charge": {
+    "strike": "fx_enemy_charge",
+    "impact": "fx_hit_player"
+   },
+   "summon": {
+    "windup": "fx_enemy_windup",
+    "strike": "fx_enemy_summon"
+   }
+  },
+  "overrides": {
+   "arrow": {
+    "projectile": "proj_enemy_arrow",
+    "windup": ""
+   }
+  }
+ },
+ "events": {
+  "damage_enemy": "fx_hit_physical",
+  "damage_crit": "fx_hit_crit",
+  "damage_player": "fx_hit_player",
+  "death_enemy": "fx_death_enemy",
+  "death_boss": "fx_death_boss",
+  "death_player": "fx_death_player",
+  "spawn": "fx_spawn_rune",
+  "level_up": "fx_levelup",
+  "talent": "fx_talent",
+  "heal": "fx_heal",
+  "portal_ambient": "fx_portal_ambient",
+  "zone_arrive": "fx_portal_burst",
+  "zone_leave": "fx_portal_burst",
+  "boss_aura": "fx_boss_aura",
+  "respawn": "fx_respawn"
+ },
+ "drops": {
+  "common": "fx_loot_pop",
+  "uncommon": "fx_loot_beam",
+  "rare": "fx_loot_beam",
+  "epic": "fx_loot_beam",
+  "legendary": "fx_loot_beam",
+  "mythic": "fx_loot_beam"
+ },
+ "rarity_colors": {
+  "common": [
+   0.8,
+   0.8,
+   0.8
+  ],
+  "uncommon": [
+   0.44,
+   0.82,
+   0.44
+  ],
+  "rare": [
+   0.95,
+   0.82,
+   0.3
+  ],
+  "epic": [
+   0.7,
+   0.42,
+   0.95
+  ],
+  "legendary": [
+   1.0,
+   0.6,
+   0.18
+  ],
+  "mythic": [
+   1.0,
+   0.31,
+   0.42
+  ]
+ },
+ "telegraph_colors": {
+  "melee": [
+   1.0,
+   0.3,
+   0.15
+  ],
+  "aoe": [
+   0.95,
+   0.45,
+   0.9
+  ],
+  "projectile": [
+   1.0,
+   0.85,
+   0.2
+  ],
+  "charge": [
+   1.0,
+   0.55,
+   0.1
+  ],
+  "summon": [
+   0.4,
+   1.0,
+   0.55
+  ]
+ },
+ "tier_scale": {
+  "normal": 1.0,
+  "mini_boss": 1.4,
+  "boss": 1.9
+ }
+}
