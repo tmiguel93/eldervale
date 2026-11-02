@@ -1,0 +1,10 @@
+Ultimate RPG Pack by Quaternius (https://quaternius.com)
+License: Creative Commons Zero (CC0 1.0 Universal) - https://creativecommons.org/publicdomain/zero/1.0/
+Upstream pack page (declares CC0): https://quaternius.com/packs/ultimaterpg.html
+
+Provenance: files copied unmodified from the GitHub mirror
+https://github.com/trebeljahr/quaternius-showcase (directory public/glb/rpg_items_pack/),
+whose LICENSES.md lists this pack as CC0-1.0 upstream (checked 2026-10-10 by the mirror's author).
+The mirror's MIT license covers only its own website code, not these models.
+No per-pack license file exists in the mirror; this file records the license declared upstream.
+Credit is not required; support the author at https://www.patreon.com/quaternius

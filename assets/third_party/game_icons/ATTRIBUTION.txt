@@ -1,0 +1,6 @@
+Icons from game-icons.net (https://game-icons.net), repository https://github.com/game-icons/icons
+License: Creative Commons Attribution 3.0 Unported (CC BY 3.0) - https://creativecommons.org/licenses/by/3.0/
+Only icons from the author folders below are included; both are CC BY 3.0 (not the CC0 exceptions).
+Required credit (include in the game's credits screen): 
+  "Icons made by Lorc, http://lorcblog.blogspot.com, and Delapouite, https://delapouite.com, from https://game-icons.net, licensed under CC BY 3.0"
+Files copied unmodified (original repo license.txt alongside).

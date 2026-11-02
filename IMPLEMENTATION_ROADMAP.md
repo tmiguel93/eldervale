@@ -284,6 +284,27 @@ Preparar um teste externo controlado.
 
 ---
 
+# E8 — Arte 3D e apresentação (fase adicionada por solicitação do proprietário)
+
+### Objetivo
+Trocar os placeholders de primitivas por apresentação 3D estilizada com tema RPG nórdico, sem alterar a autoridade do servidor nem o protocolo de gameplay (a arte é só do cliente).
+
+### Tarefas
+- [ ] E8.0: levantar e importar assets gratuitos de licença livre (CC0/MIT/OFL/CC-BY), registrar em `docs/ASSET_CREDITS.md`.
+- [ ] E8.1: suporte `visual_scene` em dados; modelos e animações de jogador (3 classes), inimigos, chefe, NPCs.
+- [ ] E8.2: cenário nórdico (vila, floresta, ruínas), iluminação semi-realista, sombras, névoa, pós-processamento.
+- [ ] E8.3: VFX de ataques, magias, projéteis, impactos e telégrafos (eventos cosméticos aditivos).
+- [ ] E8.4: tema de UI nórdico, fontes, ícones, animações/efeitos de interface.
+- [ ] E8.5: áudio básico (se houver assets livres), tour de screenshots, gate de arte.
+
+### Critérios de aceite
+- Nenhum asset sem licença registrada; nada proprietário ou de licença NC/ND.
+- Servidor e testes de gameplay não dependem de arte; sem asset o cliente cai para as primitivas.
+- Desempenho aceitável (sem queda grave de FPS em 4 jogadores) e qualidade gráfica ajustável.
+- Prints do jogo comprovam a apresentação.
+
+---
+
 ## 3. Definição de pronto (DoD)
 Uma tarefa só está pronta quando:
 - O requisito está implementado no escopo aprovado.

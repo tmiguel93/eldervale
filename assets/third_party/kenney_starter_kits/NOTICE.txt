@@ -1,0 +1,4 @@
+Selected sprites (vfx/) and sound effects (sfx/) from Kenney's Starter Kits:
+ - Starter-Kit-3D-Platformer, Starter-Kit-FPS, Starter-Kit-City-Builder, Starter-Kit-Racing (https://github.com/KenneyNL)
+Kit source code is MIT (LICENSE.md, Copyright (c) Kenney). The kits' README states that sprites, 3D models and sound effects are CC0 (https://creativecommons.org/publicdomain/zero/1.0/).
+Credit to 'Kenney' / www.kenney.nl is appreciated but not required. Files copied unmodified.
