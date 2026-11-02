@@ -258,3 +258,36 @@ Formato por decisão: ID, data, contexto, opções consideradas, escolha, conseq
 ## DEC-0025 — Recompensas únicas/raras do arco E6.4
 - **Escolha provisória:** `gw_thorn_hunt` concede `sword_rare` e `gw_rootsong` concede `unique_featherknot` (únicos por personagem pela chave `quest:<id>:<personagem>`); `poi_wild_thorn_relic` concede `amulet_vigor`. Os valores de xp são provisórios de balanceamento.
 - **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0026 — Simulador de balanceamento headless com faixas-alvo em dados (E6.5)
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana (as faixas-alvo são de design)
+- **Contexto:** o E6 pede "balanceamento de XP/dano/loot" e "medir distribuição de builds e uso de habilidades" sem playtest disponível; ajustes por intuição não são reproduzíveis.
+- **Opções consideradas:** (a) planilha fora do repositório; (b) instrumentar só partidas reais; (c) simulador determinístico no Godot que reutiliza as classes reais do jogo (`StatCalculator`, `SkillMods`, `ItemRoller`, `LootManager`, `DamageCalculator`) com parâmetros e faixas-alvo em `data/balance/balance_config.json`.
+- **Escolha provisória:** (c): semente fixa, sem rede, saída JSON (`docs/balance/e6_*.json`) + tabelas Markdown (`tools/balance/balance_report.py`) e 67 critérios avaliados. O modelo é relativo (classe×classe, build×build, antes×depois); não substitui playtest.
+- **Consequências:** mudar uma faixa ou premissa é editar dado, sem tocar em código; os testes (`tests/e6_balance/`) falham se os dados atuais violarem as faixas. As faixas foram propostas pelo agente e precisam de revisão do proprietário; algumas fórmulas de critério foram refinadas após ver resultados ruidosos (registrado em `docs/E6_BALANCE.md`, seção 3).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0027 — Ajustes de balanceamento do E6.5 feitos só em dados e sem mexer em stats persistidos
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana (números de design)
+- **Contexto:** a medição dos dados originais reprovou 9 de 67 critérios (únicos dominantes, chefe curto demais, drops raros/únicos fáceis demais, `arrow_rain` dominada).
+- **Escolha provisória:** vida do chefe 1200→1800; `arrow_rain` 1,7→2,0; emberfang (ataque 9→5, +25%→+20%); twin_quiver (50%→30%); chances de únicos reduzidas; `tier_weight_mult` do chefe (épico 6→3, lendário 15→3, místico 30→1); três tabelas de loot de inimigos comuns reduzidas. Nenhum `base_stats`/`growth_per_level` de classe nem a curva de XP mudou. Lista completa com antes→depois em `docs/E6_BALANCE.md`, seção 4.
+- **Consequências:** saves existentes continuam válidos (stats finais recalculados dos mesmos dados); instâncias já guardadas de únicos passam a valer os números novos do dado (mais fracos) — aceitável pré-lançamento. Guarda automatizada em `tests/e6_balance/test_balance_data.gd`.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0028 — Telemetria essencial por contadores em memória e linha de log `[metrics]`
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana (o que medir e onde coletar)
+- **Contexto:** o roadmap pede medir uso de habilidades e distribuição de builds; não há serviço de métricas e o servidor Godot não expõe HTTP.
+- **Opções consideradas:** (a) serviço externo (custo/dados); (b) endpoint HTTP no servidor Godot; (c) contadores em memória (`ServerMetrics`) emitidos como linha de log JSON a cada `--metrics-interval` (padrão 60 s) e no desligamento.
+- **Escolha provisória:** (c). Só contagens agregadas por categoria/nome vindos de dados do jogo (`sanitize`, ≤512 chaves); sem id de personagem, nome, ticket ou segredo (testado). Categorias em `docs/E6_BALANCE.md`, seção 7.
+- **Consequências:** coleta depende de quem recolhe o stdout do servidor; contadores zeram a cada reinício do processo (a linha final preserva o último valor). Persistência/agregação entre servidores e painel ficam para o E7.
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.
+
+## DEC-0029 — Suíte de exploits/anti-duplicação como gate permanente
+- **Data:** 2026-11-02
+- **Status:** PROPOSTA — aguarda revisão humana
+- **Escolha provisória:** `backend/test/exploits.test.ts` (backend real, 20 testes) e `tests/e6_balance/test_exploits.gd` (servidor Godot, 14 verificações) tentam replay de recompensa, duplicação de uid, equipar+craftar+checkpoint simultâneos, replay/excesso de `talent_cmd`, descoberta repetida e checkpoint forjado; todos devem falhar a favor do jogo. Lacunas conhecidas em `docs/E6_BALANCE.md`, seção 8.
+- **Consequências:** novas formas de recompensa/instância devem ganhar um cenário aqui. A unicidade global de `uid` entre personagens depende de só o servidor de sessão emitir instâncias (não de constraint no banco).
+- **Responsável/aprovação:** Proprietário do projeto; aprovação pendente.

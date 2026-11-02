@@ -63,6 +63,8 @@ var quests: QuestService
 var crafting: CraftingService
 ## E6.2: talentos (criado em setup).
 var talents: TalentService
+## E6.5: telemetria essencial (contadores em memoria + linha `[metrics]` periodica); ver ServerMetrics e docs/E6_BALANCE.md.
+var metrics: ServerMetrics
 ## E6.3: equipar/desequipar (criado em setup).
 var equipping: EquipService
 ## E5.6: medicao de snapshots (so com settings.measure_snapshots): maior payload aproximado (var_to_bytes) e contagens.
@@ -100,6 +102,16 @@ func setup(p_settings: ServerSettings, p_world: ServerWorld, p_transport: Server
 	equipping.crafting = crafting
 	equipping.talents = talents
 	process_physics_priority = 20 # depois de jogadores/inimigos
+	metrics = ServerMetrics.new(settings.metrics_interval_sec, now_msec())
+	world.skill_used.connect(func(_eid: int, class_id: String, skill_id: String) -> void: metrics.inc("skill_use", "%s.%s" % [class_id, skill_id]))
+	quests.quest_done.connect(func(_eid: int, quest_id: String) -> void: metrics.inc("quests_completed", quest_id))
+	quests.poi_found.connect(func(_eid: int, poi_id: String) -> void: metrics.inc("pois_discovered", poi_id))
+	talents.applied.connect(func(_eid: int, op_name: String) -> void: metrics.inc("talents", op_name))
+	equipping.equipped.connect(func(_eid: int, op: int, _item: String, rarity: String) -> void: metrics.inc("equips", rarity if op == Protocol.EQUIP_OP_EQUIP else "unequip"))
+	crafting.crafted.connect(func(_eid: int, results: Array) -> void:
+		for r: Variant in results:
+			if typeof(r) == TYPE_DICTIONARY:
+				metrics.inc("crafts", String((r as Dictionary).get("item_id", "unknown")), maxi(int((r as Dictionary).get("qty", 1)), 1)))
 
 
 ## Liga a persistencia (E4). Com backend o ticket e OBRIGATORIO e o jogador nasce do estado salvo.
@@ -127,6 +139,7 @@ func _physics_process(_delta: float) -> void:
 ## Fim de tick: contagem, timeouts de hello e (a cada N ticks) snapshots.
 func step_tick() -> void:
 	world.server_tick += 1
+	metrics.tick(now_msec())
 	check_timeouts()
 	quests.tick()
 	if settings.inventory_sync_ticks > 0 and world.server_tick % settings.inventory_sync_ticks == 0:
@@ -337,6 +350,7 @@ func _complete_join(p: PeerState, entity_id: int) -> void:
 	talents.attach(entity_id)
 	send_inventory(p, true) # E5.6: estado completo logo apos o welcome (depois, so quando mudar)
 	if join_loadout != null and join_loadout.class_def != null: # E6.1: classe (autoridade do servidor) so para o dono
+		metrics.inc("joins", join_loadout.class_def.id)
 		transport.send_class(peer_id, {"class_id": join_loadout.class_def.id})
 		talents.send_state(entity_id, -1, true) # E6.2: talentos/pontos (autoridade do servidor) so para o dono
 	player_joined.emit(peer_id, entity_id)
@@ -438,12 +452,14 @@ func _player_position(entity_id: int) -> Variant:
 
 
 func _on_player_killed_enemy(killer_id: int, _enemy_id: int, enemy_type: String) -> void:
+	metrics.inc("kills", enemy_type)
 	quests.on_enemy_killed(killer_id, enemy_type)
 
 
 ## E5.4: pickup individual coletado (item JA no inventario em memoria). Quest de coleta + pagamento no backend pelo
 ## caminho idempotente de recompensas com chave ESTAVEL por drop: `loot:<sessao>:<pickup_id>:<personagem>`.
 func _on_pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: int, inst: Dictionary) -> void:
+	_count_drop(item_id, qty, inst)
 	quests.on_items_gained(owner_id, [{"item_id": item_id, "qty": qty}])
 	var p: PeerState = _peer_by_entity(owner_id)
 	if p == null:
@@ -459,6 +475,16 @@ func _on_pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: i
 		sync.enqueue_reward(p.character_id, key, 0, [line])
 
 
+## E6.5: telemetria do que o jogador REALMENTE recebeu (coletado): raridade da instancia, unico (pelo catalogo) ou item simples.
+func _count_drop(item_id: String, qty: int, inst: Dictionary) -> void:
+	if not inst.is_empty():
+		metrics.inc("drops_rarity", String(inst.get("rarity", "unknown")))
+	elif ItemRules.shared().is_unique(item_id):
+		metrics.inc("drops_unique", item_id)
+	else:
+		metrics.inc("drops_items", item_id, maxi(qty, 1))
+
+
 ## E5.4: XP de participante (nao matador) na morte de um inimigo; mesma chave estavel por evento e personagem.
 func _on_participant_rewarded(enemy_id: int, player_id: int, xp: int) -> void:
 	var p: PeerState = _peer_by_entity(player_id)
@@ -468,6 +494,8 @@ func _on_participant_rewarded(enemy_id: int, player_id: int, xp: int) -> void:
 
 
 func _on_enemy_killed(enemy_id: int, killer_id: int, xp: int, items: Array) -> void:
+	if xp > 0:
+		metrics.inc("xp_from_kills", "killer", xp)
 	# Coleta para quests: so o que REALMENTE entrou no inventario (persist_drops); em modo dev os drops
 	# sao apenas informativos e nao contam.
 	if settings.persist_drops:
@@ -785,6 +813,7 @@ func _drop_peer(peer_id: int, reason: String) -> void:
 
 ## Chamado no encerramento do servidor: checkpoint de todos + release (nao disconnect).
 func shutdown() -> void:
+	metrics.emit(now_msec()) # E6.5: linha final de metricas
 	for id: int in _peers.keys():
 		var p: PeerState = _peers[id] as PeerState
 		if sync != null and p != null and not p.character_id.is_empty() and p.welcomed:

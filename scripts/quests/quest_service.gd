@@ -9,6 +9,10 @@ extends RefCounted
 ## chave estavel `quest:<quest_id>:<character_id>` (replay nunca duplica; o backend tambem marca a quest
 ## como concluida na MESMA transacao). Veja docs/E5_QUESTS.md.
 
+## E6.5 (telemetria; nao altera estado): quest concluida/entregue e ponto de exploracao descoberto.
+signal quest_done(entity_id: int, quest_id: String)
+signal poi_found(entity_id: int, poi_id: String)
+
 var transport: ServerTransport
 var catalog: QuestCatalog
 var npcs: NpcDirectory
@@ -190,6 +194,7 @@ func _try_discover(pc: PlayerCtx, poi_id: String) -> Dictionary:
 	pc.tracker.on_poi_discovered(poi_id) # marca (unica vez) e avanca objetivos `discover`
 	pc.blocked_pois.erase(poi_id)
 	_send_quest(pc, Protocol.QUEST_DISCOVERED, {"poi_id": poi_id, "xp": int(p["xp"]), "items": (p["items"] as Array).duplicate(true)})
+	poi_found.emit(pc.entity_id, poi_id)
 	if sync != null and not pc.character_id.is_empty():
 		# Chave ESTAVEL: retry/replay/reconexao reenviam a mesma; o backend nao duplica e marca o ponto como descoberto na mesma transacao.
 		sync.enqueue_reward(pc.character_id, explore_key(poi_id, pc.character_id), int(p["xp"]), (p["items"] as Array).duplicate(true), "", poi_id)
@@ -415,6 +420,7 @@ func _on_completed(quest_id: String, pc: PlayerCtx) -> void:
 	var def: QuestDef = catalog.get_quest(quest_id)
 	_send_quest(pc, Protocol.QUEST_COMPLETED, {"quest_id": quest_id, "xp": def.reward_xp if def != null else 0,
 		"items": def.reward_items.duplicate(true) if def != null else []})
+	quest_done.emit(pc.entity_id, quest_id)
 
 
 func _on_abandoned(quest_id: String, pc: PlayerCtx) -> void:

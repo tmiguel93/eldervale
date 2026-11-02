@@ -14,6 +14,9 @@ extends RefCounted
 ##    -> recarrega o personagem do banco. Sem autosave do personagem enquanto um comando esta em voo.
 ## `send_state` manda `s_talents(TALENTS_STATE)` ao dono; `sync` o reenvia quando o estado ou o nivel mudam (assinatura).
 
+## E6.5 (telemetria): comando de talento aplicado com sucesso (op_name: allocate | choose_spec | respec).
+signal applied(entity_id: int, op_name: String)
+
 var world: ServerWorld
 var transport: ServerTransport
 var sync_backend: BackendSync = null
@@ -137,6 +140,7 @@ func cmd_talent(entity_id: int, req_id: int, op: int, arg: String) -> Dictionary
 	var character_id: String = String(character_of.call(entity_id)) if character_of.is_valid() else ""
 	if sync_backend == null or character_id.is_empty():
 		_apply_local(lo, op, arg)
+		applied.emit(entity_id, _op_name(op))
 		return _ok(pc, req_id)
 	pc.pending = true
 	pc.pending_character = character_id
@@ -170,6 +174,10 @@ func _refund(inv: Inventory) -> bool:
 	return ok
 
 
+static func _op_name(op: int) -> String:
+	return "allocate" if op == Protocol.TALENT_OP_ALLOCATE else ("respec" if op == Protocol.TALENT_OP_RESPEC else "choose_spec")
+
+
 func _apply_local(lo: PlayerLoadout, op: int, arg: String) -> void:
 	match op:
 		Protocol.TALENT_OP_ALLOCATE: lo.talents.apply_allocate(arg)
@@ -199,6 +207,7 @@ func _on_backend_done(r: Dictionary, entity_id: int, req_id: int, op: int, paid:
 			return
 		lo.talents.restore(raw, lo.talent_tree()) # o estado do BANCO e o que vale (inclusive em replay)
 		lo.apply_talents()
+		applied.emit(entity_id, _op_name(op))
 		_ok(pc, req_id)
 		return
 	var status: int = int(r.get("status", 0))

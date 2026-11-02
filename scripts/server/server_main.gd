@@ -9,7 +9,7 @@ extends Node
 
 ## Conexoes ENet alem de max_players, para poder responder reject(3) a quem chega com o servidor cheio.
 const PENDING_SLACK: int = 4
-const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "default-class", "loot-test-force"]
+const EXTRA_KEYS: Array[String] = ["max-seconds", "max-invalid", "hello-timeout", "backend-url", "public-endpoint", "region", "session-id-file", "heartbeat-interval", "autosave-interval", "redeem-timeout", "max-pending", "shutdown-timeout", "dev-mode", "world", "individual-loot", "test-hp-mult", "test-speed-mult", "measure-snapshots", "compact-snapshots", "default-class", "loot-test-force", "metrics-interval"]
 
 var cfg: NetConfig
 var settings: ServerSettings
@@ -184,6 +184,8 @@ func _apply_extras(extras: Dictionary) -> void:
 		settings.world_id = "" if w == "arena" or w.is_empty() else w
 		print("[server] mundo: %s" % ("arena de teste" if settings.world_id.is_empty() else settings.world_id))
 		settings.individual_loot = not settings.world_id.is_empty() # E5.4: o mundo usa loot individual (arena: legado E3/E4)
+	if extras.has("metrics-interval") and String(extras["metrics-interval"]).is_valid_float(): # E6.5: s entre linhas [metrics] (0 = so a final)
+		settings.metrics_interval_sec = clampf(float(String(extras["metrics-interval"])), 0.0, 86400.0)
 	if extras.has("default-class"): # E6.1: classe dos jogadores sem personagem do backend (modo dev); invalida => padrao
 		var dc: String = String(extras["default-class"]).strip_edges()
 		if ClassCatalog.shared().has_class(dc):

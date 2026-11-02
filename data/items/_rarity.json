@@ -98,9 +98,9 @@
       "common": 0.0,
       "uncommon": 0.2,
       "rare": 2.0,
-      "epic": 6.0,
-      "legendary": 15.0,
-      "mythic": 30.0
+      "epic": 3.0,
+      "legendary": 3.0,
+      "mythic": 1.0
     }
   }
 }

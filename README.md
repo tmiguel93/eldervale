@@ -73,6 +73,8 @@ A **árvore de talentos** (E6.2, tecla K) dá 1 ponto por nível a partir do 2; 
 
 **Itens com raridade e affixes** (E6.3): o servidor rola os affixes ao dropar, o banco persiste a instância e itens únicos de teste têm efeito próprio. Detalhes em [`docs/E6_ITEMS.md`](docs/E6_ITEMS.md).
 
+**Balanceamento e métricas** (E6.5): simulador headless determinístico (`tools/balance/balance_sim.gd`, faixas-alvo em `data/balance/balance_config.json`), telemetria do servidor (linha de log `[metrics]`, `--metrics-interval`) e testes de exploits. Detalhes em [`docs/E6_BALANCE.md`](docs/E6_BALANCE.md); fechamento do E6 em [`docs/E6_GATE.md`](docs/E6_GATE.md).
+
 Com um painel aberto o cliente não envia ataque/habilidade/esquiva (clicar em botão não ataca); o movimento continua.
 
 ## Validação de conteúdo (E6.4)

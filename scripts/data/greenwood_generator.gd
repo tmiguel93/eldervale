@@ -27,8 +27,8 @@ func _loot_set() -> bool:
 	var defs: Dictionary = {
 		&"loot_forest_stalker": [1, 45.0, [_entry(&"scrap_material", 40.0, 1, 2), _entry(&"potion_minor", 15.0, 1, 1)]],
 		&"loot_bow_scout": [1, 40.0, [_entry(&"scrap_material", 30.0, 1, 2), _entry(&"potion_minor", 20.0, 1, 1), _entry(&"armor_leather", 4.0, 1, 1)]],
-		&"loot_bark_brute": [2, 30.0, [_entry(&"scrap_material", 40.0, 2, 4), _entry(&"potion_minor", 25.0, 1, 2), _entry(&"armor_heavy", 6.0, 1, 1), _entry(&"sword_basic", 6.0, 1, 1)]],
-		&"loot_grove_shaman": [2, 25.0, [_entry(&"potion_minor", 30.0, 1, 2), _entry(&"scrap_material", 30.0, 1, 3), _entry(&"amulet_vigor", 8.0, 1, 1)]],
+		&"loot_bark_brute": [2, 30.0, [_entry(&"scrap_material", 40.0, 2, 4), _entry(&"potion_minor", 25.0, 1, 2), _entry(&"armor_heavy", 3.0, 1, 1), _entry(&"sword_basic", 3.0, 1, 1)]],
+		&"loot_grove_shaman": [2, 25.0, [_entry(&"potion_minor", 30.0, 1, 2), _entry(&"scrap_material", 30.0, 1, 3), _entry(&"amulet_vigor", 5.0, 1, 1)]],
 		&"loot_burrow_lurker": [1, 35.0, [_entry(&"scrap_material", 30.0, 1, 3), _entry(&"potion_minor", 20.0, 1, 1), _entry(&"armor_leather", 6.0, 1, 1), _entry(&"sword_rare", 2.0, 1, 1)]],
 		&"loot_root_sprout": [1, 90.0, [_entry(&"scrap_material", 10.0, 1, 1)]],
 		&"loot_thorn_alpha": [3, 10.0, [_entry(&"potion_minor", 30.0, 1, 3), _entry(&"scrap_material", 30.0, 3, 6), _entry(&"amulet_vigor", 15.0, 1, 1), _entry(&"armor_heavy", 15.0, 1, 1), _entry(&"sword_rare", 10.0, 1, 1)]],
@@ -156,7 +156,7 @@ func _enemies() -> bool:
 	}) and ok
 
 	# Chefe: 3 fases (100/66/33%). F2 invoca 3 brotos e ganha saraivada + invocacao; F3 ganha pisoteio.
-	ok = _enemy(&"blight_treant", "Anciao Corrompido [PLACEHOLDER]", &"boss", melee, _stats(1200.0, 0.0, 0.0, 18.0, 6.0, 0.0, 2.4), 1200, {
+	ok = _enemy(&"blight_treant", "Anciao Corrompido [PLACEHOLDER]", &"boss", melee, _stats(1800.0, 0.0, 0.0, 18.0, 6.0, 0.0, 2.4), 1200, {
 		"tier": EnemyData.TIER_BOSS,
 		"aggro_range": 20.0, "leash_range": 45.0, "attack_range": 3.5, "attack_cooldown": 1.8, "windup": 0.8,
 		"visual_shape": &"tall", "visual_color": Color(0.25, 0.4, 0.15, 1.0), "visual_scale": 2.2,

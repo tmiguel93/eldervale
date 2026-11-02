@@ -18,10 +18,10 @@ Servidor autoritativo: o cliente nunca rola nada nem informa valores; só PEDE e
 
   | Único | Slot | Efeito |
   |---|---|---|
-  | Presa de Brasa | arma | +25% de dano das habilidades com vida < 40% |
+  | Presa de Brasa | arma | +20% de dano (E6.5; era +25%) das habilidades com vida < 40% |
   | Couraça da Gravitas | armadura | +20% de área das habilidades, −0,3 velocidade |
   | Nó de Pluma | amuleto | −20% custo, −10% recarga, −10 vida máxima |
-  | Aljava Gêmea | amuleto | +1 projétil (50% do dano) |
+  | Aljava Gêmea | amuleto | +1 projétil (30% do dano; E6.5, era 50%) |
   | Marca Gélida | arma | converte o dano para gelo, +10% dano |
 - `node tools/gen_items_catalog.mjs [--check]` valida os três JSON (orçamento ≥ custos, faixas, grupos, slots, tabelas de loot, itens) e gera `shared/content_schemas/items.json` (campos novos `rarities`, `affixes`, `uniques`, `ilvl_max`, `max_affixes`; `schema_version` continua 1; itens únicos marcados `unique: true`).
 

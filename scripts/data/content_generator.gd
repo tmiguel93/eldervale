@@ -25,8 +25,8 @@ func _initialize() -> void:
 		_entry(&"scrap_material", 40.0, 1, 3), _entry(&"potion_minor", 20.0, 1, 1),
 		_entry(&"sword_basic", 5.0, 1, 1), _entry(&"armor_leather", 5.0, 1, 1)])
 	var caster_loot: LootTable = _loot(&"loot_ranged_caster", 2, 30.0, [
-		_entry(&"potion_minor", 30.0, 1, 2), _entry(&"amulet_vigor", 6.0, 1, 1),
-		_entry(&"sword_rare", 1.5, 1, 1), _entry(&"armor_heavy", 3.0, 1, 1)])
+		_entry(&"potion_minor", 30.0, 1, 2), _entry(&"amulet_vigor", 2.0, 1, 1),
+		_entry(&"sword_rare", 0.5, 1, 1), _entry(&"armor_heavy", 1.0, 1, 1)])
 	ok = _save(grunt_loot, "res://data/loot/loot_melee_grunt.tres") and ok
 	ok = _save(caster_loot, "res://data/loot/loot_ranged_caster.tres") and ok
 

@@ -6,6 +6,9 @@ extends RefCounted
 ## espaco para devolver o item anterior. Em qualquer falha nada muda (Equipment e atomico). O sucesso recalcula stats e habilidades
 ## (PlayerLoadout) e enfileira um checkpoint coalescido; nao ha duplicacao: o item sai do inventario e entra no slot na MESMA operacao.
 
+## E6.5 (telemetria): equipar/desequipar concluido. `rarity` = raridade da instancia (ou "common" se item simples).
+signal equipped(entity_id: int, op: int, item_id: String, rarity: String)
+
 var world: ServerWorld
 var transport: ServerTransport
 var sync: BackendSync = null
@@ -47,8 +50,10 @@ func cmd_equip(entity_id: int, req_id: int, op: int, index: int, item_id: String
 			return _fail(entity_id, req_id, op, "bad_index")
 		if String(st.item_id) != item_id:
 			return _fail(entity_id, req_id, op, "item_mismatch")
+		var rarity: String = String(st.inst.get("rarity", "common")) if not st.inst.is_empty() else "common"
 		if not eq.equip_index(index):
 			return _fail(entity_id, req_id, op, _code_for(eq.last_error))
+		equipped.emit(entity_id, op, item_id, rarity)
 	else:
 		var slot_value: int = Equipment.SLOTS[index]
 		var cur: StringName = eq.get_equipped(slot_value)
@@ -58,6 +63,7 @@ func cmd_equip(entity_id: int, req_id: int, op: int, index: int, item_id: String
 			return _fail(entity_id, req_id, op, "item_mismatch")
 		if not eq.unequip(slot_value):
 			return _fail(entity_id, req_id, op, _code_for(eq.last_error))
+		equipped.emit(entity_id, op, String(cur), "common")
 	stats["ok"] = int(stats["ok"]) + 1
 	_send(entity_id, Protocol.EQUIP_OK, {"req_id": req_id, "op": op})
 	var cid: String = String(character_of.call(entity_id)) if character_of.is_valid() else ""

@@ -19,12 +19,12 @@ max_qty = 2
 [sub_resource type="Resource" id="Resource_k05qh"]
 script = ExtResource("1_rl6bh")
 item_id = &"armor_heavy"
-weight = 6.0
+weight = 3.0
 
 [sub_resource type="Resource" id="Resource_1qrl2"]
 script = ExtResource("1_rl6bh")
 item_id = &"sword_basic"
-weight = 6.0
+weight = 3.0
 
 [resource]
 script = ExtResource("2_1tiv7")

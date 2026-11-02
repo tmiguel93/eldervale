@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "_comment": "E6.5. Configuracao do simulador de balanceamento (tools/balance/balance_sim.gd): premissas do modelo, builds representativas e FAIXAS-ALVO (criterios) usadas por docs/E6_BALANCE.md e tests/e6_balance. Nada aqui altera o jogo: e leitura de ferramenta. Os numeros do jogo ficam em data/classes, data/skills, data/talents, data/items, data/enemies, data/loot.",
+  "seed": 20261102,
+  "sim": {
+    "dt": 0.05,
+    "max_time_s": 900.0,
+    "dodge_interval_s": 5.0,
+    "engage_distance_m": 6.0,
+    "extra_projectile_hit_rate": 0.5,
+    "extra_projectile_hit_rate_boss": 1.0,
+    "pack_size": 3,
+    "pack_enemy": "melee_grunt",
+    "pack_hp_mult": 10.0,
+    "pierce_hit_rate": 0.5,
+    "enemy_hit_rate": 0.5,
+    "gear_samples": 20,
+    "loot_kills": 3000,
+    "loot_kills_boss": 3000
+  },
+  "levels": [5, 10, 20],
+  "standard_level": 5,
+  "build_criteria_levels": [10, 20],
+  "reference_boss": "blight_treant",
+  "sample_targets": ["blight_treant", "melee_grunt", "pack"],
+  "gear": {
+    "common": {"weapon": "sword_basic", "armor": "armor_leather", "trinket": "amulet_vigor"},
+    "fixed_best": {"weapon": "sword_rare", "armor": "armor_heavy", "trinket": "amulet_vigor"},
+    "rolled_base": {"weapon": "sword_basic", "armor": "armor_leather", "trinket": "amulet_vigor"},
+    "rolled_rarities": ["uncommon", "rare", "epic", "legendary", "mythic"]
+  },
+  "builds": {
+    "warrior": [
+      {"id": "none", "spec": "", "order": []},
+      {"id": "generic_tank", "spec": "", "order": [["w_vigor", 3], ["w_iron_skin", 3], ["w_quick_roll", 2], ["w_stamina", 3], ["w_might", 3]]},
+      {"id": "berserker_burst", "spec": "berserker", "order": [["w_might", 3], ["b_frenzy", 3], ["b_rage", 2], ["b_carnage", 2], ["b_searing", 1], ["w_stamina", 3], ["w_wide_swing", 2], ["b_bloodlust", 3], ["b_cyclone", 2], ["b_warlord", 1]]},
+      {"id": "berserker_mobile", "spec": "berserker", "order": [["w_might", 2], ["b_bloodlust", 3], ["b_reckless", 2], ["w_stamina", 3], ["w_wide_swing", 2], ["b_cyclone", 2], ["b_frenzy", 3], ["b_rage", 2], ["b_warlord", 1]]},
+      {"id": "berserker_sturdy", "spec": "berserker", "order": [["w_vigor", 3], ["w_iron_skin", 3], ["w_might", 3], ["b_frenzy", 3], ["b_rage", 2], ["w_quick_roll", 2], ["b_carnage", 2]]}
+    ],
+    "mage": [
+      {"id": "none", "spec": "", "order": []},
+      {"id": "generic_sustain", "spec": "", "order": [["m_warding", 3], ["m_focus", 3], ["m_reservoir", 3], ["m_intellect", 3], ["m_quick_cast", 2], ["m_blink_ward", 2]]},
+      {"id": "elementalist_fire", "spec": "elementalist", "order": [["m_intellect", 3], ["e_ember", 3], ["e_twin_fireball", 2], ["e_conflagration", 2], ["e_arc_flow", 2], ["m_reservoir", 3], ["m_focus", 3], ["e_frozen_expanse", 2], ["e_shatter", 2], ["e_archmage", 1]]},
+      {"id": "elementalist_combo", "spec": "elementalist", "order": [["m_focus", 3], ["e_frozen_expanse", 2], ["e_shatter", 2], ["m_intellect", 3], ["e_ember", 3], ["e_twin_fireball", 2], ["m_reservoir", 3], ["e_arc_flow", 2], ["e_archmage", 1]]},
+      {"id": "elementalist_bolt", "spec": "elementalist", "order": [["m_intellect", 3], ["m_quick_cast", 2], ["e_storm_bolt", 1], ["e_ember", 3], ["m_focus", 3], ["m_warding", 3], ["e_twin_fireball", 2], ["e_chill", 3]]}
+    ],
+    "ranger": [
+      {"id": "none", "spec": "", "order": []},
+      {"id": "generic_skirmisher", "spec": "", "order": [["r_hide", 3], ["r_swift", 3], ["r_stamina", 3], ["r_precision", 3], ["r_deep_quiver", 2], ["r_long_roll", 2]]},
+      {"id": "hunter_deadeye", "spec": "hunter", "order": [["r_precision", 3], ["h_marksman", 3], ["h_volley", 2], ["h_kill_shot", 2], ["h_fire_arrows", 1], ["r_swift", 3], ["r_long_roll", 2], ["h_ambush", 2], ["h_deadeye", 1]]},
+      {"id": "hunter_ambush", "spec": "hunter", "order": [["r_swift", 3], ["r_long_roll", 2], ["r_precision", 3], ["h_ambush", 2], ["h_marksman", 3], ["r_deep_quiver", 2], ["h_volley", 2], ["h_deadeye", 1]]},
+      {"id": "hunter_rain", "spec": "hunter", "order": [["r_stamina", 1], ["h_wide_rain", 1], ["h_keen_eye", 1], ["h_efficient", 2], ["r_precision", 3], ["h_marksman", 3], ["h_kill_shot", 2]]}
+    ]
+  },
+  "criteria": {
+    "class_dps_parity_pct": 25.0,
+    "build_spread_max_ratio": 2.0,
+    "build_power_spread_max_ratio": 1.35,
+    "build_min_distinct_pct": 3.0,
+    "tier_monotonic_min_gain_pct": -3.0,
+    "tier_legendary_over_common_min_ratio": 1.2,
+    "tier_legendary_over_common_max_ratio": 2.2,
+    "tier_rare_over_common_max_ratio": 1.6,
+    "unique_max_dps_gain_pct": 30.0,
+    "unique_min_abs_effect_pct": 0.0,
+    "talent_max_gain_per_point_vs_median": 4.0,
+    "boss_ttk_1p_window_s": [40.0, 120.0],
+    "boss_ttk_4p_window_s": [25.0, 120.0],
+    "boss_ttk_4p_over_1p_window": [0.6, 1.4],
+    "boss_duel_ratio_window": [0.4, 1.2],
+    "grunt_ttk_max_s": 8.0,
+    "duel_ratio_max_normal": 0.5,
+    "xp_ratio_first_step_max": 3.0,
+    "xp_ratio_max_after_first_step": 2.0,
+    "greenwood_arc_final_level_window": [6, 9],
+    "loot_normal_rare_plus_per_kill_max": 0.02,
+    "loot_normal_epic_plus_per_kill_max": 0.005,
+    "loot_boss_legendary_kills_window": [3.0, 20.0],
+    "loot_boss_mythic_kills_min": 50.0,
+    "loot_boss_epic_plus_kills_window": [1.0, 6.0],
+    "loot_mini_boss_epic_plus_kills_window": [2.0, 10.0],
+    "loot_mini_boss_legendary_plus_kills_window": [5.0, 40.0],
+    "loot_mini_boss_mythic_kills_min": 100.0,
+    "unique_kills_window": [8.0, 100.0],
+    "unique_min_decision_effect_pct": 3.0
+  }
+}

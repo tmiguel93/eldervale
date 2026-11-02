@@ -32,7 +32,7 @@ HP 420 / ATQ 14 / DEF 4 / VEL 3,2; aggro 14, leash 30; XP 400; loot `loot_thorn_
 | 2 `alpha_p2` | <= 50% | transicao 0,8 s (parado + invulneravel); velocidade x1,25; dano x1,2; pausas x0,8; invoca 2 `forest_stalker` | + `gore` (investida 8 m a 15 m/s, x1,4, alcance 5-12): 0,8 s, recarga 7 s |
 
 ## Chefe `blight_treant` (Anciao Corrompido, tier `boss`)
-HP 1200 / ATQ 18 / DEF 6 / VEL 2,4; aggro 20, leash 45; escala visual 2,2 (hurtbox maior); XP 1200; loot `loot_blight_treant` (4 rolls, sem "nada"; potion 2-4, scrap 4-8, amulet_vigor, armor_heavy, sword_rare).
+HP 1800 (E6.5; era 1200) / ATQ 18 / DEF 6 / VEL 2,4; aggro 20, leash 45; escala visual 2,2 (hurtbox maior); XP 1200; loot `loot_blight_treant` (4 rolls, sem "nada"; potion 2-4, scrap 4-8, amulet_vigor, armor_heavy, sword_rare).
 | Fase | Entra em | Mudancas | Ataques |
 |---|---|---|---|
 | 1 `treant_p1` | 100% | - | `sweep` (caixa 3,6 x 4,0): 0,8 s, pausa 1,8 s; `stomp` (AOE raio 4,5 em volta dele, x1,2): 1,1 s, pausa 2,2 s, recarga 6 s |

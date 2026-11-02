@@ -25,7 +25,7 @@ Habilidades continuam `SkillData` (`.tres`); novos campos: `projectile_speed/ran
 |---|---|---|---|---|---|
 | Guerreiro (`warrior`) | stamina | 100 / 50 / 5 / 10 | LMB `basic_attack` 0, 0,35 s melee · Q `heavy_strike` 15, 3 s melee ×2,5 · E `whirlwind` 25, 6 s área ao redor ×1,5 · Espaço `dodge` 10, 0,8 s esquiva 4 m | `berserker` | `guardian`, `arcane_knight` |
 | Mago (`mage`) | mana | 80 / 100 / 6 / 13 | LMB `arcane_bolt` 0, 0,5 s projétil 20 m/s alc. 14 · Q `fireball` 20, 3,5 s projétil 15 m/s alc. 16 ×2,4 · E `frost_nova` 30, 8 s área r 3,4 ×1,6 · Espaço `blink` 15, 2,5 s deslocamento 7 m | `elementalist` | `summoner`, `arcanist` |
-| Patrulheiro (`ranger`) | stamina | 90 / 70 / 8 / 11 | LMB `quick_shot` 0, 0,45 s projétil 26 m/s alc. 18 · Q `piercing_arrow` 18, 4 s projétil 30 m/s, perfura 2 alvos ×1,8 · E `arrow_rain` 28, 9 s área r 3 a 6 m ×1,7 · Espaço `roll` 10, 0,9 s esquiva 4,5 m | `hunter` | `explorer`, `arcane_archer` |
+| Patrulheiro (`ranger`) | stamina | 90 / 70 / 8 / 11 | LMB `quick_shot` 0, 0,45 s projétil 26 m/s alc. 18 · Q `piercing_arrow` 18, 4 s projétil 30 m/s, perfura 2 alvos ×1,8 · E `arrow_rain` 28, 9 s área r 3 a 6 m ×2,0 (E6.5; era ×1,7) · Espaço `roll` 10, 0,9 s esquiva 4,5 m | `hunter` | `explorer`, `arcane_archer` |
 
 Valores de balanceamento são provisórios (nenhuma medição de DPS/uso nesta etapa). O guerreiro usa exatamente os stats base históricos do backend
 (saves existentes não mudam); `move_speed` por classe existe no dado mas o `Player` ainda não o consome.

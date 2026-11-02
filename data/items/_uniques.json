@@ -5,7 +5,7 @@
     {
       "id": "unique_emberfang",
       "name": "Presa de Brasa",
-      "description": "Quando sua vida está abaixo de 40%, todas as habilidades causam +25% de dano.",
+      "description": "Quando sua vida está abaixo de 40%, todas as habilidades causam +20% de dano.",
       "effects": [
         {
           "type": "skill_mod",
@@ -13,7 +13,7 @@
           "mod": "condition",
           "when": "self_hp_below",
           "threshold": 0.4,
-          "damage_pct": 0.25
+          "damage_pct": 0.2
         }
       ],
       "obtain": {
@@ -21,11 +21,11 @@
         "sources": [
           {
             "loot_table": "loot_thorn_alpha",
-            "chance": 0.2
+            "chance": 0.06
           },
           {
             "loot_table": "loot_blight_treant",
-            "chance": 0.3
+            "chance": 0.12
           }
         ]
       }
@@ -47,11 +47,11 @@
         "sources": [
           {
             "loot_table": "loot_blight_treant",
-            "chance": 0.25
+            "chance": 0.1
           },
           {
             "loot_table": "loot_thorn_alpha",
-            "chance": 0.1
+            "chance": 0.04
           }
         ]
       }
@@ -74,7 +74,7 @@
         "sources": [
           {
             "loot_table": "loot_thorn_alpha",
-            "chance": 0.2
+            "chance": 0.06
           },
           {
             "loot_table": "loot_bark_brute",
@@ -86,7 +86,7 @@
     {
       "id": "unique_twin_quiver",
       "name": "Aljava Gêmea",
-      "description": "Habilidades de projétil disparam 1 projétil extra em leque (50% do dano).",
+      "description": "Habilidades de projétil disparam 1 projétil extra em leque (30% do dano).",
       "effects": [
         {
           "type": "skill_mod",
@@ -94,7 +94,7 @@
           "mod": "extra_projectiles",
           "count": 1,
           "spread_deg": 12,
-          "damage_scale": 0.5
+          "damage_scale": 0.3
         }
       ],
       "obtain": {
@@ -102,7 +102,7 @@
         "sources": [
           {
             "loot_table": "loot_blight_treant",
-            "chance": 0.25
+            "chance": 0.1
           }
         ]
       }
@@ -125,11 +125,11 @@
         "sources": [
           {
             "loot_table": "loot_blight_treant",
-            "chance": 0.25
+            "chance": 0.1
           },
           {
             "loot_table": "loot_thorn_alpha",
-            "chance": 0.1
+            "chance": 0.04
           }
         ]
       }

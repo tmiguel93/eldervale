@@ -73,6 +73,8 @@ var inventory_sync_ticks: int = 6
 var test_enemy_hp_mult: float = 1.0
 var test_move_speed_mult: float = 1.0
 ## E5.6: mede o tamanho (aproximado) dos snapshots por peer (var_to_bytes) para o relatorio do gate. Desligado por padrao.
+## E6.5: telemetria essencial (ServerMetrics): intervalo (s) da linha `[metrics]` no log. 0 = so a linha final no shutdown.
+var metrics_interval_sec: float = 60.0
 var measure_snapshots: bool = false
 ## E5.7: permite o snapshot compacto (s_snapshot_c) para os peers que declaram `CAP_SNAPSHOT_COMPACT`. Desligar força o
 ## `s_snapshot` legado para todos (kill-switch e comparacao antes/depois: `--compact-snapshots 0`).

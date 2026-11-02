@@ -79,7 +79,7 @@ func _test_equip_exact(ctx: Object, world: Node3D) -> void:
 
 
 func _test_uniques(ctx: Object, world: Node3D) -> void:
-	# emberfang: +25% dano com vida < 40%
+	# emberfang: +20% dano com vida < 40% (E6.5: era +25%, ver docs/E6_BALANCE.md)
 	var lo: PlayerLoadout = _hero(world)
 	var heavy: SkillData = ClassCatalog.load_skill(&"heavy_strike")
 	lo.inventory.add(&"unique_emberfang", 1)
@@ -88,7 +88,7 @@ func _test_uniques(ctx: Object, world: Node3D) -> void:
 	var full: float = lo.combat.resolve_skill(heavy).skill.damage_multiplier
 	lo.health.current_health = lo.health.max_health() * 0.3
 	var low: float = lo.combat.resolve_skill(heavy).skill.damage_multiplier
-	ctx.check(is_equal_approx(full, d_before) and absf(low / full - 1.25) < 0.001, "Presa de Brasa: +25%% dano so com vida < 40%% (cheia x%.2f, baixa x%.3f)" % [full / d_before, low / full])
+	ctx.check(is_equal_approx(full, d_before) and absf(low / full - 1.20) < 0.001, "Presa de Brasa: +20%% dano so com vida < 40%% (cheia x%.2f, baixa x%.3f)" % [full / d_before, low / full])
 	ctx.check(lo.final_stats.attack_power > 0.0 and lo.equipment.get_equipped(ItemData.Slot.WEAPON) == &"unique_emberfang", "stats fixos do unico aplicados")
 	# gravitas: +20% area, -0.3 move_speed
 	var lo2: PlayerLoadout = _hero(world)

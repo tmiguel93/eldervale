@@ -19,6 +19,8 @@ signal event_to_player(entity_id: int, kind: int, data: Dictionary)
 signal pickup_collected(pickup_id: int, owner_id: int, item_id: String, qty: int, inst: Dictionary)
 ## E5.4: `player_id` (nao matador) recebeu `xp` por participar da morte de `enemy_id` (ja somado na memoria do servidor).
 signal participant_rewarded(enemy_id: int, player_id: int, xp: int)
+## E6.5 (telemetria): habilidade realmente iniciada (passou classe/estado/cooldown/custo) por um jogador do servidor.
+signal skill_used(entity_id: int, class_id: String, skill_id: String)
 
 const PLAYER_SCENE_PATH: String = "res://scenes/player/player.tscn"
 ## Nos puramente cosmeticos removidos das instancias do servidor.
@@ -180,6 +182,13 @@ func get_player_ids() -> Array[int]:
 
 
 ## Cria o jogador do servidor para `peer_id`. Devolve o entity_id (> 0) ou 0 em falha.
+## E6.5: repassa o uso de habilidade (so telemetria; nao altera estado).
+func _on_skill_started(skill: SkillData, entity_id: int) -> void:
+	var slot: PlayerSlot = _players.get(entity_id) as PlayerSlot
+	var cid: String = slot.loadout.class_id() if slot != null and slot.loadout != null else ""
+	skill_used.emit(entity_id, cid, String(skill.id))
+
+
 func add_player(peer_id: int, player_name: String, starting_items: bool = true) -> int:
 	if _players.size() >= settings.max_players:
 		return 0
@@ -207,6 +216,7 @@ func add_player(peer_id: int, player_name: String, starting_items: bool = true) 
 		player.position = director.spawn_for(slot.zone_id, director.spawn_name_for_new(), slot.spawn_index)
 	slot.combat = player.get_node("Combat") as PlayerCombat
 	slot.combat.read_input_actions = false # acoes vem do input validado, nunca de Input
+	slot.combat.skill_started.connect(_on_skill_started.bind(slot.id))
 	add_child(player)
 	slot.node = player
 	slot.health = player.get_node("Health") as HealthComponent
